@@ -933,6 +933,31 @@
 }
 .quick-fix:hover{ filter:brightness(0.95); }
 
+
+  /* --- Messages toggle bar (below timeline) --- */
+  .messages-toggle-bar{
+    margin-top: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--sap-border);
+    border-radius: 10px;
+    background: #fafafb;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+  }
+  .messages-toggle-bar input[type="checkbox"]{ transform: scale(1.1); }
+
+  /* Hide validation/messages when OFF */
+  .messages-off #validationMessages,
+  .messages-off .validation-warning { display: none !important; }
+
+  /* Subtle timeline readability polish */
+  .timeline-row:nth-child(even){ background: #fcfcfd; }
+  .timeline-block{ transition: opacity .2s, transform .2s, box-shadow .2s; }
+  .timeline-block:hover{ box-shadow:0 2px 6px rgba(0,0,0,0.25); }
+  .block-label-external{ backdrop-filter: saturate(120%) blur(0px); }
+
 </style>
 
 <script src="https://res.cdn.office.net/teams-js/2.0.0/js/MicrosoftTeams.min.js" 
@@ -1081,7 +1106,12 @@
         </div>
       
         <button class="btn success" id="reportBtn" onclick="generatePDFReport()" style="margin-left:auto">📄 PDF Report</button>
+      
+      <div id="messagesToggleBar" class="messages-toggle-bar">
+        <label for="messagesToggleChk" style="margin:0;">Show messages & warnings</label>
+        <input type="checkbox" id="messagesToggleChk" aria-label="Show messages and warnings">
       </div>
+
     </div>
 
     <!-- Model Parameters Section -->
@@ -1133,6 +1163,26 @@
 <script>
 'use strict';
 
+// --- Messages toggle (simple below-timeline control) ---
+function setShowMessages(flag){
+  if (!window.AppState) window.AppState = {};
+  window.AppState.showMessages = !!flag;
+  try { localStorage.setItem('showMessages', window.AppState.showMessages ? '1' : '0'); } catch(e){}
+  updateMessagesUI();
+  try { displayValidationWarnings(); } catch(e){}
+}
+function updateMessagesUI(){
+  const chk = document.getElementById('messagesToggleChk');
+  if (window.AppState.showMessages){
+    document.body.classList.remove('messages-off');
+    if (chk) chk.checked = true;
+  } else {
+    document.body.classList.add('messages-off');
+    if (chk) chk.checked = false;
+  }
+}
+
+
 // Initialize Microsoft Teams if running inside Teams
 if (typeof microsoftTeams !== 'undefined' && microsoftTeams.app && typeof microsoftTeams.app.initialize === 'function') {
   const validOrigins = ['https://snpcom.sharepoint.com'];
@@ -1155,7 +1205,8 @@ window.AppState = {
   completionTimes: {},
   isFirstUser: false,
   syncedTimelinePosition: 0,
-  renderLock: false
+  renderLock: false,
+  showMessages: false
 };
 
 // Constants
@@ -1173,6 +1224,17 @@ window.addEventListener('beforeunload', function (e) {
 
 // Initialize application
 document.addEventListener('DOMContentLoaded', function() {
+  // Messages default OFF unless saved value is '1'
+  try{
+    const saved = localStorage.getItem('showMessages');
+    const initial = (saved === '1'); // default false if null/other
+    setShowMessages(initial);
+  }catch(e){
+    setShowMessages(false);
+  }
+  const chk = document.getElementById('messagesToggleChk');
+  if (chk){ chk.addEventListener('change', (e)=> setShowMessages(!!e.target.checked)); }
+
   initializeApp();
   updateClock();
   setInterval(updateClock, 1000);
@@ -1321,6 +1383,7 @@ function displayValidationWarnings() {
   const container = document.getElementById('validationMessages');
   
   if (!container) return;
+  if (!window.AppState || window.AppState.showMessages === false){ container.innerHTML=''; return; }
   
   container.innerHTML = '';
   if (warnings.length > 0) {
@@ -2726,7 +2789,8 @@ document.getElementById("rt-reset").onclick = async function() {
     completionTimes: {},
     isFirstUser: false,
     syncedTimelinePosition: 0,
-    renderLock: false
+    renderLock: false,
+  showMessages: false
   };
   
   // Reset UI
