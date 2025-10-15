@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <base href="./">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Technical Downtime Tracking App - Production</title>
@@ -578,10 +577,39 @@
   }
   
   /* Block label outside */
-  .block-label-external{position:absolute;left:100%;margin-left:6px;white-space:nowrap;color:#000;font-size:11px;font-weight:600;top:50%;transform:translateY(-50%);pointer-events:none;background:rgba(255,255,255,0.9);padding:0 4px;border-radius:3px;}
+  .block-label-external{
+    position:absolute;
+    left:100%;
+    margin-left:6px;
+    white-space:nowrap;
+    color:var(--sap-text);
+    font-size:11px;
+    font-weight:500;
+    top:50%;
+    transform:translateY(-50%);
+    pointer-events:none;
+    background: rgba(255,255,255,0.9);
+    padding: 0 4px;
+    border-radius: 3px;
+  }
   
   /* Quality gate label - horizontal and to the LEFT of diamond */
-  .quality-gate-label{position:absolute;right:100%;margin-right:8px;white-space:nowrap;color:#000;font-size:11px;font-weight:700;top:50%;transform:translateY(-50%);pointer-events:none;background:rgba(255,255,255,0.95);padding:2px 6px;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+  .quality-gate-label{
+    position:absolute;
+    right:100%;
+    margin-right:8px;
+    white-space:nowrap;
+    color:var(--sap-text);
+    font-size:11px;
+    font-weight:600;
+    top:50%;
+    transform:translateY(-50%);
+    pointer-events:none;
+    background: rgba(255,255,255,0.95);
+    padding: 2px 6px;
+    border-radius: 3px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
   
   /* Critical path indicators */
   .timeline-block.critical {
@@ -1604,8 +1632,6 @@ function createTimelineControlRow(runbook) {
   startCell.className = 'timeline-control-cell';
   const startInput = document.createElement('input');
   startInput.type = 'text';
-  startInput.setAttribute('inputmode','numeric');
-  startInput.setAttribute('title','Type HH:MM (e.g., 01:30) or 130. Updates timeline as you type.');
   startInput.pattern = '[0-9]{1,3}:[0-9]{2}';
   startInput.placeholder = 'HH:MM';
   startInput.value = `${String(runbook.scheduleHours).padStart(2,'0')}:${String(runbook.scheduleMinutes).padStart(2,'0')}`;
@@ -1620,8 +1646,6 @@ function createTimelineControlRow(runbook) {
   planCell.className = 'timeline-control-cell';
   const planInput = document.createElement('input');
   planInput.type = 'text';
-  planInput.setAttribute('inputmode','numeric');
-  planInput.setAttribute('title','Type HH:MM (e.g., 01:30) or 130. Updates duration as you type.');
   planInput.pattern = '[0-9]{1,3}:[0-9]{2}';
   planInput.placeholder = 'HH:MM';
   planInput.value = `${String(runbook.durationHours).padStart(2,'0')}:${String(runbook.durationMinutes).padStart(2,'0')}`;
@@ -3122,17 +3146,6 @@ generateTimelineRows = function(){
   }
 };
 
-</script>
-
-
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function () {
-      navigator.serviceWorker.register('./sw.js').catch(function(err){
-        console.warn('SW registration failed', err);
-      });
-    });
-  }
 </script>
 
 </body>
