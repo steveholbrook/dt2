@@ -1,5 +1,5 @@
-/* Pre-cache small static assets + network-first for HTML */
-const CACHE_NAME = 'dt-precache-v1';
+/* GH Pages friendly service worker */
+const CACHE_NAME = 'dt-ghpages-v1';
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -27,11 +27,10 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  // For navigations: try network first, fall back to offline page
-  if (request.mode === 'navigate' || (request.destination === 'document')) {
+  if (request.mode === 'navigate' || request.destination === 'document') {
     event.respondWith((async () => {
       try {
-        const net = await fetch(request);
+        const net = await fetch(request, { cache: 'reload' });
         return net;
       } catch (e) {
         const cache = await caches.open(CACHE_NAME);
@@ -41,8 +40,6 @@ self.addEventListener('fetch', (event) => {
     })());
     return;
   }
-
-  // For our small static assets: respond from cache, fall back to network
   if (PRECACHE_URLS.some(url => request.url.endsWith(url.replace('./','')))) {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE_NAME);
@@ -54,6 +51,4 @@ self.addEventListener('fetch', (event) => {
     })());
     return;
   }
-
-  // Default: passthrough
 });
