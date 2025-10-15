@@ -905,6 +905,12 @@
 }
 .quick-fix:hover{ filter:brightness(0.95); }
 
+
+/* --- Requested: Hide conflict overlays/indicators and any CLASH markers --- */
+.conflict-indicator, .conflict-overlay { display: none !important; }
+/* If any elements are marked explicitly for clash, hide them too */
+.clash, .CLASH, .timeline-track .clash, .timeline-track .CLASH { display: none !important; }
+
 </style>
 
 <script src="https://res.cdn.office.net/teams-js/2.0.0/js/MicrosoftTeams.min.js" 
@@ -1289,10 +1295,10 @@ function validateSchedules() {
 }
 
 function displayValidationWarnings() {
-  const warnings = validateSchedules();
   const container = document.getElementById('validationMessages');
-  
   if (!container) return;
+  if (window.AppState.downtimeStarted) { container.innerHTML = ''; return; }
+  const warnings = validateSchedules();
   
   container.innerHTML = '';
   if (warnings.length > 0) {
@@ -1301,6 +1307,7 @@ function displayValidationWarnings() {
     warningDiv.innerHTML = '<strong>⚠️ Validation Warnings:</strong><br>' + warnings.join('<br>');
     container.appendChild(warningDiv);
   }
+}
 }
 
 // Check if element is actively being edited
@@ -1482,6 +1489,20 @@ window.clearRunbook = function() {
 };
 
 // Timeline Functions
+
+// Remove any dynamically injected CLASH overlays/labels to keep timeline clear
+function sanitizeConflicts() {
+  try {
+    document.querySelectorAll('.conflict-indicator, .conflict-overlay, .clash, .CLASH').forEach(el => el.remove());
+    // Remove inline 'CLASH' labels if any were added as children
+    document.querySelectorAll('.timeline-block').forEach(b => {
+      Array.from(b.children).forEach(child => {
+        if (child.textContent && child.textContent.trim().toUpperCase() === 'CLASH') child.remove();
+      });
+    });
+  } catch (e) { /* no-op */ }
+}
+
 window.updateTimeline = function() {
   const duration = parseInt(document.getElementById('downtimeDuration').value) || 24;
   window.AppState.downtimeDuration = duration;
@@ -1501,6 +1522,8 @@ window.updateTimeline = function() {
   if (window.AppState.downtimeStarted) {
     updateProgressIndicators();
   }
+  sanitizeConflicts();
+
 };
 
 function generateTimeScale(hours) {
@@ -1580,7 +1603,7 @@ function createTimelineRow(runbook, index) {
     const label = document.createElement('div');
     label.className = 'quality-gate-label';
     label.textContent = runbook.runblock;
-    label.title = `${runbook.runblock} - ${runbook.phase}`;
+    label.title = `${runbook.runblock || ""}${runbook.responsibility ? " — " + runbook.responsibility : ""}`;
     diamond.appendChild(label);
     
     track.appendChild(diamond);
@@ -1683,15 +1706,10 @@ function createTimelineBlock(runbook) {
   
   // Show sequence and phase inside
   block.textContent = `#${runbook.sequence} | ${runbook.phase}`;
-  block.title = `${runbook.runblock} - ${runbook.phase}`;
+  block.title = `${runbook.runblock || ""}${runbook.responsibility ? " — " + runbook.responsibility : ""}`;
   
-  // Add external label for runblock name
-  const blockLabel = document.createElement('div');
-  blockLabel.className = 'block-label-external';
-  blockLabel.textContent = runbook.runblock;
-  block.appendChild(blockLabel);
-  
-  if (runbook.critical) {
+  // (external runblock label removed per request)
+if (runbook.critical) {
     const indicator = document.createElement('div');
     indicator.className = 'critical-indicator';
     indicator.textContent = '!';
@@ -1995,6 +2013,8 @@ window.updateProgressIndicators = function() {
     document.getElementById('statusText').textContent = 'Completed';
     document.getElementById('statusText').style.color = 'var(--sap-accent)';
   }
+  sanitizeConflicts();
+
 };
 
 // Import/Export Functions
