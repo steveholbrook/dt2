@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<base href="./">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<base href="./">
 <title>Technical Downtime Tracking App - Production</title>
   <!-- PWA manifest and theme color -->
   <link rel="manifest" href="./manifest.webmanifest">
@@ -890,11 +890,6 @@
       gap: 10px;
     }
   }
-
-  /* --- GH Pages + label clarity enhancements --- */
-  .timeline-block .block-label-external{ left: 100%; margin-left: 6px; }
-  .quality-diamond .quality-gate-label{ right: 100%; margin-right: 8px; }
-
 </style>
 
 <script src="https://res.cdn.office.net/teams-js/2.0.0/js/MicrosoftTeams.min.js" 
@@ -1597,7 +1592,7 @@ function createTimelineControlRow(runbook) {
   startInput.placeholder = 'HH:MM';
   startInput.value = `${String(runbook.scheduleHours).padStart(2,'0')}:${String(runbook.scheduleMinutes).padStart(2,'0')}`;
   startInput.onchange = function() { updateScheduleTime(runbook.id, this.value); };
-  startInput.oninput = startInput.onchange; // live update
+  startInput.oninput = startInput.onchange;
   startInput.disabled = runbook.completed;
   startCell.appendChild(startInput);
   row.appendChild(startCell);
@@ -1611,7 +1606,7 @@ function createTimelineControlRow(runbook) {
   planInput.placeholder = 'HH:MM';
   planInput.value = `${String(runbook.durationHours).padStart(2,'0')}:${String(runbook.durationMinutes).padStart(2,'0')}`;
   planInput.onchange = function() { updateDurationTime(runbook.id, this.value); };
-  planInput.oninput = planInput.onchange; // live update
+  planInput.oninput = planInput.onchange;
   planInput.disabled = runbook.completed;
   planCell.appendChild(planInput);
   row.appendChild(planCell);
@@ -2697,6 +2692,17 @@ console.log("Firebase sync initialized - Mode:", window.canWrite() ? "HOST" : "V
 </script>
 
 <script src="./sw-register.js"></script>
+
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('./sw.js').catch(function(err){
+        console.warn('SW registration failed', err);
+      });
+    });
+  }
+</script>
 
 </body>
 </html>
