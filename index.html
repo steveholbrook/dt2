@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<base href="./">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Technical Downtime Tracking App - Production</title>
@@ -1760,27 +1759,36 @@ function handleDrop(e) {
 window.updateScheduleTime = function(id, value) {
   const runbook = window.AppState.runbooks.find(r => r.id === id);
   if (runbook) {
-    const parts = value.split(':');
-    const hours = parseInt(parts[0]) || 0;
-    const minutes = parseInt(parts[1]) || 0;
-    
-    runbook.scheduleHours = hours;
-    runbook.scheduleMinutes = minutes;
-    
-    setTimeout(() => updateTimeline(), 100);
+    const t = parseHHMM(value);
+    runbook.scheduleHours = t.h;
+    runbook.scheduleMinutes = t.m;
+    try {
+      const controls = document.getElementById('timelineControlsRows');
+      const idx = window.AppState.runbooks.sort((a,b)=>a.sequence-b.sequence).findIndex(r=>r.id===id);
+      if (controls && idx > -1 && controls.children[idx]) {
+        const inp = controls.children[idx].querySelectorAll('.timeline-control-cell input[type="text"]')[0];
+        if (inp) inp.value = formatHHMM(t.h, t.m);
+      }
+    } catch (e) {}
+    updateTimeline();
   }
 };
 
 window.updateDurationTime = function(id, value) {
   const runbook = window.AppState.runbooks.find(r => r.id === id);
   if (runbook) {
-    const parts = value.split(':');
-    const hours = parseInt(parts[0]) || 0;
-    const minutes = parseInt(parts[1]) || 0;
-    
-    runbook.durationHours = hours;
-    runbook.durationMinutes = minutes;
-    setTimeout(() => updateTimeline(), 100);
+    const t = parseHHMM(value);
+    runbook.durationHours = t.h;
+    runbook.durationMinutes = t.m;
+    try {
+      const controls = document.getElementById('timelineControlsRows');
+      const idx = window.AppState.runbooks.sort((a,b)=>a.sequence-b.sequence).findIndex(r=>r.id===id);
+      if (controls && idx > -1 && controls.children[idx]) {
+        const inp = controls.children[idx].querySelectorAll('.timeline-control-cell input[type="text"]')[1];
+        if (inp) inp.value = formatHHMM(t.h, t.m);
+      }
+    } catch (e) {}
+    updateTimeline();
   }
 };
 
@@ -2695,13 +2703,32 @@ console.log("Firebase sync initialized - Mode:", window.canWrite() ? "HOST" : "V
 
 
 <script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-      navigator.serviceWorker.register('./sw.js').catch(function(err){
-        console.warn('SW registration failed', err);
-      });
-    });
+function parseHHMM(str) {
+  if (!str) return {h:0,m:0,ok:false};
+  str = String(str).trim();
+  let h = 0, m = 0, ok = false;
+  if (/^\d{1,3}:\d{1,2}$/.test(str)) {
+    const parts = str.split(':');
+    h = parseInt(parts[0],10) || 0;
+    m = parseInt(parts[1],10) || 0;
+    ok = true;
+  } else if (/^\d{3,}$/.test(str)) {
+    const mm = str.slice(-2);
+    const hh = str.slice(0, -2);
+    h = parseInt(hh,10) || 0;
+    m = parseInt(mm,10) || 0;
+    ok = true;
   }
+  if (m >= 60) { h += Math.floor(m/60); m = m % 60; }
+  if (m < 0) m = 0;
+  if (h < 0) h = 0;
+  return {h, m, ok};
+}
+function formatHHMM(h, m){
+  h = Math.max(0, parseInt(h||0,10));
+  m = Math.max(0, parseInt(m||0,10)) % 60;
+  return (String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0'));
+}
 </script>
 
 </body>
