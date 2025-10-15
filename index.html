@@ -958,6 +958,22 @@
   .timeline-block:hover{ box-shadow:0 2px 6px rgba(0,0,0,0.25); }
   .block-label-external{ backdrop-filter: saturate(120%) blur(0px); }
 
+
+  /* Messages OFF hides ALL informational UI */
+  .messages-off #validationMessages,
+  .messages-off .validation-warning,
+  .messages-off .info-box,
+  .messages-off .timeline-info,
+  .messages-off .slack-badge,
+  .messages-off .conflict-overlay,
+  .messages-off .conflict-indicator,
+  .messages-off .quick-fix { display: none !important; }
+
+  /* Always keep the timeline clean: hide conflict artifacts even when messages are ON */
+  .conflict-overlay,
+  .conflict-indicator,
+  .quick-fix { display: none !important; }
+
 </style>
 
 <script src="https://res.cdn.office.net/teams-js/2.0.0/js/MicrosoftTeams.min.js" 
@@ -1206,7 +1222,8 @@ window.AppState = {
   isFirstUser: false,
   syncedTimelinePosition: 0,
   renderLock: false,
-  showMessages: false
+  showMessages: false,
+  showConflicts: false
 };
 
 // Constants
@@ -1392,7 +1409,6 @@ function displayValidationWarnings() {
     warningDiv.innerHTML = '<strong>⚠️ Validation Warnings:</strong><br>' + warnings.join('<br>');
     container.appendChild(warningDiv);
   }
-}
 
 // Check if element is actively being edited
 function isElementActive(element) {
@@ -2790,7 +2806,8 @@ document.getElementById("rt-reset").onclick = async function() {
     isFirstUser: false,
     syncedTimelinePosition: 0,
     renderLock: false,
-  showMessages: false
+  showMessages: false,
+  showConflicts: false
   };
   
   // Reset UI
@@ -3032,7 +3049,7 @@ function recomputeConflicts(){
       if (aEnd > bStart && bEnd > aStart){
         const later = (bStart >= aStart) ? b : a;
         const block = document.querySelector('.timeline-block[data-runbook-id="'+later.id+'"]');
-        if (block){
+        if (block && window.AppState && window.AppState.showConflicts){
           const badge = document.createElement('span');
           badge.className = 'conflict-indicator';
           badge.textContent = 'CLASH';
@@ -3050,13 +3067,15 @@ function recomputeConflicts(){
         }
         const scroll = document.querySelector('.timeline-scroll');
         if (scroll){
-          const overlay = document.createElement('div');
+          if (window.AppState && window.AppState.showConflicts){
+  const overlay = document.createElement('div');
           overlay.className = 'conflict-overlay';
           const left = Math.max(aStart, bStart) * pph;
           const right = Math.min(aEnd, bEnd) * pph;
           overlay.style.left = left + 'px';
           overlay.style.width = Math.max(2, right - left) + 'px';
           scroll.appendChild(overlay);
+}
         }
       }
     }
