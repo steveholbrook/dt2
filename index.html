@@ -1188,7 +1188,9 @@ window.AppState = {
   isFirstUser: false,
   syncedTimelinePosition: 0,
   renderLock: false,
-  messagesOn: false
+  messagesOn: false,
+  lastRenderTime: 0,
+  inputLock: false
 };
 
 // Constants
@@ -1211,6 +1213,32 @@ document.addEventListener('DOMContentLoaded', function() {
   if (window.AppState) window.AppState.messagesOn = false;
   updateClock();
   setInterval(updateClock, 1000);
+  
+  // Protect customer name and transform cycle inputs from Firebase overwrites
+  var customerNameInput = document.getElementById('customerName');
+  var transformCycleInput = document.getElementById('transformCycle');
+  
+  if (customerNameInput) {
+    customerNameInput.addEventListener('focus', function() {
+      window.AppState.inputLock = true;
+    });
+    customerNameInput.addEventListener('blur', function() {
+      setTimeout(function() {
+        window.AppState.inputLock = false;
+      }, 500);
+    });
+  }
+  
+  if (transformCycleInput) {
+    transformCycleInput.addEventListener('focus', function() {
+      window.AppState.inputLock = true;
+    });
+    transformCycleInput.addEventListener('blur', function() {
+      setTimeout(function() {
+        window.AppState.inputLock = false;
+      }, 500);
+    });
+  }
   
   var toggleBtn = document.getElementById('messageToggleBtn');
   if (toggleBtn) {
@@ -1432,12 +1460,18 @@ function renderRunbookTable() {
   var tbody = document.getElementById('runbookBody');
   if (!tbody) return;
   
-  // Don't re-render if user is actively editing
+  // Don't re-render if user is actively editing ANY input
   var activeElement = document.activeElement;
-  if (activeElement && tbody.contains(activeElement) && 
-      (activeElement.tagName === 'INPUT' || activeElement.tagName === 'SELECT')) {
+  if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'SELECT')) {
     return;
   }
+  
+  // Throttle renders to prevent flickering
+  var now = Date.now();
+  if (now - window.AppState.lastRenderTime < 100) {
+    return;
+  }
+  window.AppState.lastRenderTime = now;
   
   window.AppState.renderLock = true;
   
@@ -1496,10 +1530,7 @@ function renderRunbookTable() {
         tbody.appendChild(row);
       }
       
-      // Only update if not focused
-      if (!isElementActive(row)) {
-        row.innerHTML = rowHTML;
-      }
+      row.innerHTML = rowHTML;
     });
     
     // Remove extra rows
@@ -1933,33 +1964,47 @@ window.toggleCompleted = function(id, checked) {
       var actualHours = Math.floor(actualMs / 3600000);
       var actualMinutes = Math.floor((actualMs % 3600000) / 60000);
       
+      // Store the actual duration permanently
       runbook.actualDuration = String(Math.max(0, actualHours)).padStart(2,'0') + ':' + String(Math.max(0, actualMinutes)).padStart(2,'0');
-      window.AppState.completionTimes[id] = now;
+      window.AppState.completionTimes[id] = now.toISOString();
+      
+      // Force immediate update to timeline to show actual duration
+      setTimeout(function() {
+        var controls = document.getElementById('timelineControlsRows');
+        var sorted = window.AppState.runbooks.slice().sort(function(a,b) { return a.sequence - b.sequence; });
+        var idx = sorted.findIndex(function(r) { return r.id === id; });
+        if (controls && idx > -1 && controls.children[idx]) {
+          var actualCell = controls.children[idx].querySelectorAll('.timeline-control-cell')[3];
+          if (actualCell) {
+            var actualSpan = actualCell.querySelector('span');
+            if (actualSpan) {
+              actualSpan.textContent = runbook.actualDuration;
+              actualSpan.style.color = '#107e3e';
+            }
+          }
+        }
+      }, 50);
     } else if (!checked) {
       runbook.actualDuration = null;
       delete window.AppState.completionTimes[id];
     }
     
-    updateTimeline();
+    // Delay the timeline update to prevent interference with checkbox
+    setTimeout(function() {
+      updateTimeline();
+    }, 100);
   }
 };
 
 // Downtime Control Functions
 window.startDowntime = function() {
-  var startTimeInput = document.getElementById('startTimeInput');
-  if (startTimeInput && startTimeInput.value) {
-    var timeParts = startTimeInput.value.split(':').map(Number);
-    var hours = timeParts[0];
-    var minutes = timeParts[1];
-    var startDate = new Date();
-    startDate.setHours(hours, minutes, 0, 0);
-    window.AppState.downtimeStartTime = startDate;
-  } else {
-    window.AppState.downtimeStartTime = new Date();
-  }
+  // Always use current system time when starting
+  window.AppState.downtimeStartTime = new Date();
   
   window.AppState.downtimeStarted = true;
+  window.AppState.downtimePaused = false;
   window.AppState.pausedDuration = 0;
+  window.AppState.pauseStartTime = null;
   
   var downtimeDuration = parseInt(document.getElementById('downtimeDuration').value) || 24;
   window.AppState.downtimeDuration = downtimeDuration;
@@ -1974,6 +2019,10 @@ window.startDowntime = function() {
     { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
   
   document.getElementById('startTimeDisplay').textContent = startTimeStr;
+  
+  // Set current duration to 00:00:00
+  document.getElementById('currentDurationDisplay').textContent = '00:00:00';
+  
   calculateEndTime();
   
   document.getElementById('statusText').textContent = 'In Progress';
@@ -2746,9 +2795,11 @@ function applyRemoteState(remoteState) {
   state.completionTimes = remoteState.completionTimes || {};
   state.syncedTimelinePosition = remoteState.syncedTimelinePosition || 0;
   
-  // Update UI fields
-  if (nameInput && remoteState.customerName) nameInput.value = remoteState.customerName;
-  if (phaseInput && remoteState.transformCycle) phaseInput.value = remoteState.transformCycle;
+  // Only update UI fields if not currently being edited
+  if (!state.inputLock) {
+    if (nameInput && remoteState.customerName) nameInput.value = remoteState.customerName;
+    if (phaseInput && remoteState.transformCycle) phaseInput.value = remoteState.transformCycle;
+  }
   
   const durationInput = document.getElementById('downtimeDuration');
   if (durationInput) durationInput.value = state.downtimeDuration;
@@ -3050,6 +3101,86 @@ document.getElementById("rt-reset").onclick = async function() {
 
 console.log("Firebase sync initialized - Mode:", window.canWrite() ? "HOST" : "VIEWER");
 </script>
+
+<!--
+═══════════════════════════════════════════════════════════════════════════════
+                        5 RECOMMENDED IMPROVEMENTS
+═══════════════════════════════════════════════════════════════════════════════
+
+1. TASK DEPENDENCIES & AUTOMATIC SCHEDULING
+   - Add ability to define dependencies between runblocks (e.g., "Import must complete before Validation")
+   - Automatic rescheduling when dependencies are completed earlier/later than planned
+   - Visual dependency arrows on timeline
+   - Critical path automatic calculation based on dependencies
+   
+   Benefits:
+   • Reduces manual planning errors
+   • Automatic timeline optimization
+   • Better risk management
+
+2. REAL-TIME NOTIFICATIONS & ALERTS
+   - Browser/email notifications for upcoming critical tasks (5-10 min warning)
+   - Alerts when tasks run over planned duration
+   - Slack/Teams webhook integration for team notifications
+   - Sound alerts for milestone completions
+   
+   Benefits:
+   • Team stays informed without watching screen constantly
+   • Proactive issue detection
+   • Better coordination across teams
+
+3. TEMPLATE LIBRARY & VERSION CONTROL
+   - Save frequently used runbook configurations as templates
+   - Compare current execution vs. previous runs
+   - Import templates for specific migration types (e.g., "SAP S/4HANA Go-Live Template")
+   - Version history with rollback capability
+   
+   Benefits:
+   • Faster setup for recurring migrations
+   • Learn from historical data
+   • Standardization across projects
+
+4. ADVANCED ANALYTICS & REPORTING
+   - Cumulative flow diagram showing work progress
+   - Burndown chart for remaining tasks
+   - Performance metrics dashboard (planned vs. actual, variance analysis)
+   - Export data to Power BI/Tableau format
+   - Automatic lesson-learned report generation
+   
+   Benefits:
+   • Data-driven decision making
+   • Better estimation for future projects
+   • Executive-level visibility
+
+5. MOBILE COMPANION APP (PROGRESSIVE WEB APP)
+   - Optimized mobile view for on-the-go monitoring
+   - Quick task completion marking via mobile
+   - Push notifications to mobile devices
+   - Offline mode with sync when connection restored
+   - QR code for instant viewer access
+   
+   Benefits:
+   • Monitor from anywhere (home, data center, meetings)
+   • Faster task updates
+   • Better accessibility for distributed teams
+
+═══════════════════════════════════════════════════════════════════════════════
+                           IMPLEMENTATION PRIORITY
+═══════════════════════════════════════════════════════════════════════════════
+
+HIGH PRIORITY (1-2 weeks):
+- Real-time notifications (Item 2)
+- Template library (Item 3)
+
+MEDIUM PRIORITY (3-4 weeks):
+- Task dependencies (Item 1)
+- Advanced analytics (Item 4)
+
+FUTURE ENHANCEMENT (5+ weeks):
+- Mobile companion app (Item 5)
+
+═══════════════════════════════════════════════════════════════════════════════
+-->
 
 </body>
 </html>
