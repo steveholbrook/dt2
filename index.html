@@ -593,22 +593,18 @@
     border-radius: 3px;
   }
   
-  /* Quality gate label - horizontal and to the RIGHT of diamond */
+  /* Quality gate label - horizontal and positioned on track */
   .quality-gate-label{
-    position:absolute;
-    left:100%;
-    margin-left:8px;
     white-space:nowrap;
     color:var(--sap-text);
     font-size:12px;
     font-weight:600;
-    top:50%;
-    transform:translateY(-50%);
     pointer-events:none;
     background: rgba(255,255,255,0.95);
     padding: 2px 6px;
     border-radius: 3px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    z-index: 5;
   }
   
   /* Critical path indicators */
@@ -945,16 +941,6 @@
   display: none !important; 
 }
 
-.message-toggle{
-  display:flex; 
-  gap:8px; 
-  align-items:center;
-  font-size:12px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px dashed var(--sap-border);
-}
-
 #messageToggleBtn{
   padding:6px 12px; 
   border:1px solid var(--sap-border); 
@@ -1119,18 +1105,14 @@
           <div style="width:2px;height:16px;background:#00ff00;box-shadow:0 0 4px rgba(0,255,0,0.5);"></div>
           <span>Current Position</span>
         </div>
-      </div>
-
-      <div class="message-toggle">
-        <button id="messageToggleBtn" type="button" aria-pressed="false" title="Show or hide all app messages & warnings">Messages: Off</button>
-      </div>
-
-      <div class="legend" style="border-top: none; padding-top: 0; margin-top: 8px;">
         <div class="legend-item">
           <div style="width:16px;height:16px;background:#ff0000;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:bold;">!</div>
           <span>Critical Path</span>
         </div>
-        <button class="btn success" id="reportBtn" onclick="generatePDFReport()" style="margin-left:auto">📄 PDF Report</button>
+        <div class="legend-item" style="margin-left:auto;">
+          <button id="messageToggleBtn" type="button" aria-pressed="false" title="Show or hide all app messages & warnings">Messages: Off</button>
+        </div>
+        <button class="btn success" id="reportBtn" onclick="generatePDFReport()">📄 PDF Report</button>
       </div>
     </div>
 
@@ -1693,14 +1675,18 @@ function createTimelineRow(runbook, index) {
       diamond.style.boxShadow = '0 0 8px rgba(255, 0, 0, 0.6)';
     }
     
-    // Add horizontal label to the RIGHT of diamond
+    track.appendChild(diamond);
+    
+    // Add horizontal label to the RIGHT of diamond (positioned relative to track, not diamond)
     var label = document.createElement('div');
     label.className = 'quality-gate-label';
     label.textContent = runbook.runblock;
     label.title = runbook.runblock + ' - ' + runbook.phase;
-    diamond.appendChild(label);
-    
-    track.appendChild(diamond);
+    label.style.position = 'absolute';
+    label.style.left = Math.max(0, startX + 10) + 'px';
+    label.style.top = '50%';
+    label.style.transform = 'translateY(-50%)';
+    track.appendChild(label);
   } else {
     var block = createTimelineBlock(runbook);
     track.appendChild(block);
