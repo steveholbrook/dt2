@@ -934,45 +934,56 @@
 .quick-fix:hover{ filter:brightness(0.95); }
 
 
-  /* --- Messages toggle bar (below timeline) --- */
-  .messages-toggle-bar{
-    margin-top: 12px;
-    padding: 10px 12px;
-    border: 1px solid var(--sap-border);
-    border-radius: 10px;
-    background: #fafafb;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 14px;
-  }
-  .messages-toggle-bar input[type="checkbox"]{ transform: scale(1.1); }
+/* === Message visibility toggle (GH Pages safe) === */
+.messages-off .validation-warning,
+.messages-off #validationMessages,
+.messages-off .conflict-indicator,
+.messages-off .conflict-overlay,
+.messages-off .slack-badge,
+.messages-off .quick-fix,
+.messages-off .info-box { display: none !important; }
 
-  /* Hide validation/messages when OFF */
-  .messages-off #validationMessages,
-  .messages-off .validation-warning { display: none !important; }
-
-  /* Subtle timeline readability polish */
-  .timeline-row:nth-child(even){ background: #fcfcfd; }
-  .timeline-block{ transition: opacity .2s, transform .2s, box-shadow .2s; }
-  .timeline-block:hover{ box-shadow:0 2px 6px rgba(0,0,0,0.25); }
-  .block-label-external{ backdrop-filter: saturate(120%) blur(0px); }
+.message-toggle {
+  display:flex; gap:8px; align-items:center; justify-content:flex-end;
+  margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--sap-border);
+  font-size: 12px;
+}
+.message-toggle input[type="checkbox"]{ width: 38px; height: 18px; cursor: pointer; }
 
 
-  /* Messages OFF hides ALL informational UI */
-  .messages-off #validationMessages,
-  .messages-off .validation-warning,
-  .messages-off .info-box,
-  .messages-off .timeline-info,
-  .messages-off .slack-badge,
-  .messages-off .conflict-overlay,
-  .messages-off .conflict-indicator,
-  .messages-off .quick-fix { display: none !important; }
+/* Timeline readability tweaks */
+.timeline-row { height: 28px; }
+.timeline-block { height: 16px; top: 6px; }
+.block-label-external { font-size: 12px; }
 
-  /* Always keep the timeline clean: hide conflict artifacts even when messages are ON */
-  .conflict-overlay,
-  .conflict-indicator,
-  .quick-fix { display: none !important; }
+
+/* === Global messages toggle === */
+.messages-off .validation-warning,
+.messages-off #validationMessages,
+.messages-off .conflict-indicator,
+.messages-off .conflict-overlay,
+.messages-off .slack-badge,
+.messages-off .quick-fix,
+.messages-off .info-box,
+.messages-off [role="alert"] { display: none !important; }
+
+.message-toggle{
+  display:flex; gap:8px; align-items:center; justify-content:flex-end;
+  margin-top:12px; padding-top:10px; border-top:1px dashed var(--sap-border, #ccc);
+  font-size:12px;
+}
+#messageToggleBtn{
+  padding:6px 10px; border:1px solid var(--sap-border, #ccc); border-radius:999px;
+  background:var(--sap-surface, #fff); cursor:pointer; font-size:12px;
+}
+#messageToggleBtn[aria-pressed="true"]{ font-weight:600; }
+#messageToggleStatus{ font-variant: all-small-caps; }
+
+
+/* Timeline readability */
+.timeline-row { height: 28px; }
+.timeline-block { height: 16px; top: 6px; border-radius: 3px; }
+.block-label-external { font-size: 12px; }
 
 </style>
 
@@ -1090,6 +1101,12 @@
       <div class="legend">
         <div class="legend-item">
           <div class="legend-color block-preparation"></div>
+      <div class="message-toggle">
+        <button id="messageToggleBtn" type="button" aria-pressed="false" title="Show or hide all app messages & warnings">Messages: Off</button>
+      </div>
+
+      
+
           <span>Preparation</span>
         </div>
         <div class="legend-item">
@@ -1122,12 +1139,7 @@
         </div>
       
         <button class="btn success" id="reportBtn" onclick="generatePDFReport()" style="margin-left:auto">📄 PDF Report</button>
-      
-      <div id="messagesToggleBar" class="messages-toggle-bar">
-        <label for="messagesToggleChk" style="margin:0;">Show messages & warnings</label>
-        <input type="checkbox" id="messagesToggleChk" aria-label="Show messages and warnings">
       </div>
-
     </div>
 
     <!-- Model Parameters Section -->
@@ -1179,26 +1191,6 @@
 <script>
 'use strict';
 
-// --- Messages toggle (simple below-timeline control) ---
-function setShowMessages(flag){
-  if (!window.AppState) window.AppState = {};
-  window.AppState.showMessages = !!flag;
-  try { localStorage.setItem('showMessages', window.AppState.showMessages ? '1' : '0'); } catch(e){}
-  updateMessagesUI();
-  try { displayValidationWarnings(); } catch(e){}
-}
-function updateMessagesUI(){
-  const chk = document.getElementById('messagesToggleChk');
-  if (window.AppState.showMessages){
-    document.body.classList.remove('messages-off');
-    if (chk) chk.checked = true;
-  } else {
-    document.body.classList.add('messages-off');
-    if (chk) chk.checked = false;
-  }
-}
-
-
 // Initialize Microsoft Teams if running inside Teams
 if (typeof microsoftTeams !== 'undefined' && microsoftTeams.app && typeof microsoftTeams.app.initialize === 'function') {
   const validOrigins = ['https://snpcom.sharepoint.com'];
@@ -1222,8 +1214,7 @@ window.AppState = {
   isFirstUser: false,
   syncedTimelinePosition: 0,
   renderLock: false,
-  showMessages: false,
-  showConflicts: false
+  messagesOn: false
 };
 
 // Constants
@@ -1241,20 +1232,45 @@ window.addEventListener('beforeunload', function (e) {
 
 // Initialize application
 document.addEventListener('DOMContentLoaded', function() {
-  // Messages default OFF unless saved value is '1'
-  try{
-    const saved = localStorage.getItem('showMessages');
-    const initial = (saved === '1'); // default false if null/other
-    setShowMessages(initial);
-  }catch(e){
-    setShowMessages(false);
-  }
-  const chk = document.getElementById('messagesToggleChk');
-  if (chk){ chk.addEventListener('change', (e)=> setShowMessages(!!e.target.checked)); }
-
   initializeApp();
+  // Default: hide all messages
+  document.body.classList.add('messages-off');
+  if (window.AppState) window.AppState.messagesOn = false;
+  // Default: hide messages
+  document.body.classList.add('messages-off');
   updateClock();
   setInterval(updateClock, 1000);
+  
+
+  const toggleBtn = document.getElementById('messageToggleBtn');
+  if (toggleBtn) {
+    const applyState = () => {
+      const on = !!(window.AppState && window.AppState.messagesOn);
+      document.body.classList.toggle('messages-off', !on);
+      toggleBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      toggleBtn.textContent = on ? 'Messages: On' : 'Messages: Off';
+      if (typeof displayValidationWarnings === 'function') { try { displayValidationWarnings(); } catch(e){} }
+    };
+    // default Off already applied; ensure UI text reflects
+    applyState();
+    toggleBtn.addEventListener('click', () => {
+      window.AppState = window.AppState || {};
+      window.AppState.messagesOn = !window.AppState.messagesOn;
+      applyState();
+    });
+  }
+
+const mt = document.getElementById('messageToggle');
+  const mts = document.getElementById('messageToggleStatus');
+  if (mt) {
+    mt.checked = false; // default Off
+    mt.addEventListener('change', () => {
+      window.AppState.messagesOn = mt.checked;
+      document.body.classList.toggle('messages-off', !window.AppState.messagesOn);
+      if (mts) mts.textContent = window.AppState.messagesOn ? 'On' : 'Off';
+      displayValidationWarnings();
+    });
+  }
 });
 
 function initializeApp() {
@@ -1396,11 +1412,11 @@ function validateSchedules() {
 }
 
 function displayValidationWarnings() {
+  if (!window.AppState.messagesOn) { const c = document.getElementById('validationMessages'); if (c) c.innerHTML=''; return; }
   const warnings = validateSchedules();
   const container = document.getElementById('validationMessages');
   
   if (!container) return;
-  if (!window.AppState || window.AppState.showMessages === false){ container.innerHTML=''; return; }
   
   container.innerHTML = '';
   if (warnings.length > 0) {
@@ -1409,6 +1425,7 @@ function displayValidationWarnings() {
     warningDiv.innerHTML = '<strong>⚠️ Validation Warnings:</strong><br>' + warnings.join('<br>');
     container.appendChild(warningDiv);
   }
+}
 
 // Check if element is actively being edited
 function isElementActive(element) {
@@ -2806,8 +2823,7 @@ document.getElementById("rt-reset").onclick = async function() {
     isFirstUser: false,
     syncedTimelinePosition: 0,
     renderLock: false,
-  showMessages: false,
-  showConflicts: false
+  messagesOn: false
   };
   
   // Reset UI
@@ -3049,7 +3065,7 @@ function recomputeConflicts(){
       if (aEnd > bStart && bEnd > aStart){
         const later = (bStart >= aStart) ? b : a;
         const block = document.querySelector('.timeline-block[data-runbook-id="'+later.id+'"]');
-        if (block && window.AppState && window.AppState.showConflicts){
+        if (block){
           const badge = document.createElement('span');
           badge.className = 'conflict-indicator';
           badge.textContent = 'CLASH';
@@ -3067,15 +3083,13 @@ function recomputeConflicts(){
         }
         const scroll = document.querySelector('.timeline-scroll');
         if (scroll){
-          if (window.AppState && window.AppState.showConflicts){
-  const overlay = document.createElement('div');
+          const overlay = document.createElement('div');
           overlay.className = 'conflict-overlay';
           const left = Math.max(aStart, bStart) * pph;
           const right = Math.min(aEnd, bEnd) * pph;
           overlay.style.left = left + 'px';
           overlay.style.width = Math.max(2, right - left) + 'px';
           scroll.appendChild(overlay);
-}
         }
       }
     }
