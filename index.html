@@ -439,7 +439,7 @@
   .timeline-row{
     display:flex;
     align-items:center;
-    height:24px;
+    height:28px;
     border-bottom:1px solid #e5e5e5;
     position:relative;
     transition:background 0.2s;
@@ -455,7 +455,7 @@
   
   .timeline-track{
     flex:0 0 auto;
-    height:24px;
+    height:28px;
     position:relative;
     background-image:repeating-linear-gradient(
       90deg,
@@ -471,7 +471,7 @@
   .timeline-control-row{
     display:grid;
     grid-template-columns:70px 70px 60px 70px;
-    height:24px;
+    height:28px;
     border-bottom:1px solid #e5e5e5;
   }
   
@@ -534,8 +534,8 @@
   
   .timeline-block{
     position:absolute;
-    height:14px;
-    top:5px;
+    height:16px;
+    top:6px;
     border-radius:3px;
     cursor:move;
     display:flex;
@@ -583,7 +583,7 @@
     margin-left:6px;
     white-space:nowrap;
     color:var(--sap-text);
-    font-size:11px;
+    font-size:12px;
     font-weight:500;
     top:50%;
     transform:translateY(-50%);
@@ -593,14 +593,14 @@
     border-radius: 3px;
   }
   
-  /* Quality gate label - horizontal and to the LEFT of diamond */
+  /* Quality gate label - horizontal and to the RIGHT of diamond */
   .quality-gate-label{
     position:absolute;
-    right:100%;
-    margin-right:8px;
+    left:100%;
+    margin-left:8px;
     white-space:nowrap;
     color:var(--sap-text);
-    font-size:11px;
+    font-size:12px;
     font-weight:600;
     top:50%;
     transform:translateY(-50%);
@@ -890,7 +890,7 @@
     }
   }
 
-/* --- Enhancements CSS (injected) --- */
+/* --- Enhancements CSS --- */
 .input-invalid{
   border-color:#ffc107 !important;
   box-shadow:0 0 0 3px rgba(255,193,7,.15) !important;
@@ -933,31 +933,7 @@
 }
 .quick-fix:hover{ filter:brightness(0.95); }
 
-
-/* === Message visibility toggle (GH Pages safe) === */
-.messages-off .validation-warning,
-.messages-off #validationMessages,
-.messages-off .conflict-indicator,
-.messages-off .conflict-overlay,
-.messages-off .slack-badge,
-.messages-off .quick-fix,
-.messages-off .info-box { display: none !important; }
-
-.message-toggle {
-  display:flex; gap:8px; align-items:center; justify-content:flex-end;
-  margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--sap-border);
-  font-size: 12px;
-}
-.message-toggle input[type="checkbox"]{ width: 38px; height: 18px; cursor: pointer; }
-
-
-/* Timeline readability tweaks */
-.timeline-row { height: 28px; }
-.timeline-block { height: 16px; top: 6px; }
-.block-label-external { font-size: 12px; }
-
-
-/* === Global messages toggle === */
+/* === Message visibility toggle === */
 .messages-off .validation-warning,
 .messages-off #validationMessages,
 .messages-off .conflict-indicator,
@@ -965,25 +941,41 @@
 .messages-off .slack-badge,
 .messages-off .quick-fix,
 .messages-off .info-box,
-.messages-off [role="alert"] { display: none !important; }
+.messages-off [role="alert"] { 
+  display: none !important; 
+}
 
 .message-toggle{
-  display:flex; gap:8px; align-items:center; justify-content:flex-end;
-  margin-top:12px; padding-top:10px; border-top:1px dashed var(--sap-border, #ccc);
+  display:flex; 
+  gap:8px; 
+  align-items:center;
   font-size:12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--sap-border);
 }
+
 #messageToggleBtn{
-  padding:6px 10px; border:1px solid var(--sap-border, #ccc); border-radius:999px;
-  background:var(--sap-surface, #fff); cursor:pointer; font-size:12px;
+  padding:6px 12px; 
+  border:1px solid var(--sap-border); 
+  border-radius:6px;
+  background:var(--sap-panel); 
+  cursor:pointer; 
+  font-size:12px;
+  transition: all 0.2s;
 }
-#messageToggleBtn[aria-pressed="true"]{ font-weight:600; }
-#messageToggleStatus{ font-variant: all-small-caps; }
 
+#messageToggleBtn:hover{
+  background:#f5f5f5;
+  border-color:var(--sap-accent);
+}
 
-/* Timeline readability */
-.timeline-row { height: 28px; }
-.timeline-block { height: 16px; top: 6px; border-radius: 3px; }
-.block-label-external { font-size: 12px; }
+#messageToggleBtn[aria-pressed="true"]{ 
+  font-weight:600;
+  background: var(--sap-accent);
+  color: white;
+  border-color: var(--sap-accent-2);
+}
 
 </style>
 
@@ -1101,12 +1093,6 @@
       <div class="legend">
         <div class="legend-item">
           <div class="legend-color block-preparation"></div>
-      <div class="message-toggle">
-        <button id="messageToggleBtn" type="button" aria-pressed="false" title="Show or hide all app messages & warnings">Messages: Off</button>
-      </div>
-
-      
-
           <span>Preparation</span>
         </div>
         <div class="legend-item">
@@ -1129,15 +1115,21 @@
           <div class="legend-color block-validation"></div>
           <span>Validation</span>
         </div>
-        <div class="legend-item" style="margin-left:auto;">
-          <div style="width:16px;height:16px;background:#ff0000;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:bold;">!</div>
-          <span>Critical Path</span>
-        </div>
         <div class="legend-item">
           <div style="width:2px;height:16px;background:#00ff00;box-shadow:0 0 4px rgba(0,255,0,0.5);"></div>
           <span>Current Position</span>
         </div>
-      
+      </div>
+
+      <div class="message-toggle">
+        <button id="messageToggleBtn" type="button" aria-pressed="false" title="Show or hide all app messages & warnings">Messages: Off</button>
+      </div>
+
+      <div class="legend" style="border-top: none; padding-top: 0; margin-top: 8px;">
+        <div class="legend-item">
+          <div style="width:16px;height:16px;background:#ff0000;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:bold;">!</div>
+          <span>Critical Path</span>
+        </div>
         <button class="btn success" id="reportBtn" onclick="generatePDFReport()" style="margin-left:auto">📄 PDF Report</button>
       </div>
     </div>
@@ -1194,7 +1186,7 @@
 // Initialize Microsoft Teams if running inside Teams
 if (typeof microsoftTeams !== 'undefined' && microsoftTeams.app && typeof microsoftTeams.app.initialize === 'function') {
   const validOrigins = ['https://snpcom.sharepoint.com'];
-  microsoftTeams.app.initialize(validOrigins).catch(() => {
+  microsoftTeams.app.initialize(validOrigins).catch(function() {
     console.warn('Teams initialization failed or not running inside Teams');
   });
 }
@@ -1218,13 +1210,13 @@ window.AppState = {
 };
 
 // Constants
-const STRATEGIES = ['Preparation', 'Export', 'Import', 'Quality Gate', 'Conversion', 'Validation'];
-const PHASES = ['Tables', 'Delta', 'Checkpoint', 'Finance', 'Logistics', 'PCA Tool', 'MPP', 'Support', 'Collector', 'NZD'];
+var STRATEGIES = ['Preparation', 'Export', 'Import', 'Quality Gate', 'Conversion', 'Validation'];
+var PHASES = ['Tables', 'Delta', 'Checkpoint', 'Finance', 'Logistics', 'PCA Tool', 'MPP', 'Support', 'Collector', 'NZD'];
 
 // Browser close confirmation
 window.addEventListener('beforeunload', function (e) {
   if (window.canWrite && window.canWrite() && window.AppState.downtimeStarted) {
-    const confirmationMessage = 'You have an active downtime session. Are you sure you want to leave?';
+    var confirmationMessage = 'You have an active downtime session. Are you sure you want to leave?';
     e.returnValue = confirmationMessage;
     return confirmationMessage;
   }
@@ -1233,42 +1225,31 @@ window.addEventListener('beforeunload', function (e) {
 // Initialize application
 document.addEventListener('DOMContentLoaded', function() {
   initializeApp();
-  // Default: hide all messages
   document.body.classList.add('messages-off');
   if (window.AppState) window.AppState.messagesOn = false;
-  // Default: hide messages
-  document.body.classList.add('messages-off');
   updateClock();
   setInterval(updateClock, 1000);
   
-
-  const toggleBtn = document.getElementById('messageToggleBtn');
+  var toggleBtn = document.getElementById('messageToggleBtn');
   if (toggleBtn) {
-    const applyState = () => {
-      const on = !!(window.AppState && window.AppState.messagesOn);
+    var applyState = function() {
+      var on = !!(window.AppState && window.AppState.messagesOn);
       document.body.classList.toggle('messages-off', !on);
       toggleBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
       toggleBtn.textContent = on ? 'Messages: On' : 'Messages: Off';
-      if (typeof displayValidationWarnings === 'function') { try { displayValidationWarnings(); } catch(e){} }
+      if (typeof displayValidationWarnings === 'function') { 
+        try { 
+          displayValidationWarnings(); 
+        } catch(e){
+          console.error('Error displaying warnings:', e);
+        } 
+      }
     };
-    // default Off already applied; ensure UI text reflects
     applyState();
-    toggleBtn.addEventListener('click', () => {
+    toggleBtn.addEventListener('click', function() {
       window.AppState = window.AppState || {};
       window.AppState.messagesOn = !window.AppState.messagesOn;
       applyState();
-    });
-  }
-
-const mt = document.getElementById('messageToggle');
-  const mts = document.getElementById('messageToggleStatus');
-  if (mt) {
-    mt.checked = false; // default Off
-    mt.addEventListener('change', () => {
-      window.AppState.messagesOn = mt.checked;
-      document.body.classList.toggle('messages-off', !window.AppState.messagesOn);
-      if (mts) mts.textContent = window.AppState.messagesOn ? 'On' : 'Off';
-      displayValidationWarnings();
     });
   }
 });
@@ -1281,10 +1262,10 @@ function initializeApp() {
 
 function setupStartTimeInputs() {
   if (!window.AppState.downtimeStarted) {
-    const startInput = document.getElementById('startTimeInput');
-    const startDisplay = document.getElementById('startTimeDisplay');
-    const durationInput = document.getElementById('currentDurationInput');
-    const durationDisplay = document.getElementById('currentDurationDisplay');
+    var startInput = document.getElementById('startTimeInput');
+    var startDisplay = document.getElementById('startTimeDisplay');
+    var durationInput = document.getElementById('currentDurationInput');
+    var durationDisplay = document.getElementById('currentDurationDisplay');
     
     if (startInput) startInput.style.display = 'block';
     if (startDisplay) startDisplay.style.display = 'none';
@@ -1292,52 +1273,54 @@ function setupStartTimeInputs() {
     if (durationDisplay) durationDisplay.style.display = 'none';
     
     // Set default start time
-    const now = new Date();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    if (startInput) startInput.value = `${hours}:${minutes}`;
+    var now = new Date();
+    var hours = String(now.getHours()).padStart(2, '0');
+    var minutes = String(now.getMinutes()).padStart(2, '0');
+    if (startInput) startInput.value = hours + ':' + minutes;
   }
 }
 
 function calculateEndTime() {
-  const duration = parseInt(document.getElementById('downtimeDuration').value) || 24;
-  const startTimeInput = document.getElementById('startTimeInput');
-  const endTimeDisplay = document.getElementById('endTimeDisplay');
+  var duration = parseInt(document.getElementById('downtimeDuration').value) || 24;
+  var startTimeInput = document.getElementById('startTimeInput');
+  var endTimeDisplay = document.getElementById('endTimeDisplay');
   
   if (!window.AppState.downtimeStarted && startTimeInput && startTimeInput.value) {
-    const [hours, minutes] = startTimeInput.value.split(':').map(Number);
-    const startDate = new Date();
+    var timeParts = startTimeInput.value.split(':').map(Number);
+    var hours = timeParts[0];
+    var minutes = timeParts[1];
+    var startDate = new Date();
     startDate.setHours(hours, minutes, 0, 0);
     
-    const endDate = new Date(startDate.getTime() + duration * 3600000);
+    var endDate = new Date(startDate.getTime() + duration * 3600000);
     updateEndTimeDisplay(endDate, duration);
   } else if (window.AppState.downtimeStarted && window.AppState.downtimeStartTime) {
-    const endDate = new Date(window.AppState.downtimeStartTime.getTime() + duration * 3600000);
+    var endDate = new Date(window.AppState.downtimeStartTime.getTime() + duration * 3600000);
     updateEndTimeDisplay(endDate, duration);
   }
 }
 
 function updateEndTimeDisplay(endDate, duration) {
-  const endTimeDisplay = document.getElementById('endTimeDisplay');
+  var endTimeDisplay = document.getElementById('endTimeDisplay');
   if (!endTimeDisplay) return;
   
-  const endHours = String(endDate.getHours()).padStart(2, '0');
-  const endMinutes = String(endDate.getMinutes()).padStart(2, '0');
-  const endSeconds = String(endDate.getSeconds()).padStart(2, '0');
+  var endHours = String(endDate.getHours()).padStart(2, '0');
+  var endMinutes = String(endDate.getMinutes()).padStart(2, '0');
+  var endSeconds = String(endDate.getSeconds()).padStart(2, '0');
   
-  let displayText = `${endHours}:${endMinutes}:${endSeconds}`;
+  var displayText = endHours + ':' + endMinutes + ':' + endSeconds;
   
-  const daysDiff = Math.floor(duration / 24);
+  var daysDiff = Math.floor(duration / 24);
   if (daysDiff > 0) {
-    displayText += ` (+${daysDiff} day${daysDiff > 1 ? 's' : ''})`;
+    displayText += ' (+' + daysDiff + ' day' + (daysDiff > 1 ? 's' : '') + ')';
   }
   
   endTimeDisplay.textContent = displayText;
 }
 
 function updateClock() {
-  const now = new Date();
-  const timeElement = document.getElementById('currentTime');
+  var now = new Date();
+  var timeElement = document.getElementById('currentTime');
   if (timeElement) {
     timeElement.textContent = now.toLocaleTimeString('en-US', { 
       hour: '2-digit', 
@@ -1356,55 +1339,55 @@ function updateClock() {
 function updateDuration() {
   if (!window.AppState.downtimeStartTime) return;
   
-  const now = new Date();
-  const elapsed = now - window.AppState.downtimeStartTime - window.AppState.pausedDuration;
-  const hours = Math.floor(elapsed / 3600000);
-  const minutes = Math.floor((elapsed % 3600000) / 60000);
-  const seconds = Math.floor((elapsed % 60000) / 1000);
+  var now = new Date();
+  var elapsed = now - window.AppState.downtimeStartTime - window.AppState.pausedDuration;
+  var hours = Math.floor(elapsed / 3600000);
+  var minutes = Math.floor((elapsed % 3600000) / 60000);
+  var seconds = Math.floor((elapsed % 60000) / 1000);
   
-  const durationDisplay = document.getElementById('currentDurationDisplay');
+  var durationDisplay = document.getElementById('currentDurationDisplay');
   if (durationDisplay) {
     durationDisplay.textContent = 
-      `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
   }
 }
 
 // Data Validation Functions
 function validateSchedules() {
-  const warnings = [];
-  const criticalPathItems = window.AppState.runbooks.filter(r => r.critical);
+  var warnings = [];
+  var criticalPathItems = window.AppState.runbooks.filter(function(r) { return r.critical; });
   
   // Check for overlapping critical path items
-  for (let i = 0; i < criticalPathItems.length; i++) {
-    for (let j = i + 1; j < criticalPathItems.length; j++) {
-      const item1 = criticalPathItems[i];
-      const item2 = criticalPathItems[j];
+  for (var i = 0; i < criticalPathItems.length; i++) {
+    for (var j = i + 1; j < criticalPathItems.length; j++) {
+      var item1 = criticalPathItems[i];
+      var item2 = criticalPathItems[j];
       
-      const start1 = item1.scheduleHours + item1.scheduleMinutes / 60;
-      const end1 = start1 + item1.durationHours + item1.durationMinutes / 60;
-      const start2 = item2.scheduleHours + item2.scheduleMinutes / 60;
-      const end2 = start2 + item2.durationHours + item2.durationMinutes / 60;
+      var start1 = item1.scheduleHours + item1.scheduleMinutes / 60;
+      var end1 = start1 + item1.durationHours + item1.durationMinutes / 60;
+      var start2 = item2.scheduleHours + item2.scheduleMinutes / 60;
+      var end2 = start2 + item2.durationHours + item2.durationMinutes / 60;
       
       if ((start1 < end2 && end1 > start2)) {
-        warnings.push(`Critical path conflict: "${item1.runblock}" and "${item2.runblock}" overlap`);
+        warnings.push('Critical path conflict: "' + item1.runblock + '" and "' + item2.runblock + '" overlap');
       }
     }
   }
   
   // Check for unrealistic durations
-  window.AppState.runbooks.forEach(runbook => {
-    const duration = runbook.durationHours + runbook.durationMinutes / 60;
+  window.AppState.runbooks.forEach(function(runbook) {
+    var duration = runbook.durationHours + runbook.durationMinutes / 60;
     if (duration > 8) {
-      warnings.push(`Warning: "${runbook.runblock}" has duration > 8 hours`);
+      warnings.push('Warning: "' + runbook.runblock + '" has duration > 8 hours');
     }
   });
   
   // Check for tasks extending beyond downtime window
-  window.AppState.runbooks.forEach(runbook => {
-    const start = runbook.scheduleHours + runbook.scheduleMinutes / 60;
-    const duration = runbook.durationHours + runbook.durationMinutes / 60;
+  window.AppState.runbooks.forEach(function(runbook) {
+    var start = runbook.scheduleHours + runbook.scheduleMinutes / 60;
+    var duration = runbook.durationHours + runbook.durationMinutes / 60;
     if (start + duration > window.AppState.downtimeDuration) {
-      warnings.push(`Schedule conflict: "${runbook.runblock}" extends beyond downtime window`);
+      warnings.push('Schedule conflict: "' + runbook.runblock + '" extends beyond downtime window');
     }
   });
   
@@ -1412,15 +1395,19 @@ function validateSchedules() {
 }
 
 function displayValidationWarnings() {
-  if (!window.AppState.messagesOn) { const c = document.getElementById('validationMessages'); if (c) c.innerHTML=''; return; }
-  const warnings = validateSchedules();
-  const container = document.getElementById('validationMessages');
+  if (!window.AppState.messagesOn) { 
+    var container = document.getElementById('validationMessages'); 
+    if (container) container.innerHTML=''; 
+    return; 
+  }
+  var warnings = validateSchedules();
+  var container = document.getElementById('validationMessages');
   
   if (!container) return;
   
   container.innerHTML = '';
   if (warnings.length > 0) {
-    const warningDiv = document.createElement('div');
+    var warningDiv = document.createElement('div');
     warningDiv.className = 'validation-warning';
     warningDiv.innerHTML = '<strong>⚠️ Validation Warnings:</strong><br>' + warnings.join('<br>');
     container.appendChild(warningDiv);
@@ -1429,13 +1416,13 @@ function displayValidationWarnings() {
 
 // Check if element is actively being edited
 function isElementActive(element) {
-  const active = document.activeElement;
+  var active = document.activeElement;
   return active && (active === element || element.contains(active));
 }
 
 // Runbook Management Functions
 window.addRunbookRow = function() {
-  const runbook = {
+  var runbook = {
     id: Date.now() + Math.random(),
     sequence: window.AppState.runbooks.length + 1,
     strategy: STRATEGIES[0],
@@ -1460,11 +1447,11 @@ window.addRunbookRow = function() {
 function renderRunbookTable() {
   if (window.AppState.renderLock) return;
   
-  const tbody = document.getElementById('runbookBody');
+  var tbody = document.getElementById('runbookBody');
   if (!tbody) return;
   
   // Don't re-render if user is actively editing
-  const activeElement = document.activeElement;
+  var activeElement = document.activeElement;
   if (activeElement && tbody.contains(activeElement) && 
       (activeElement.tagName === 'INPUT' || activeElement.tagName === 'SELECT')) {
     return;
@@ -1473,48 +1460,54 @@ function renderRunbookTable() {
   window.AppState.renderLock = true;
   
   try {
-    const currentRows = Array.from(tbody.querySelectorAll('tr'));
-    window.AppState.runbooks.sort((a, b) => a.sequence - b.sequence);
+    var currentRows = Array.from(tbody.querySelectorAll('tr'));
+    window.AppState.runbooks.sort(function(a, b) { return a.sequence - b.sequence; });
     
     // Update or create rows
-    window.AppState.runbooks.forEach((runbook, index) => {
-      let row = currentRows[index];
-      const editingDisabled = (window.AppState.downtimeStarted && !window.AppState.downtimePaused) ? 'disabled' : '';
+    window.AppState.runbooks.forEach(function(runbook, index) {
+      var row = currentRows[index];
+      var editingDisabled = (window.AppState.downtimeStarted && !window.AppState.downtimePaused) ? 'disabled' : '';
       
-      const rowHTML = `
-        <td>
-          <input type="number" min="1" max="30" value="${runbook.sequence}" 
-                 style="width:50px;" onchange="updateSequence(${runbook.id}, this.value)" ${editingDisabled}>
-        </td>
-        <td>
-          <select onchange="updateStrategy(${runbook.id}, this.value)" ${editingDisabled}>
-            ${STRATEGIES.map(s => `<option value="${s}" ${runbook.strategy === s ? 'selected' : ''}>${s}</option>`).join('')}
-          </select>
-        </td>
-        <td>
-          <select onchange="updatePhase(${runbook.id}, this.value)" ${editingDisabled}>
-            ${PHASES.map(p => `<option value="${p}" ${runbook.phase === p ? 'selected' : ''}>${p}</option>`).join('')}
-          </select>
-        </td>
-        <td>
-          <input type="text" value="${runbook.runblock || ''}" placeholder="Enter runblock name" 
-                 maxlength="50" style="width:100%;"
-                 onchange="updateRunblock(${runbook.id}, this.value)" ${editingDisabled}>
-        </td>
-        <td>
-          <input type="text" value="${runbook.responsibility || ''}" placeholder="Enter responsibility" 
-                 maxlength="40" style="width:100%;"
-                 onchange="updateResponsibility(${runbook.id}, this.value)" ${editingDisabled}>
-        </td>
-        <td class="critical-cell center">
-          <input type="checkbox" class="critical-checkbox" 
-                 ${runbook.critical ? 'checked' : ''} 
-                 onchange="updateCritical(${runbook.id}, this.checked)" ${editingDisabled}>
-        </td>
-        <td class="center">
-          <button class="btn small danger" onclick="removeRunbook(${runbook.id})" ${editingDisabled}>Remove</button>
-        </td>
-      `;
+      var strategyOptions = STRATEGIES.map(function(s) {
+        return '<option value="' + s + '" ' + (runbook.strategy === s ? 'selected' : '') + '>' + s + '</option>';
+      }).join('');
+      
+      var phaseOptions = PHASES.map(function(p) {
+        return '<option value="' + p + '" ' + (runbook.phase === p ? 'selected' : '') + '>' + p + '</option>';
+      }).join('');
+      
+      var rowHTML = '<td>' +
+        '<input type="number" min="1" max="30" value="' + runbook.sequence + '" ' +
+        'style="width:50px;" onchange="updateSequence(' + runbook.id + ', this.value)" ' + editingDisabled + '>' +
+        '</td>' +
+        '<td>' +
+        '<select onchange="updateStrategy(' + runbook.id + ', this.value)" ' + editingDisabled + '>' +
+        strategyOptions +
+        '</select>' +
+        '</td>' +
+        '<td>' +
+        '<select onchange="updatePhase(' + runbook.id + ', this.value)" ' + editingDisabled + '>' +
+        phaseOptions +
+        '</select>' +
+        '</td>' +
+        '<td>' +
+        '<input type="text" value="' + (runbook.runblock || '') + '" placeholder="Enter runblock name" ' +
+        'maxlength="50" style="width:100%;" ' +
+        'onchange="updateRunblock(' + runbook.id + ', this.value)" ' + editingDisabled + '>' +
+        '</td>' +
+        '<td>' +
+        '<input type="text" value="' + (runbook.responsibility || '') + '" placeholder="Enter responsibility" ' +
+        'maxlength="40" style="width:100%;" ' +
+        'onchange="updateResponsibility(' + runbook.id + ', this.value)" ' + editingDisabled + '>' +
+        '</td>' +
+        '<td class="critical-cell center">' +
+        '<input type="checkbox" class="critical-checkbox" ' +
+        (runbook.critical ? 'checked' : '') + ' ' +
+        'onchange="updateCritical(' + runbook.id + ', this.checked)" ' + editingDisabled + '>' +
+        '</td>' +
+        '<td class="center">' +
+        '<button class="btn small danger" onclick="removeRunbook(' + runbook.id + ')" ' + editingDisabled + '>Remove</button>' +
+        '</td>';
       
       if (!row) {
         row = document.createElement('tr');
@@ -1537,10 +1530,10 @@ function renderRunbookTable() {
 }
 
 window.updateSequence = function(id, value) {
-  const runbook = window.AppState.runbooks.find(r => r.id === id);
+  var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
   if (runbook) {
     runbook.sequence = parseInt(value) || 1;
-    setTimeout(() => {
+    setTimeout(function() {
       renderRunbookTable();
       updateTimeline();
       displayValidationWarnings();
@@ -1549,41 +1542,41 @@ window.updateSequence = function(id, value) {
 };
 
 window.updateStrategy = function(id, value) {
-  const runbook = window.AppState.runbooks.find(r => r.id === id);
+  var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
   if (runbook) {
     runbook.strategy = value;
-    setTimeout(() => updateTimeline(), 100);
+    setTimeout(function() { updateTimeline(); }, 100);
   }
 };
 
 window.updatePhase = function(id, value) {
-  const runbook = window.AppState.runbooks.find(r => r.id === id);
+  var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
   if (runbook) {
     runbook.phase = value;
-    setTimeout(() => updateTimeline(), 100);
+    setTimeout(function() { updateTimeline(); }, 100);
   }
 };
 
 window.updateRunblock = function(id, value) {
-  const runbook = window.AppState.runbooks.find(r => r.id === id);
+  var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
   if (runbook) {
     runbook.runblock = value;
-    setTimeout(() => updateTimeline(), 100);
+    setTimeout(function() { updateTimeline(); }, 100);
   }
 };
 
 window.updateResponsibility = function(id, value) {
-  const runbook = window.AppState.runbooks.find(r => r.id === id);
+  var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
   if (runbook) {
     runbook.responsibility = value;
   }
 };
 
 window.updateCritical = function(id, value) {
-  const runbook = window.AppState.runbooks.find(r => r.id === id);
+  var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
   if (runbook) {
     runbook.critical = value;
-    setTimeout(() => {
+    setTimeout(function() {
       updateTimeline();
       displayValidationWarnings();
     }, 100);
@@ -1591,7 +1584,7 @@ window.updateCritical = function(id, value) {
 };
 
 window.removeRunbook = function(id) {
-  window.AppState.runbooks = window.AppState.runbooks.filter(r => r.id !== id);
+  window.AppState.runbooks = window.AppState.runbooks.filter(function(r) { return r.id !== id; });
   renderRunbookTable();
   updateTimeline();
   displayValidationWarnings();
@@ -1607,17 +1600,17 @@ window.clearRunbook = function() {
 
 // Timeline Functions
 window.updateTimeline = function() {
-  const duration = parseInt(document.getElementById('downtimeDuration').value) || 24;
+  var duration = parseInt(document.getElementById('downtimeDuration').value) || 24;
   window.AppState.downtimeDuration = duration;
   
   generateTimeScale(duration);
   generateTimelineRows();
   displayValidationWarnings();
 
-  const finishLine = document.getElementById('finishLine');
+  var finishLine = document.getElementById('finishLine');
   if (finishLine) {
-    const pixelsPerHour = 60;
-    finishLine.style.left = `${duration * pixelsPerHour}px`;
+    var pixelsPerHour = 60;
+    finishLine.style.left = (duration * pixelsPerHour) + 'px';
     finishLine.style.display = 'block';
   }
   
@@ -1628,46 +1621,46 @@ window.updateTimeline = function() {
 };
 
 function generateTimeScale(hours) {
-  const scale = document.getElementById('timelineScale');
+  var scale = document.getElementById('timelineScale');
   if (!scale) return;
   
   scale.innerHTML = '';
   
-  const pixelsPerHour = 60;
-  const totalWidth = hours * pixelsPerHour;
-  scale.style.width = `${totalWidth}px`;
+  var pixelsPerHour = 60;
+  var totalWidth = hours * pixelsPerHour;
+  scale.style.width = totalWidth + 'px';
   
-  for (let h = 0; h <= hours; h++) {
-    const marker = document.createElement('div');
+  for (var h = 0; h <= hours; h++) {
+    var marker = document.createElement('div');
     marker.className = 'timeline-hour';
-    marker.style.left = `${h * pixelsPerHour}px`;
-    marker.textContent = `${h}h`;
+    marker.style.left = (h * pixelsPerHour) + 'px';
+    marker.textContent = h + 'h';
     scale.appendChild(marker);
   }
 }
 
 function generateTimelineRows() {
-  const trackContainer = document.getElementById('timelineRows');
-  const controlsContainer = document.getElementById('timelineControlsRows');
+  var trackContainer = document.getElementById('timelineRows');
+  var controlsContainer = document.getElementById('timelineControlsRows');
   
   if (trackContainer) trackContainer.innerHTML = '';
   if (controlsContainer) controlsContainer.innerHTML = '';
   
-  const visibleRunbooks = [...window.AppState.runbooks]
-    .filter(rb => rb && rb.runblock && rb.runblock.trim().length > 0)
-    .sort((a, b) => a.sequence - b.sequence);
+  var visibleRunbooks = window.AppState.runbooks
+    .filter(function(rb) { return rb && rb.runblock && rb.runblock.trim().length > 0; })
+    .sort(function(a, b) { return a.sequence - b.sequence; });
 
-  visibleRunbooks.forEach((runbook, index) => {
-    const trackRow = createTimelineRow(runbook, index);
+  visibleRunbooks.forEach(function(runbook, index) {
+    var trackRow = createTimelineRow(runbook, index);
     if (trackContainer) trackContainer.appendChild(trackRow);
     
-    const controlRow = createTimelineControlRow(runbook);
+    var controlRow = createTimelineControlRow(runbook);
     if (controlsContainer) controlsContainer.appendChild(controlRow);
   });
 }
 
 function createTimelineRow(runbook, index) {
-  const row = document.createElement('div');
+  var row = document.createElement('div');
   row.className = 'timeline-row';
   
   if (runbook.critical) {
@@ -1675,23 +1668,23 @@ function createTimelineRow(runbook, index) {
     row.style.background = 'linear-gradient(90deg, rgba(255,0,0,0.05) 0%, transparent 10%)';
   }
   
-  const track = document.createElement('div');
+  var track = document.createElement('div');
   track.className = 'timeline-track';
   track.dataset.runbookId = runbook.id;
   
-  const pixelsPerHour = 60;
-  const totalWidth = window.AppState.downtimeDuration * pixelsPerHour;
-  track.style.width = `${totalWidth}px`;
+  var pixelsPerHour = 60;
+  var totalWidth = window.AppState.downtimeDuration * pixelsPerHour;
+  track.style.width = totalWidth + 'px';
 
-  const isQualityGate = (runbook.strategy === 'Quality Gate');
-  const startPos = runbook.scheduleHours + (runbook.scheduleMinutes / 60);
-  const startX = startPos * pixelsPerHour;
+  var isQualityGate = (runbook.strategy === 'Quality Gate');
+  var startPos = runbook.scheduleHours + (runbook.scheduleMinutes / 60);
+  var startX = startPos * pixelsPerHour;
 
   if (isQualityGate) {
-    const diamond = document.createElement('div');
+    var diamond = document.createElement('div');
     diamond.className = 'quality-diamond';
     diamond.dataset.runbookId = runbook.id;
-    diamond.style.left = `${Math.max(0, startX - 7)}px`;
+    diamond.style.left = Math.max(0, startX - 7) + 'px';
     if (runbook.completed) {
       diamond.style.opacity = '0.5';
       diamond.style.filter = 'grayscale(100%)';
@@ -1700,16 +1693,16 @@ function createTimelineRow(runbook, index) {
       diamond.style.boxShadow = '0 0 8px rgba(255, 0, 0, 0.6)';
     }
     
-    // Add horizontal label to the LEFT of diamond
-    const label = document.createElement('div');
+    // Add horizontal label to the RIGHT of diamond
+    var label = document.createElement('div');
     label.className = 'quality-gate-label';
     label.textContent = runbook.runblock;
-    label.title = `${runbook.runblock} - ${runbook.phase}`;
+    label.title = runbook.runblock + ' - ' + runbook.phase;
     diamond.appendChild(label);
     
     track.appendChild(diamond);
   } else {
-    const block = createTimelineBlock(runbook);
+    var block = createTimelineBlock(runbook);
     track.appendChild(block);
   }
 
@@ -1720,41 +1713,41 @@ function createTimelineRow(runbook, index) {
 }
 
 function createTimelineControlRow(runbook) {
-  const row = document.createElement('div');
+  var row = document.createElement('div');
   row.className = 'timeline-control-row';
 
-  // START column
-  const startCell = document.createElement('div');
+  // START column - always enabled unless completed
+  var startCell = document.createElement('div');
   startCell.className = 'timeline-control-cell';
-  const startInput = document.createElement('input');
+  var startInput = document.createElement('input');
   startInput.type = 'text';
   startInput.pattern = '[0-9]{1,3}:[0-9]{2}';
   startInput.placeholder = 'HH:MM';
-  startInput.value = `${String(runbook.scheduleHours).padStart(2,'0')}:${String(runbook.scheduleMinutes).padStart(2,'0')}`;
+  startInput.value = String(runbook.scheduleHours).padStart(2,'0') + ':' + String(runbook.scheduleMinutes).padStart(2,'0');
   startInput.onchange = function() { updateScheduleTime(runbook.id, this.value); };
   startInput.oninput = startInput.onchange;
-  startInput.disabled = runbook.completed;
+  startInput.disabled = runbook.completed; // Only disable when completed
   startCell.appendChild(startInput);
   row.appendChild(startCell);
 
-  // PLAN column
-  const planCell = document.createElement('div');
+  // PLAN column - always enabled unless completed
+  var planCell = document.createElement('div');
   planCell.className = 'timeline-control-cell';
-  const planInput = document.createElement('input');
+  var planInput = document.createElement('input');
   planInput.type = 'text';
   planInput.pattern = '[0-9]{1,3}:[0-9]{2}';
   planInput.placeholder = 'HH:MM';
-  planInput.value = `${String(runbook.durationHours).padStart(2,'0')}:${String(runbook.durationMinutes).padStart(2,'0')}`;
+  planInput.value = String(runbook.durationHours).padStart(2,'0') + ':' + String(runbook.durationMinutes).padStart(2,'0');
   planInput.onchange = function() { updateDurationTime(runbook.id, this.value); };
   planInput.oninput = planInput.onchange;
-  planInput.disabled = runbook.completed;
+  planInput.disabled = runbook.completed; // Only disable when completed
   planCell.appendChild(planInput);
   row.appendChild(planCell);
 
-  // END column
-  const endCell = document.createElement('div');
+  // END column - only enabled when downtime is started and not paused
+  var endCell = document.createElement('div');
   endCell.className = 'timeline-control-cell';
-  const checkbox = document.createElement('input');
+  var checkbox = document.createElement('input');
   checkbox.type = 'checkbox';
   checkbox.className = 'timeline-checkbox';
   checkbox.checked = runbook.completed;
@@ -1765,9 +1758,9 @@ function createTimelineControlRow(runbook) {
   row.appendChild(endCell);
   
   // ACTUAL column
-  const actualCell = document.createElement('div');
+  var actualCell = document.createElement('div');
   actualCell.className = 'timeline-control-cell';
-  const actualSpan = document.createElement('span');
+  var actualSpan = document.createElement('span');
   actualSpan.style.fontSize = '11px';
   actualSpan.style.color = runbook.actualDuration ? '#107e3e' : '#999';
   actualSpan.textContent = runbook.actualDuration || '--:--';
@@ -1778,9 +1771,9 @@ function createTimelineControlRow(runbook) {
 }
 
 function createTimelineBlock(runbook) {
-  const block = document.createElement('div');
-  const strategyClass = runbook.strategy.toLowerCase().replace(/\s+/g, '');
-  block.className = `timeline-block block-${strategyClass}`;
+  var block = document.createElement('div');
+  var strategyClass = runbook.strategy.toLowerCase().replace(/\s+/g, '');
+  block.className = 'timeline-block block-' + strategyClass;
   block.dataset.runbookId = runbook.id;
   
   if (runbook.critical) {
@@ -1794,25 +1787,25 @@ function createTimelineBlock(runbook) {
     block.draggable = true;
   }
   
-  const pixelsPerHour = 60;
-  const position = runbook.scheduleHours + (runbook.scheduleMinutes / 60);
-  const duration = runbook.durationHours + (runbook.durationMinutes / 60);
+  var pixelsPerHour = 60;
+  var position = runbook.scheduleHours + (runbook.scheduleMinutes / 60);
+  var duration = runbook.durationHours + (runbook.durationMinutes / 60);
   
-  block.style.left = `${position * pixelsPerHour}px`;
-  block.style.width = `${Math.max(60, duration * pixelsPerHour - 4)}px`;
+  block.style.left = (position * pixelsPerHour) + 'px';
+  block.style.width = Math.max(60, duration * pixelsPerHour - 4) + 'px';
   
   // Show sequence and phase inside
-  block.textContent = `#${runbook.sequence} | ${runbook.phase}`;
-  block.title = `${runbook.runblock} - ${runbook.phase}`;
+  block.textContent = '#' + runbook.sequence + ' | ' + runbook.phase;
+  block.title = runbook.runblock + ' - ' + runbook.phase;
   
   // Add external label for runblock name
-  const blockLabel = document.createElement('div');
+  var blockLabel = document.createElement('div');
   blockLabel.className = 'block-label-external';
   blockLabel.textContent = runbook.runblock;
   block.appendChild(blockLabel);
   
   if (runbook.critical) {
-    const indicator = document.createElement('div');
+    var indicator = document.createElement('div');
     indicator.className = 'critical-indicator';
     indicator.textContent = '!';
     indicator.title = 'Critical Path Item';
@@ -1833,7 +1826,7 @@ function handleDragStart(e) {
   e.target.classList.add('dragging');
   window.AppState.currentDraggedBlock = e.target;
   
-  const rect = e.target.getBoundingClientRect();
+  var rect = e.target.getBoundingClientRect();
   window.AppState.dragOffset = e.clientX - rect.left;
 }
 
@@ -1848,21 +1841,21 @@ function handleDragOver(e) {
   e.dataTransfer.dropEffect = 'move';
   
   if (window.AppState.currentDraggedBlock && e.currentTarget.classList.contains('timeline-track')) {
-    const track = e.currentTarget;
-    const rect = track.getBoundingClientRect();
-    const x = e.clientX - rect.left - (window.AppState.dragOffset || 0);
-    const pixelsPerHour = 60;
+    var track = e.currentTarget;
+    var rect = track.getBoundingClientRect();
+    var x = e.clientX - rect.left - (window.AppState.dragOffset || 0);
+    var pixelsPerHour = 60;
     
-    const position = Math.max(0, x / pixelsPerHour);
-    const runbookId = parseFloat(window.AppState.currentDraggedBlock.dataset.runbookId);
-    const runbook = window.AppState.runbooks.find(r => r.id === runbookId);
+    var position = Math.max(0, x / pixelsPerHour);
+    var runbookId = parseFloat(window.AppState.currentDraggedBlock.dataset.runbookId);
+    var runbook = window.AppState.runbooks.find(function(r) { return r.id === runbookId; });
     
     if (runbook) {
-      const duration = runbook.durationHours + (runbook.durationMinutes / 60);
-      const maxPosition = window.AppState.downtimeDuration - duration;
-      const validPosition = Math.min(position, maxPosition);
+      var duration = runbook.durationHours + (runbook.durationMinutes / 60);
+      var maxPosition = window.AppState.downtimeDuration - duration;
+      var validPosition = Math.min(position, maxPosition);
       
-      window.AppState.currentDraggedBlock.style.left = `${validPosition * pixelsPerHour}px`;
+      window.AppState.currentDraggedBlock.style.left = (validPosition * pixelsPerHour) + 'px';
     }
   }
 }
@@ -1872,23 +1865,23 @@ function handleDrop(e) {
   
   if (!window.AppState.currentDraggedBlock) return;
   
-  const track = e.currentTarget;
-  const rect = track.getBoundingClientRect();
-  const x = e.clientX - rect.left - (window.AppState.dragOffset || 0);
-  const pixelsPerHour = 60;
-  const newPosition = Math.max(0, x / pixelsPerHour);
+  var track = e.currentTarget;
+  var rect = track.getBoundingClientRect();
+  var x = e.clientX - rect.left - (window.AppState.dragOffset || 0);
+  var pixelsPerHour = 60;
+  var newPosition = Math.max(0, x / pixelsPerHour);
   
-  const runbookId = parseFloat(window.AppState.currentDraggedBlock.dataset.runbookId);
-  const runbook = window.AppState.runbooks.find(r => r.id === runbookId);
+  var runbookId = parseFloat(window.AppState.currentDraggedBlock.dataset.runbookId);
+  var runbook = window.AppState.runbooks.find(function(r) { return r.id === runbookId; });
   
   if (runbook) {
-    const duration = runbook.durationHours + (runbook.durationMinutes / 60);
-    const maxPosition = window.AppState.downtimeDuration - duration;
-    const finalPosition = Math.min(newPosition, maxPosition);
-    const snappedPosition = Math.round(finalPosition * 12) / 12;
+    var duration = runbook.durationHours + (runbook.durationMinutes / 60);
+    var maxPosition = window.AppState.downtimeDuration - duration;
+    var finalPosition = Math.min(newPosition, maxPosition);
+    var snappedPosition = Math.round(finalPosition * 12) / 12;
     
-    const newHours = Math.floor(snappedPosition);
-    const newMinutes = Math.round((snappedPosition % 1) * 60);
+    var newHours = Math.floor(snappedPosition);
+    var newMinutes = Math.round((snappedPosition % 1) * 60);
     
     runbook.scheduleHours = newHours;
     runbook.scheduleMinutes = newMinutes;
@@ -1898,57 +1891,63 @@ function handleDrop(e) {
 }
 
 window.updateScheduleTime = function(id, value) {
-  const runbook = window.AppState.runbooks.find(r => r.id === id);
+  var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
   if (runbook) {
-    const t = parseHHMM(value);
+    var t = parseHHMM(value);
     runbook.scheduleHours = t.h;
     runbook.scheduleMinutes = t.m;
     try {
-      const controls = document.getElementById('timelineControlsRows');
-      const idx = window.AppState.runbooks.sort((a,b)=>a.sequence-b.sequence).findIndex(r=>r.id===id);
+      var controls = document.getElementById('timelineControlsRows');
+      var sorted = window.AppState.runbooks.slice().sort(function(a,b) { return a.sequence - b.sequence; });
+      var idx = sorted.findIndex(function(r) { return r.id === id; });
       if (controls && idx > -1 && controls.children[idx]) {
-        const inp = controls.children[idx].querySelectorAll('.timeline-control-cell input[type="text"]')[0];
+        var inp = controls.children[idx].querySelectorAll('.timeline-control-cell input[type="text"]')[0];
         if (inp) inp.value = formatHHMM(t.h, t.m);
       }
-    } catch (e) {}
+    } catch(e) {
+      console.error('Error updating schedule time display:', e);
+    }
     updateTimeline();
   }
 };
 
 window.updateDurationTime = function(id, value) {
-  const runbook = window.AppState.runbooks.find(r => r.id === id);
+  var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
   if (runbook) {
-    const t = parseHHMM(value);
+    var t = parseHHMM(value);
     runbook.durationHours = t.h;
     runbook.durationMinutes = t.m;
     try {
-      const controls = document.getElementById('timelineControlsRows');
-      const idx = window.AppState.runbooks.sort((a,b)=>a.sequence-b.sequence).findIndex(r=>r.id===id);
+      var controls = document.getElementById('timelineControlsRows');
+      var sorted = window.AppState.runbooks.slice().sort(function(a,b) { return a.sequence - b.sequence; });
+      var idx = sorted.findIndex(function(r) { return r.id === id; });
       if (controls && idx > -1 && controls.children[idx]) {
-        const inp = controls.children[idx].querySelectorAll('.timeline-control-cell input[type="text"]')[1];
+        var inp = controls.children[idx].querySelectorAll('.timeline-control-cell input[type="text"]')[1];
         if (inp) inp.value = formatHHMM(t.h, t.m);
       }
-    } catch (e) {}
+    } catch(e) {
+      console.error('Error updating duration time display:', e);
+    }
     updateTimeline();
   }
 };
 
 window.toggleCompleted = function(id, checked) {
-  const runbook = window.AppState.runbooks.find(r => r.id === id);
+  var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
   if (runbook) {
     runbook.completed = checked;
     
     if (checked && window.AppState.downtimeStartTime) {
-      const now = new Date();
-      const startTime = new Date(window.AppState.downtimeStartTime);
-      const scheduledOffset = runbook.scheduleHours * 3600000 + runbook.scheduleMinutes * 60000;
-      const taskStart = new Date(startTime.getTime() + scheduledOffset);
+      var now = new Date();
+      var startTime = new Date(window.AppState.downtimeStartTime);
+      var scheduledOffset = runbook.scheduleHours * 3600000 + runbook.scheduleMinutes * 60000;
+      var taskStart = new Date(startTime.getTime() + scheduledOffset);
       
-      const actualMs = now - taskStart - window.AppState.pausedDuration;
-      const actualHours = Math.floor(actualMs / 3600000);
-      const actualMinutes = Math.floor((actualMs % 3600000) / 60000);
+      var actualMs = now - taskStart - window.AppState.pausedDuration;
+      var actualHours = Math.floor(actualMs / 3600000);
+      var actualMinutes = Math.floor((actualMs % 3600000) / 60000);
       
-      runbook.actualDuration = `${String(Math.max(0, actualHours)).padStart(2,'0')}:${String(Math.max(0, actualMinutes)).padStart(2,'0')}`;
+      runbook.actualDuration = String(Math.max(0, actualHours)).padStart(2,'0') + ':' + String(Math.max(0, actualMinutes)).padStart(2,'0');
       window.AppState.completionTimes[id] = now;
     } else if (!checked) {
       runbook.actualDuration = null;
@@ -1961,10 +1960,12 @@ window.toggleCompleted = function(id, checked) {
 
 // Downtime Control Functions
 window.startDowntime = function() {
-  const startTimeInput = document.getElementById('startTimeInput');
+  var startTimeInput = document.getElementById('startTimeInput');
   if (startTimeInput && startTimeInput.value) {
-    const [hours, minutes] = startTimeInput.value.split(':').map(Number);
-    const startDate = new Date();
+    var timeParts = startTimeInput.value.split(':').map(Number);
+    var hours = timeParts[0];
+    var minutes = timeParts[1];
+    var startDate = new Date();
     startDate.setHours(hours, minutes, 0, 0);
     window.AppState.downtimeStartTime = startDate;
   } else {
@@ -1974,7 +1975,7 @@ window.startDowntime = function() {
   window.AppState.downtimeStarted = true;
   window.AppState.pausedDuration = 0;
   
-  const downtimeDuration = parseInt(document.getElementById('downtimeDuration').value) || 24;
+  var downtimeDuration = parseInt(document.getElementById('downtimeDuration').value) || 24;
   window.AppState.downtimeDuration = downtimeDuration;
   
   // Update UI
@@ -1983,7 +1984,7 @@ window.startDowntime = function() {
   document.getElementById('currentDurationInput').style.display = 'none';
   document.getElementById('currentDurationDisplay').style.display = 'block';
   
-  const startTimeStr = window.AppState.downtimeStartTime.toLocaleTimeString('en-US', 
+  var startTimeStr = window.AppState.downtimeStartTime.toLocaleTimeString('en-US', 
     { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
   
   document.getElementById('startTimeDisplay').textContent = startTimeStr;
@@ -1992,12 +1993,11 @@ window.startDowntime = function() {
   document.getElementById('statusText').textContent = 'In Progress';
   document.getElementById('statusText').style.color = 'var(--sap-error)';
   
-  document.getElementById('downtimeControls').innerHTML = `
-    <button class="btn warning" onclick="pauseDowntime()">⏸ Pause</button>
-    <button class="btn danger" onclick="stopDowntime()">■ Stop</button>
-  `;
+  document.getElementById('downtimeControls').innerHTML = 
+    '<button class="btn warning" onclick="pauseDowntime()">⏸ Pause</button>' +
+    '<button class="btn danger" onclick="stopDowntime()">■ Stop</button>';
   
-  const currentLine = document.getElementById('currentTimeLine');
+  var currentLine = document.getElementById('currentTimeLine');
   if (currentLine) {
     currentLine.style.display = 'block';
     currentLine.style.left = '0px';
@@ -2015,10 +2015,9 @@ window.pauseDowntime = function() {
     document.getElementById('statusText').textContent = 'Paused';
     document.getElementById('statusText').style.color = 'var(--sap-warning)';
     
-    document.getElementById('downtimeControls').innerHTML = `
-      <button class="btn primary" onclick="resumeDowntime()">▶ Resume</button>
-      <button class="btn danger" onclick="stopDowntime()">■ Stop</button>
-    `;
+    document.getElementById('downtimeControls').innerHTML = 
+      '<button class="btn primary" onclick="resumeDowntime()">▶ Resume</button>' +
+      '<button class="btn danger" onclick="stopDowntime()">■ Stop</button>';
 
     updateTimeline();
     renderRunbookTable();
@@ -2027,7 +2026,7 @@ window.pauseDowntime = function() {
 
 window.resumeDowntime = function() {
   if (window.AppState.downtimePaused) {
-    const pauseDuration = new Date() - window.AppState.pauseStartTime;
+    var pauseDuration = new Date() - window.AppState.pauseStartTime;
     window.AppState.pausedDuration += pauseDuration;
     window.AppState.downtimePaused = false;
     window.AppState.pauseStartTime = null;
@@ -2035,12 +2034,11 @@ window.resumeDowntime = function() {
     document.getElementById('statusText').textContent = 'In Progress';
     document.getElementById('statusText').style.color = 'var(--sap-error)';
     
-    document.getElementById('downtimeControls').innerHTML = `
-      <button class="btn warning" onclick="pauseDowntime()">⏸ Pause</button>
-      <button class="btn danger" onclick="stopDowntime()">■ Stop</button>
-    `;
+    document.getElementById('downtimeControls').innerHTML = 
+      '<button class="btn warning" onclick="pauseDowntime()">⏸ Pause</button>' +
+      '<button class="btn danger" onclick="stopDowntime()">■ Stop</button>';
     
-    const currentLine = document.getElementById('currentTimeLine');
+    var currentLine = document.getElementById('currentTimeLine');
     if (currentLine) currentLine.style.display = 'block';
 
     updateTimeline();
@@ -2057,7 +2055,7 @@ window.stopDowntime = function() {
     window.AppState.pauseStartTime = null;
     
     // Reset actual durations
-    window.AppState.runbooks.forEach(r => {
+    window.AppState.runbooks.forEach(function(r) {
       r.actualDuration = null;
       r.completed = false;
     });
@@ -2071,11 +2069,10 @@ window.stopDowntime = function() {
     document.getElementById('statusText').textContent = 'Not Started';
     document.getElementById('statusText').style.color = 'var(--sap-warning)';
     
-    document.getElementById('downtimeControls').innerHTML = `
-      <button class="btn primary" id="startDowntimeBtn" onclick="startDowntime()">Start Downtime</button>
-    `;
+    document.getElementById('downtimeControls').innerHTML = 
+      '<button class="btn primary" id="startDowntimeBtn" onclick="startDowntime()">Start Downtime</button>';
     
-    const currentLine = document.getElementById('currentTimeLine');
+    var currentLine = document.getElementById('currentTimeLine');
     if (currentLine) currentLine.style.display = 'none';
     
     updateTimeline();
@@ -2086,28 +2083,28 @@ window.stopDowntime = function() {
 window.updateProgressIndicators = function() {
   if (!window.AppState.downtimeStarted || !window.AppState.downtimeStartTime) return;
   
-  const now = new Date();
-  const elapsedMs = now - window.AppState.downtimeStartTime - window.AppState.pausedDuration;
-  const elapsed = elapsedMs / 3600000;
+  var now = new Date();
+  var elapsedMs = now - window.AppState.downtimeStartTime - window.AppState.pausedDuration;
+  var elapsed = elapsedMs / 3600000;
   
-  const pixelsPerHour = 60;
-  const linePosition = Math.min(elapsed * pixelsPerHour, window.AppState.downtimeDuration * pixelsPerHour);
+  var pixelsPerHour = 60;
+  var linePosition = Math.min(elapsed * pixelsPerHour, window.AppState.downtimeDuration * pixelsPerHour);
   
   // Store position for viewer sync
   window.AppState.syncedTimelinePosition = linePosition;
   
-  const currentLine = document.getElementById('currentTimeLine');
+  var currentLine = document.getElementById('currentTimeLine');
   if (currentLine) {
-    currentLine.style.left = `${linePosition}px`;
+    currentLine.style.left = linePosition + 'px';
     currentLine.style.display = 'block';
     
-    const totalSeconds = Math.floor(elapsedMs / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
+    var totalSeconds = Math.floor(elapsedMs / 1000);
+    var hours = Math.floor(totalSeconds / 3600);
+    var minutes = Math.floor((totalSeconds % 3600) / 60);
+    var seconds = totalSeconds % 60;
     
-    const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    const label = document.getElementById('currentTimeLabel');
+    var timeStr = String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+    var label = document.getElementById('currentTimeLabel');
     if (label) label.textContent = timeStr;
   }
     
@@ -2119,34 +2116,39 @@ window.updateProgressIndicators = function() {
 
 // Import/Export Functions
 window.downloadExcel = function() {
-  const data = window.AppState.runbooks.map(r => ({
-    Sequence: r.sequence,
-    Strategy: r.strategy,
-    Phase: r.phase,
-    Runblock: r.runblock || '',
-    Responsibility: r.responsibility || '',
-    Critical: r.critical ? 'Yes' : 'No',
-    ScheduleTime: `${String(r.scheduleHours).padStart(2,'0')}:${String(r.scheduleMinutes).padStart(2,'0')}`,
-    PlannedDuration: `${String(r.durationHours).padStart(2,'0')}:${String(r.durationMinutes).padStart(2,'0')}`,
-    ActualDuration: r.actualDuration || '',
-    Completed: r.completed ? 'Yes' : 'No'
-  }));
+  var data = window.AppState.runbooks.map(function(r) {
+    return {
+      Sequence: r.sequence,
+      Strategy: r.strategy,
+      Phase: r.phase,
+      Runblock: r.runblock || '',
+      Responsibility: r.responsibility || '',
+      Critical: r.critical ? 'Yes' : 'No',
+      ScheduleTime: String(r.scheduleHours).padStart(2,'0') + ':' + String(r.scheduleMinutes).padStart(2,'0'),
+      PlannedDuration: String(r.durationHours).padStart(2,'0') + ':' + String(r.durationMinutes).padStart(2,'0'),
+      ActualDuration: r.actualDuration || '',
+      Completed: r.completed ? 'Yes' : 'No'
+    };
+  });
   
-  const headers = ['Sequence','Strategy','Phase','Runblock','Responsibility','Critical','ScheduleTime','PlannedDuration','ActualDuration','Completed'];
-  const csvContent = [
-    headers.join(','),
-    ...data.map(row => headers.map(header => `"${row[header] || ''}"`).join(','))
-  ].join('\n');
+  var headers = ['Sequence','Strategy','Phase','Runblock','Responsibility','Critical','ScheduleTime','PlannedDuration','ActualDuration','Completed'];
+  var csvContent = [
+    headers.join(',')
+  ].concat(data.map(function(row) {
+    return headers.map(function(header) {
+      return '"' + (row[header] || '') + '"';
+    }).join(',');
+  })).join('\n');
   
-  const customerName = document.getElementById('customerName').value || 'customer';
-  const safeCustomerName = customerName.replace(/[^a-zA-Z0-9]/g, '_');
-  const dateStr = new Date().toISOString().slice(0,10);
+  var customerName = document.getElementById('customerName').value || 'customer';
+  var safeCustomerName = customerName.replace(/[^a-zA-Z0-9]/g, '_');
+  var dateStr = new Date().toISOString().slice(0,10);
   
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
   a.href = url;
-  a.download = `${safeCustomerName}_downtime_runbook_${dateStr}.csv`;
+  a.download = safeCustomerName + '_downtime_runbook_' + dateStr + '.csv';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -2154,29 +2156,34 @@ window.downloadExcel = function() {
 };
 
 window.uploadExcel = function(event) {
-  const file = event.target.files[0];
+  var file = event.target.files[0];
   if (!file) return;
   
-  const reader = new FileReader();
+  var reader = new FileReader();
   reader.onload = function(e) {
     try {
-      const text = e.target.result;
-      const lines = text.split('\n');
-      const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+      var text = e.target.result;
+      var lines = text.split('\n');
+      var headers = lines[0].split(',').map(function(h) { return h.replace(/"/g, '').trim(); });
       
       window.AppState.runbooks = [];
       
-      for (let i = 1; i < lines.length; i++) {
+      for (var i = 1; i < lines.length; i++) {
         if (lines[i].trim()) {
-          const values = lines[i].match(/(".*?"|[^,]+)/g)?.map(v => v.replace(/"/g, '').trim()) || [];
+          var matches = lines[i].match(/(".*?"|[^,]+)/g);
+          var values = matches ? matches.map(function(v) { return v.replace(/"/g, '').trim(); }) : [];
           
-          const scheduleTime = values[headers.indexOf('ScheduleTime')] || '00:00';
-          const [scheduleHours, scheduleMinutes] = scheduleTime.split(':').map(Number);
+          var scheduleTime = values[headers.indexOf('ScheduleTime')] || '00:00';
+          var scheduleTimeParts = scheduleTime.split(':').map(Number);
+          var scheduleHours = scheduleTimeParts[0] || 0;
+          var scheduleMinutes = scheduleTimeParts[1] || 0;
           
-          const planDuration = values[headers.indexOf('PlannedDuration')] || values[headers.indexOf('Duration')] || '01:00';
-          const [durationHours, durationMinutes] = planDuration.split(':').map(Number);
+          var planDuration = values[headers.indexOf('PlannedDuration')] || values[headers.indexOf('Duration')] || '01:00';
+          var planDurationParts = planDuration.split(':').map(Number);
+          var durationHours = planDurationParts[0] || 1;
+          var durationMinutes = planDurationParts[1] || 0;
           
-          const runbook = {
+          var runbook = {
             id: Date.now() + Math.random() + i,
             sequence: parseInt(values[headers.indexOf('Sequence')]) || i,
             strategy: values[headers.indexOf('Strategy')] || STRATEGIES[0],
@@ -2184,10 +2191,10 @@ window.uploadExcel = function(event) {
             runblock: values[headers.indexOf('Runblock')] || '',
             responsibility: values[headers.indexOf('Responsibility')] || '',
             critical: values[headers.indexOf('Critical')] === 'Yes',
-            scheduleHours: scheduleHours || 0,
-            scheduleMinutes: scheduleMinutes || 0,
-            durationHours: durationHours || 1,
-            durationMinutes: durationMinutes || 0,
+            scheduleHours: scheduleHours,
+            scheduleMinutes: scheduleMinutes,
+            durationHours: durationHours,
+            durationMinutes: durationMinutes,
             actualDuration: values[headers.indexOf('ActualDuration')] || null,
             completed: values[headers.indexOf('Completed')] === 'Yes',
             position: 0
@@ -2203,7 +2210,7 @@ window.uploadExcel = function(event) {
       
     } catch (error) {
       alert('Error loading file. Please check the format.');
-      console.error(error);
+      console.error('Upload error:', error);
     }
   };
   reader.readAsText(file);
@@ -2218,49 +2225,49 @@ window.generatePDFReport = async function() {
     return;
   }
   
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF('l', 'mm', 'a4');
+  var jsPDF = window.jspdf.jsPDF;
+  var pdf = new jsPDF('l', 'mm', 'a4');
   
-  const customerName = document.getElementById('customerName').value || 'Unknown Customer';
-  const transformCycle = document.getElementById('transformCycle').value || 'Unknown Phase';
-  const currentDate = new Date().toLocaleString();
+  var customerName = document.getElementById('customerName').value || 'Unknown Customer';
+  var transformCycle = document.getElementById('transformCycle').value || 'Unknown Phase';
+  var currentDate = new Date().toLocaleString();
   
   pdf.setFontSize(20);
   pdf.text('Technical Downtime Report', 20, 20);
   
   pdf.setFontSize(12);
-  pdf.text(`Customer: ${customerName}`, 20, 30);
-  pdf.text(`Transform Cycle: ${transformCycle}`, 20, 37);
-  pdf.text(`Generated: ${currentDate}`, 20, 44);
+  pdf.text('Customer: ' + customerName, 20, 30);
+  pdf.text('Transform Cycle: ' + transformCycle, 20, 37);
+  pdf.text('Generated: ' + currentDate, 20, 44);
   
   pdf.setFontSize(14);
   pdf.text('Execution Status', 20, 55);
   
   pdf.setFontSize(10);
-  const statusText = document.getElementById('statusText').textContent;
-  const startTime = document.getElementById('startTimeDisplay').textContent;
-  const endTime = document.getElementById('endTimeDisplay').textContent;
-  const duration = document.getElementById('currentDurationDisplay').textContent;
+  var statusText = document.getElementById('statusText').textContent;
+  var startTime = document.getElementById('startTimeDisplay').textContent;
+  var endTime = document.getElementById('endTimeDisplay').textContent;
+  var duration = document.getElementById('currentDurationDisplay').textContent;
   
-  pdf.text(`Status: ${statusText}`, 20, 62);
-  pdf.text(`Start Time: ${startTime}`, 20, 68);
-  pdf.text(`End Time: ${endTime}`, 20, 74);
-  pdf.text(`Current Duration: ${duration}`, 20, 80);
+  pdf.text('Status: ' + statusText, 20, 62);
+  pdf.text('Start Time: ' + startTime, 20, 68);
+  pdf.text('End Time: ' + endTime, 20, 74);
+  pdf.text('Current Duration: ' + duration, 20, 80);
   
   // Capture timeline
-  const timelineContainer = document.querySelector('.timeline-container');
+  var timelineContainer = document.querySelector('.timeline-container');
   if (timelineContainer && typeof html2canvas !== 'undefined') {
     try {
-      const canvas = await html2canvas(timelineContainer, {
+      var canvas = await html2canvas(timelineContainer, {
         scale: 2,
         logging: false,
         useCORS: true
       });
       
-      const imgData = canvas.toDataURL('image/png');
+      var imgData = canvas.toDataURL('image/png');
       pdf.text('Timeline View', 20, 92);
-      const imgWidth = 250;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      var imgWidth = 250;
+      var imgHeight = (canvas.height * imgWidth) / canvas.width;
       pdf.addImage(imgData, 'PNG', 20, 97, imgWidth, Math.min(imgHeight, 80));
     } catch (error) {
       console.error('Error capturing timeline:', error);
@@ -2273,38 +2280,38 @@ window.generatePDFReport = async function() {
   pdf.text('Runbook Details', 20, 20);
   
   pdf.setFontSize(9);
-  let yPos = 30;
-  const headers = ['Seq', 'Strategy', 'Phase', 'Runblock', 'Critical', 'Start', 'Plan', 'Actual', 'Complete'];
-  const xPositions = [20, 30, 55, 80, 120, 140, 160, 180, 200];
+  var yPos = 30;
+  var headers = ['Seq', 'Strategy', 'Phase', 'Runblock', 'Critical', 'Start', 'Plan', 'Actual', 'Complete'];
+  var xPositions = [20, 30, 55, 80, 120, 140, 160, 180, 200];
   
-  headers.forEach((header, i) => {
+  headers.forEach(function(header, i) {
     pdf.text(header, xPositions[i], yPos);
   });
   
   yPos += 7;
-  window.AppState.runbooks.forEach((runbook) => {
+  window.AppState.runbooks.forEach(function(runbook) {
     if (yPos > 180) {
       pdf.addPage();
       yPos = 20;
-      headers.forEach((header, i) => {
+      headers.forEach(function(header, i) {
         pdf.text(header, xPositions[i], yPos);
       });
       yPos += 7;
     }
     
-    const rowData = [
+    var rowData = [
       runbook.sequence.toString(),
       runbook.strategy.substring(0, 12),
       runbook.phase.substring(0, 10),
       runbook.runblock.substring(0, 25),
       runbook.critical ? 'Yes' : 'No',
-      `${String(runbook.scheduleHours).padStart(2,'0')}:${String(runbook.scheduleMinutes).padStart(2,'0')}`,
-      `${String(runbook.durationHours).padStart(2,'0')}:${String(runbook.durationMinutes).padStart(2,'0')}`,
+      String(runbook.scheduleHours).padStart(2,'0') + ':' + String(runbook.scheduleMinutes).padStart(2,'0'),
+      String(runbook.durationHours).padStart(2,'0') + ':' + String(runbook.durationMinutes).padStart(2,'0'),
       runbook.actualDuration || '--:--',
       runbook.completed ? 'Yes' : 'No'
     ];
     
-    rowData.forEach((data, i) => {
+    rowData.forEach(function(data, i) {
       pdf.text(data, xPositions[i], yPos);
     });
     
@@ -2312,31 +2319,31 @@ window.generatePDFReport = async function() {
   });
   
   // Summary
-  const totalTasks = window.AppState.runbooks.length;
-  const completedTasks = window.AppState.runbooks.filter(r => r.completed).length;
-  const criticalTasks = window.AppState.runbooks.filter(r => r.critical).length;
-  const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  var totalTasks = window.AppState.runbooks.length;
+  var completedTasks = window.AppState.runbooks.filter(function(r) { return r.completed; }).length;
+  var criticalTasks = window.AppState.runbooks.filter(function(r) { return r.critical; }).length;
+  var completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
   
   pdf.addPage();
   pdf.setFontSize(14);
   pdf.text('Summary Statistics', 20, 20);
   
   pdf.setFontSize(10);
-  pdf.text(`Total Tasks: ${totalTasks}`, 20, 30);
-  pdf.text(`Completed Tasks: ${completedTasks}`, 20, 36);
-  pdf.text(`Critical Path Items: ${criticalTasks}`, 20, 42);
-  pdf.text(`Completion Rate: ${completionRate}%`, 20, 48);
+  pdf.text('Total Tasks: ' + totalTasks, 20, 30);
+  pdf.text('Completed Tasks: ' + completedTasks, 20, 36);
+  pdf.text('Critical Path Items: ' + criticalTasks, 20, 42);
+  pdf.text('Completion Rate: ' + completionRate + '%', 20, 48);
   
-  const safeCustomerName = customerName.replace(/[^a-zA-Z0-9]/g, '_');
-  const dateStr = new Date().toISOString().slice(0,10);
-  pdf.save(`${safeCustomerName}_downtime_report_${dateStr}.pdf`);
+  var safeCustomerName = customerName.replace(/[^a-zA-Z0-9]/g, '_');
+  var dateStr = new Date().toISOString().slice(0,10);
+  pdf.save(safeCustomerName + '_downtime_report_' + dateStr + '.pdf');
 };
 
 // Dropdown focus management - prevent premature closing
 document.addEventListener('mousedown', function(e) {
   if (e.target.tagName === 'SELECT' || e.target.closest('select')) {
     e.target.__dropdownFocus = true;
-    setTimeout(() => {
+    setTimeout(function() {
       delete e.target.__dropdownFocus;
     }, 300);
   }
@@ -2349,6 +2356,223 @@ document.addEventListener('blur', function(e) {
     e.target.focus();
   }
 }, true);
+
+// Time parsing and formatting functions
+function parseHHMM(str) {
+  if (!str) return {h:0, m:0, ok:false};
+  str = String(str).trim();
+  var h = 0, m = 0, ok = false;
+  if (/^\d{1,3}:\d{1,2}$/.test(str)) {
+    var parts = str.split(':');
+    h = parseInt(parts[0], 10) || 0;
+    m = parseInt(parts[1], 10) || 0;
+    ok = true;
+  } else if (/^\d{3,}$/.test(str)) {
+    var mm = str.slice(-2);
+    var hh = str.slice(0, -2);
+    h = parseInt(hh, 10) || 0;
+    m = parseInt(mm, 10) || 0;
+    ok = true;
+  }
+  if (m >= 60) { 
+    h += Math.floor(m / 60); 
+    m = m % 60; 
+  }
+  if (m < 0) m = 0;
+  if (h < 0) h = 0;
+  return {h: h, m: m, ok: ok};
+}
+
+function formatHHMM(h, m) {
+  h = Math.max(0, parseInt(h || 0, 10));
+  m = Math.max(0, parseInt(m || 0, 10)) % 60;
+  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+}
+
+// Debounce helper
+function debounce(fn, delay) { 
+  var t; 
+  return function() { 
+    var ctx = this, args = arguments; 
+    clearTimeout(t); 
+    t = setTimeout(function() {
+      fn.apply(ctx, args);
+    }, delay); 
+  }; 
+}
+
+// Enhancements
+function attachTimeInputEnhancements(input, type, id) {
+  if (!input) return;
+  input.setAttribute('inputmode', 'numeric');
+  input.setAttribute('title', 'Use HH:MM (e.g., 01:30). Tip: Arrow Up/Down ±5 min, Shift+Arrow ±15 min.');
+
+  var validate = function() {
+    var val = input.value.trim();
+    var match = /^\d{1,3}:\d{1,2}$/.test(val) || /^\d{3,}$/.test(val);
+    if (!match) { 
+      input.classList.add('input-invalid'); 
+    } else { 
+      input.classList.remove('input-invalid'); 
+    }
+  };
+  input.addEventListener('input', validate);
+  input.addEventListener('blur', function() { 
+    input.classList.remove('input-invalid'); 
+  });
+
+  input.addEventListener('keydown', function(e) {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    e.preventDefault();
+    var delta = (e.shiftKey ? 15 : 5) * (e.key === 'ArrowUp' ? 1 : -1);
+    var t = parseHHMM(input.value);
+    var total = t.h * 60 + t.m + delta;
+    if (total < 0) total = 0;
+    var nh = Math.floor(total / 60);
+    var nm = total % 60;
+    var nv = formatHHMM(nh, nm);
+    input.value = nv;
+    if (type === 'start') window.updateScheduleTime(id, nv);
+    else window.updateDurationTime(id, nv);
+  });
+}
+
+function updateSingleBlockPosition(id) {
+  var rb = window.AppState.runbooks.find(function(r) { return r.id === id; });
+  if (!rb) return;
+  var pph = 60;
+  var pos = rb.scheduleHours + rb.scheduleMinutes / 60;
+  var x = pos * pph;
+
+  var block = document.querySelector('.timeline-block[data-runbook-id="' + id + '"]');
+  var diamond = document.querySelector('.quality-diamond[data-runbook-id="' + id + '"]');
+  if (block) block.style.left = x + 'px';
+  if (diamond) diamond.style.left = Math.max(0, x - 7) + 'px';
+}
+
+function updateSingleBlockWidth(id) {
+  var rb = window.AppState.runbooks.find(function(r) { return r.id === id; });
+  if (!rb) return;
+  var pph = 60;
+  var dur = rb.durationHours + rb.durationMinutes / 60;
+  var w = Math.max(60, dur * pph - 4);
+  var block = document.querySelector('.timeline-block[data-runbook-id="' + id + '"]');
+  if (block) block.style.width = w + 'px';
+}
+
+var scheduleConflicts = debounce(recomputeConflicts, 120);
+var scheduleValidation = debounce(displayValidationWarnings, 150);
+
+function clearConflictArtifacts() {
+  document.querySelectorAll('.conflict-overlay').forEach(function(el) { el.remove(); });
+  document.querySelectorAll('.timeline-block .conflict-indicator').forEach(function(el) { el.remove(); });
+  document.querySelectorAll('.timeline-block .slack-badge').forEach(function(el) { el.remove(); });
+  document.querySelectorAll('.timeline-block .quick-fix').forEach(function(el) { el.remove(); });
+}
+
+function recomputeConflicts() {
+  clearConflictArtifacts();
+  var pph = 60;
+  var runbooks = window.AppState.runbooks
+    .filter(function(r) { return r && r.runblock && r.runblock.trim().length > 0; })
+    .sort(function(a, b) { return a.sequence - b.sequence; });
+
+  // Slack badges
+  for (var i = 0; i < runbooks.length; i++) {
+    var a = runbooks[i];
+    var aStart = a.scheduleHours + a.scheduleMinutes / 60;
+    var aEnd = aStart + a.durationHours + a.durationMinutes / 60;
+    var next = runbooks[i + 1];
+    if (next) {
+      var nStart = next.scheduleHours + next.scheduleMinutes / 60;
+      var slack = Math.max(0, nStart - aEnd);
+      var block = document.querySelector('.timeline-block[data-runbook-id="' + a.id + '"]');
+      if (block && slack > 0) {
+        var badge = document.createElement('span');
+        badge.className = 'slack-badge';
+        var min = Math.round(slack * 60);
+        badge.textContent = 'Slack ' + (min >= 60 ? Math.floor(min / 60) + 'h ' + (min % 60) + 'm' : min + 'm');
+        block.appendChild(badge);
+      }
+    }
+  }
+
+  // Conflicts & overlays
+  for (var i = 0; i < runbooks.length; i++) {
+    for (var j = i + 1; j < runbooks.length; j++) {
+      var a = runbooks[i], b = runbooks[j];
+      var aStart = a.scheduleHours + a.scheduleMinutes / 60;
+      var aEnd = aStart + a.durationHours + a.durationMinutes / 60;
+      var bStart = b.scheduleHours + b.scheduleMinutes / 60;
+      var bEnd = bStart + b.durationHours + b.durationMinutes / 60;
+      if (aEnd > bStart && bEnd > aStart) {
+        var later = (bStart >= aStart) ? b : a;
+        var block = document.querySelector('.timeline-block[data-runbook-id="' + later.id + '"]');
+        if (block) {
+          var badge = document.createElement('span');
+          badge.className = 'conflict-indicator';
+          badge.textContent = 'CLASH';
+          block.appendChild(badge);
+
+          var fix = document.createElement('button');
+          fix.className = 'quick-fix';
+          fix.textContent = '+15m →';
+          fix.title = 'Shift next item by +15 minutes';
+          fix.addEventListener('click', function(ev) {
+            ev.stopPropagation();
+            shiftFollowing(later.id, 15);
+          });
+          block.appendChild(fix);
+        }
+        var scroll = document.querySelector('.timeline-scroll');
+        if (scroll) {
+          var overlay = document.createElement('div');
+          overlay.className = 'conflict-overlay';
+          var left = Math.max(aStart, bStart) * pph;
+          var right = Math.min(aEnd, bEnd) * pph;
+          overlay.style.left = left + 'px';
+          overlay.style.width = Math.max(2, right - left) + 'px';
+          scroll.appendChild(overlay);
+        }
+      }
+    }
+  }
+}
+
+function shiftFollowing(id, minutes) {
+  var runbooks = window.AppState.runbooks.slice().sort(function(a, b) { return a.sequence - b.sequence; });
+  var idx = runbooks.findIndex(function(r) { return r.id === id; });
+  var target = runbooks[idx + 1];
+  if (!target) return;
+  var total = target.scheduleHours * 60 + target.scheduleMinutes + minutes;
+  if (total < 0) total = 0;
+  target.scheduleHours = Math.floor(total / 60);
+  target.scheduleMinutes = total % 60;
+  window.updateScheduleTime(target.id, formatHHMM(target.scheduleHours, target.scheduleMinutes));
+  updateSingleBlockPosition(target.id);
+  scheduleConflicts();
+}
+
+// Override generateTimelineRows to add enhancements
+var _origGenerateTimelineRows = generateTimelineRows;
+generateTimelineRows = function() {
+  _origGenerateTimelineRows.apply(this, arguments);
+  recomputeConflicts();
+  var controls = document.getElementById('timelineControlsRows');
+  if (controls) {
+    var rows = controls.querySelectorAll('.timeline-control-row');
+    var sorted = window.AppState.runbooks
+      .filter(function(r) { return r && r.runblock && r.runblock.trim().length > 0; })
+      .sort(function(a, b) { return a.sequence - b.sequence; });
+    rows.forEach(function(row, i) {
+      var rb = sorted[i];
+      if (!rb) return;
+      var inputs = row.querySelectorAll('input[type="text"]');
+      if (inputs[0]) attachTimeInputEnhancements(inputs[0], 'start', rb.id);
+      if (inputs[1]) attachTimeInputEnhancements(inputs[1], 'plan', rb.id);
+    });
+  }
+};
 
 </script>
 
@@ -2823,7 +3047,7 @@ document.getElementById("rt-reset").onclick = async function() {
     isFirstUser: false,
     syncedTimelinePosition: 0,
     renderLock: false,
-  messagesOn: false
+    messagesOn: false
   };
   
   // Reset UI
@@ -2839,410 +3063,6 @@ document.getElementById("rt-reset").onclick = async function() {
 };
 
 console.log("Firebase sync initialized - Mode:", window.canWrite() ? "HOST" : "VIEWER");
-</script>
-
-<script src="./sw-register.js"></script>
-
-
-<script>
-function parseHHMM(str) {
-  if (!str) return {h:0,m:0,ok:false};
-  str = String(str).trim();
-  let h = 0, m = 0, ok = false;
-  if (/^\d{1,3}:\d{1,2}$/.test(str)) {
-    const parts = str.split(':');
-    h = parseInt(parts[0],10) || 0;
-    m = parseInt(parts[1],10) || 0;
-    ok = true;
-  } else if (/^\d{3,}$/.test(str)) {
-    const mm = str.slice(-2);
-    const hh = str.slice(0, -2);
-    h = parseInt(hh,10) || 0;
-    m = parseInt(mm,10) || 0;
-    ok = true;
-  }
-  if (m >= 60) { h += Math.floor(m/60); m = m % 60; }
-  if (m < 0) m = 0;
-  if (h < 0) h = 0;
-  return {h, m, ok};
-}
-function formatHHMM(h, m){
-  h = Math.max(0, parseInt(h||0,10));
-  m = Math.max(0, parseInt(m||0,10)) % 60;
-  return (String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0'));
-}
-</script>
-
-
-<script>
-// --- Enhancements JS (injected) ---
-
-// Debounce helper
-function debounce(fn, delay){ let t; return function(){ const ctx=this, args=arguments; clearTimeout(t); t=setTimeout(()=>fn.apply(ctx,args), delay); }; }
-
-// Time parse/format (idempotent)
-if (typeof parseHHMM !== 'function') {
-  function parseHHMM(str){
-    if(!str) return {h:0,m:0, ok:false};
-    str = String(str).trim();
-    let h=0, m=0, ok=false;
-    if (/^\d{1,3}:\d{1,2}$/.test(str)) {
-      const parts = str.split(':');
-      h = parseInt(parts[0],10) || 0;
-      m = parseInt(parts[1],10) || 0;
-      ok = true;
-    } else if (/^\d{3,}$/.test(str)) {
-      const mm = str.slice(-2);
-      const hh = str.slice(0, -2);
-      h = parseInt(hh,10) || 0;
-      m = parseInt(mm,10) || 0;
-      ok = true;
-    }
-    if (m >= 60) { h += Math.floor(m/60); m = m % 60; }
-    if (m < 0) m = 0;
-    if (h < 0) h = 0;
-    return {h, m, ok};
-  }
-}
-if (typeof formatHHMM !== 'function') {
-  function formatHHMM(h,m){
-    h = Math.max(0, parseInt(h||0,10));
-    m = Math.max(0, parseInt(m||0,10)) % 60;
-    return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
-  }
-}
-
-// Attach enhancements to a time input
-function attachTimeInputEnhancements(input, type, id){
-  if(!input) return;
-  input.setAttribute('inputmode','numeric');
-  input.setAttribute('title','Use HH:MM (e.g., 01:30). Tip: Arrow Up/Down ±5 min, Shift+Arrow ±15 min.');
-
-  // Validation on type
-  const validate = () => {
-    const val = input.value.trim();
-    const match = /^\d{1,3}:\d{1,2}$/.test(val) || /^\d{3,}$/.test(val);
-    if(!match){ input.classList.add('input-invalid'); }
-    else { input.classList.remove('input-invalid'); }
-  };
-  input.addEventListener('input', validate);
-  input.addEventListener('blur', () => input.classList.remove('input-invalid'));
-
-  // Keyboard increments
-  input.addEventListener('keydown', (e) => {
-    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
-    e.preventDefault();
-    const delta = (e.shiftKey ? 15 : 5) * (e.key === 'ArrowUp' ? 1 : -1);
-    const t = parseHHMM(input.value);
-    let total = t.h * 60 + t.m + delta;
-    if (total < 0) total = 0;
-    const nh = Math.floor(total/60);
-    const nm = total % 60;
-    const nv = formatHHMM(nh, nm);
-    input.value = nv;
-    if (type === 'start') window.updateScheduleTime(id, nv);
-    else window.updateDurationTime(id, nv);
-  });
-}
-
-// Partial rerender: update a single block's position/width
-function updateSingleBlockPosition(id){
-  const rb = (window.AppState.runbooks||[]).find(r => r.id === id);
-  if(!rb) return;
-  const pph = 60;
-  const pos = rb.scheduleHours + rb.scheduleMinutes/60;
-  const x = pos * pph;
-
-  const block = document.querySelector('.timeline-block[data-runbook-id="'+id+'"]');
-  const diamond = document.querySelector('.quality-diamond[data-runbook-id="'+id+'"]');
-  if (block) block.style.left = x + 'px';
-  if (diamond) diamond.style.left = Math.max(0, x - 7) + 'px';
-}
-
-function updateSingleBlockWidth(id){
-  const rb = (window.AppState.runbooks||[]).find(r => r.id === id);
-  if(!rb) return;
-  const pph = 60;
-  const dur = rb.durationHours + rb.durationMinutes/60;
-  const w = Math.max(60, dur * pph - 4);
-  const block = document.querySelector('.timeline-block[data-runbook-id="'+id+'"]');
-  if (block) block.style.width = w + 'px';
-}
-
-// Recompute conflicts & slack (debounced for perf)
-const scheduleConflicts = debounce(recomputeConflicts, 120);
-const scheduleValidation = debounce(displayValidationWarnings, 150);
-
-// Override updateScheduleTime / updateDurationTime to use partial updates + save
-(function(){
-  const origUST = window.updateScheduleTime;
-  const origUDT = window.updateDurationTime;
-  window.updateScheduleTime = function(id, value){
-    const rb = (window.AppState.runbooks||[]).find(r => r.id === id);
-    if (!rb) return origUST ? origUST(id, value) : undefined;
-    const t = parseHHMM(value);
-    rb.scheduleHours = t.h;
-    rb.scheduleMinutes = t.m;
-    try{
-      const controls = document.getElementById('timelineControlsRows');
-      const sorted = [...window.AppState.runbooks].sort((a,b)=>a.sequence-b.sequence);
-      const idx = sorted.findIndex(r=>r.id===id);
-      if (controls && idx > -1 && controls.children[idx]){
-        const inp = controls.children[idx].querySelectorAll('.timeline-control-cell input[type="text"]')[0];
-        if (inp) inp.value = formatHHMM(t.h, t.m);
-      }
-    }catch(e){}
-    updateSingleBlockPosition(id);
-    scheduleConflicts();
-    scheduleValidation();
-    saveState();
-  };
-  window.updateDurationTime = function(id, value){
-    const rb = (window.AppState.runbooks||[]).find(r => r.id === id);
-    if (!rb) return origUDT ? origUDT(id, value) : undefined;
-    const t = parseHHMM(value);
-    rb.durationHours = t.h;
-    rb.durationMinutes = t.m;
-    try{
-      const controls = document.getElementById('timelineControlsRows');
-      const sorted = [...window.AppState.runbooks].sort((a,b)=>a.sequence-b.sequence);
-      const idx = sorted.findIndex(r=>r.id===id);
-      if (controls && idx > -1 && controls.children[idx]){
-        const inp = controls.children[idx].querySelectorAll('.timeline-control-cell input[type="text"]')[1];
-        if (inp) inp.value = formatHHMM(t.h, t.m);
-      }
-    }catch(e){}
-    updateSingleBlockWidth(id);
-    scheduleConflicts();
-    scheduleValidation();
-    saveState();
-  };
-})();
-
-// Conflict overlays + slack + quick-fix
-function clearConflictArtifacts(){
-  document.querySelectorAll('.conflict-overlay').forEach(el => el.remove());
-  document.querySelectorAll('.timeline-block .conflict-indicator').forEach(el => el.remove());
-  document.querySelectorAll('.timeline-block .slack-badge').forEach(el => el.remove());
-  document.querySelectorAll('.timeline-block .quick-fix').forEach(el => el.remove());
-}
-
-function recomputeConflicts(){
-  clearConflictArtifacts();
-  const pph = 60;
-  const runbooks = [...(window.AppState.runbooks||[])]
-    .filter(r=>r && r.runblock && r.runblock.trim().length>0)
-    .sort((a,b)=>a.sequence-b.sequence);
-
-  // Slack badges
-  for (let i=0; i<runbooks.length; i++){
-    const a = runbooks[i];
-    const aStart = a.scheduleHours + a.scheduleMinutes/60;
-    const aEnd = aStart + a.durationHours + a.durationMinutes/60;
-    const next = runbooks[i+1];
-    if (next){
-      const nStart = next.scheduleHours + next.scheduleMinutes/60;
-      const slack = Math.max(0, nStart - aEnd);
-      const block = document.querySelector('.timeline-block[data-runbook-id="'+a.id+'"]');
-      if (block && slack > 0){
-        const badge = document.createElement('span');
-        badge.className = 'slack-badge';
-        const min = Math.round(slack*60);
-        badge.textContent = 'Slack ' + (min>=60?Math.floor(min/60)+'h '+(min%60)+'m': min+'m');
-        block.appendChild(badge);
-      }
-    }
-  }
-
-  // Conflicts & overlays
-  for (let i=0; i<runbooks.length; i++){
-    for (let j=i+1; j<runbooks.length; j++){
-      const a = runbooks[i], b = runbooks[j];
-      const aStart = a.scheduleHours + a.scheduleMinutes/60;
-      const aEnd = aStart + a.durationHours + a.durationMinutes/60;
-      const bStart = b.scheduleHours + b.scheduleMinutes/60;
-      const bEnd = bStart + b.durationHours + b.durationMinutes/60;
-      if (aEnd > bStart && bEnd > aStart){
-        const later = (bStart >= aStart) ? b : a;
-        const block = document.querySelector('.timeline-block[data-runbook-id="'+later.id+'"]');
-        if (block){
-          const badge = document.createElement('span');
-          badge.className = 'conflict-indicator';
-          badge.textContent = 'CLASH';
-          block.appendChild(badge);
-
-          const fix = document.createElement('button');
-          fix.className = 'quick-fix';
-          fix.textContent = '+15m →';
-          fix.title = 'Shift next item by +15 minutes';
-          fix.addEventListener('click', function(ev){
-            ev.stopPropagation();
-            shiftFollowing(later.id, 15);
-          });
-          block.appendChild(fix);
-        }
-        const scroll = document.querySelector('.timeline-scroll');
-        if (scroll){
-          const overlay = document.createElement('div');
-          overlay.className = 'conflict-overlay';
-          const left = Math.max(aStart, bStart) * pph;
-          const right = Math.min(aEnd, bEnd) * pph;
-          overlay.style.left = left + 'px';
-          overlay.style.width = Math.max(2, right - left) + 'px';
-          scroll.appendChild(overlay);
-        }
-      }
-    }
-  }
-}
-
-// Shift following runbook by minutes
-function shiftFollowing(id, minutes){
-  const runbooks = [...(window.AppState.runbooks||[])].sort((a,b)=>a.sequence-b.sequence);
-  const idx = runbooks.findIndex(r=>r.id===id);
-  const target = runbooks[idx+1];
-  if (!target) return;
-  let total = target.scheduleHours*60 + target.scheduleMinutes + minutes;
-  if (total < 0) total = 0;
-  target.scheduleHours = Math.floor(total/60);
-  target.scheduleMinutes = total % 60;
-  window.updateScheduleTime(target.id, formatHHMM(target.scheduleHours, target.scheduleMinutes));
-  updateSingleBlockPosition(target.id);
-  scheduleConflicts();
-  saveState();
-}
-
-// Persistence: localStorage + Undo/Redo
-window._history = { stack:[], index:-1, max:50 };
-
-function snapshotState(){
-  return {
-    runbooks: (window.AppState.runbooks||[]).map(r => ({
-      id:r.id, sequence:r.sequence, strategy:r.strategy, phase:r.phase,
-      runblock:r.runblock, responsibility:r.responsibility, critical:r.critical,
-      scheduleHours:r.scheduleHours, scheduleMinutes:r.scheduleMinutes,
-      durationHours:r.durationHours, durationMinutes:r.durationMinutes,
-      completed:r.completed, actualDuration:r.actualDuration||null
-    })),
-    downtimeDuration: window.AppState.downtimeDuration||24
-  };
-}
-
-function loadSnapshot(snap){
-  if (!snap) return;
-  window.AppState.runbooks = (snap.runbooks||[]).map(r => Object.assign({position:0}, r));
-  window.AppState.downtimeDuration = snap.downtimeDuration||24;
-  const dd = document.getElementById('downtimeDuration');
-  if (dd) dd.value = window.AppState.downtimeDuration;
-  renderRunbookTable();
-  updateTimeline();
-}
-
-function pushHistory(){
-  const s = JSON.stringify(snapshotState());
-  const H = window._history;
-  if (H.index < H.stack.length - 1) H.stack = H.stack.slice(0, H.index+1);
-  H.stack.push(s);
-  if (H.stack.length > H.max) H.stack.shift();
-  H.index = H.stack.length - 1;
-}
-
-function saveState(){
-  localStorage.setItem('dt_state', JSON.stringify(snapshotState()));
-  pushHistory();
-  setSyncIndicator(true);
-}
-
-function setSyncIndicator(ok){
-  const el = document.getElementById('syncIndicator');
-  if (!el) return;
-  el.classList.toggle('offline', !ok);
-}
-
-window.undoState = function(){
-  const H = window._history;
-  if (H.index <= 0) return;
-  H.index--;
-  const snap = JSON.parse(H.stack[H.index]);
-  loadSnapshot(snap);
-  setSyncIndicator(true);
-};
-
-window.redoState = function(){
-  const H = window._history;
-  if (H.index >= H.stack.length - 1) return;
-  H.index++;
-  const snap = JSON.parse(H.stack[H.index]);
-  loadSnapshot(snap);
-  setSyncIndicator(true);
-};
-
-window.restoreLastSession = function(){
-  const s = localStorage.getItem('dt_state');
-  if (!s) return;
-  const snap = JSON.parse(s);
-  loadSnapshot(snap);
-  pushHistory();
-  setSyncIndicator(true);
-};
-
-// Inject Undo/Redo/Restore buttons near the PDF button after DOM loaded
-document.addEventListener('DOMContentLoaded', function(){
-  const reportBtn = document.getElementById('reportBtn');
-  if (reportBtn){
-    const undo = document.createElement('button');
-    undo.className = 'btn';
-    undo.id = 'rt-undo';
-    undo.textContent = '↶ Undo';
-    undo.onclick = window.undoState;
-    reportBtn.parentElement.insertBefore(undo, reportBtn);
-
-    const redo = document.createElement('button');
-    redo.className = 'btn';
-    redo.id = 'rt-redo';
-    redo.textContent = '↷ Redo';
-    redo.onclick = window.redoState;
-    reportBtn.parentElement.insertBefore(redo, reportBtn);
-
-    const restore = document.createElement('button');
-    restore.className = 'btn';
-    restore.id = 'rt-restore';
-    restore.textContent = '⟲ Restore Last Session';
-    restore.onclick = window.restoreLastSession;
-    reportBtn.parentElement.insertBefore(restore, reportBtn);
-  }
-
-  // If there is a saved session, offer a prompt
-  if (localStorage.getItem('dt_state')) {
-    setTimeout(()=>{
-      const ok = confirm('Restore last saved session?');
-      if (ok) window.restoreLastSession();
-      else pushHistory();
-    }, 300);
-  } else {
-    pushHistory();
-  }
-});
-
-// After each full timeline render, recompute conflicts & attach enhancements to new inputs
-const _origGenerateTimelineRows = generateTimelineRows;
-generateTimelineRows = function(){
-  _origGenerateTimelineRows.apply(this, arguments);
-  recomputeConflicts();
-  const controls = document.getElementById('timelineControlsRows');
-  if (controls){
-    const rows = controls.querySelectorAll('.timeline-control-row');
-    const sorted = [...(window.AppState.runbooks||[])].filter(r=>r && r.runblock && r.runblock.trim().length>0).sort((a,b)=>a.sequence-b.sequence);
-    rows.forEach((row, i) => {
-      const rb = sorted[i];
-      if (!rb) return;
-      const inputs = row.querySelectorAll('input[type="text"]');
-      if (inputs[0]) attachTimeInputEnhancements(inputs[0], 'start', rb.id);
-      if (inputs[1]) attachTimeInputEnhancements(inputs[1], 'plan', rb.id);
-    });
-  }
-};
-
 </script>
 
 </body>
