@@ -905,44 +905,6 @@
 }
 .quick-fix:hover{ filter:brightness(0.95); }
 
-
-/* --- Requested: Hide conflict overlays/indicators and any CLASH markers --- */
-.conflict-indicator, .conflict-overlay { display: none !important; }
-/* If any elements are marked explicitly for clash, hide them too */
-.clash, .CLASH, .timeline-track .clash, .timeline-track .CLASH { display: none !important; }
-
-
-  /* Messages mute mode */
-  .messages-off #validationMessages,
-  .messages-off .validation-warning,
-  .messages-off .info-box { display: none !important; }
-
-  /* Small visual polish for timeline rows */
-  .timeline-row:nth-child(even){ background: #fcfcfd; }
-  .timeline-block{ transition: opacity .2s, transform .2s, box-shadow .2s; }
-  .timeline-block:hover{ box-shadow:0 2px 6px rgba(0,0,0,0.25); }
-
-
-  /* Bottom toggle bar for messages */
-  .messages-toggle-bar{
-    margin-top: 12px;
-    padding: 10px 12px;
-    border: 1px solid #e7e7ea;
-    border-radius: 10px;
-    background: #fafafb;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 14px;
-  }
-  .messages-toggle-bar input[type="checkbox"]{
-    transform: scale(1.1);
-  }
-  /* Hide messages when off */
-  .messages-off #validationMessages,
-  .messages-off .validation-warning,
-  .messages-off .info-box { display: none !important; }
-
 </style>
 
 <script src="https://res.cdn.office.net/teams-js/2.0.0/js/MicrosoftTeams.min.js" 
@@ -1024,7 +986,9 @@
         <div id="downtimeControls">
           <button class="btn primary" id="startDowntimeBtn" onclick="startDowntime()">Start Downtime</button>
         </div>
-      </div><div id="validationMessages"></div>
+      </div>
+
+      <div id="validationMessages"></div>
 
       <div class="timeline-container">
         <div class="timeline-scroll">
@@ -1163,8 +1127,7 @@ window.AppState = {
   completionTimes: {},
   isFirstUser: false,
   syncedTimelinePosition: 0,
-  renderLock: false,
-  showMessages: false
+  renderLock: false
 };
 
 // Constants
@@ -1180,45 +1143,8 @@ window.addEventListener('beforeunload', function (e) {
   }
 });
 
-
-// --- Messages toggle (simple) ---
-function setShowMessages(flag){
-  if (!window.AppState) window.AppState = {};
-  window.AppState.showMessages = !!flag;
-  try { localStorage.setItem('showMessages', window.AppState.showMessages ? '1' : '0'); } catch(e){}
-  updateMessagesUI();
-  // Clear / refresh validation panel
-  try { displayValidationWarnings(); } catch(e){}
-}
-
-function updateMessagesUI(){
-  const chk = document.getElementById('messagesToggleChk');
-  if (window.AppState.showMessages){
-    document.body.classList.remove('messages-off');
-    if (chk) chk.checked = true;
-  } else {
-    document.body.classList.add('messages-off');
-    if (chk) chk.checked = false;
-  }
-}
-
 // Initialize application
 document.addEventListener('DOMContentLoaded', function() {
-  // Messages default OFF unless saved on
-  try{
-    const saved = localStorage.getItem('showMessages');
-    const initial = (saved === '1'); // default false if null/other
-    setShowMessages(initial);
-  }catch(e){
-    setShowMessages(false);
-  }
-  // Wire checkbox
-  const chk = document.getElementById('messagesToggleChk');
-  if (chk){
-    chk.addEventListener('change', (e)=> setShowMessages(!!e.target.checked));
-  }
-
-  try{ const saved = localStorage.getItem('showMessages'); setShowMessages(saved === null ? true : saved === '1'); } catch(e){ setShowMessages(true);}
   initializeApp();
   updateClock();
   setInterval(updateClock, 1000);
@@ -1363,12 +1289,10 @@ function validateSchedules() {
 }
 
 function displayValidationWarnings() {
-  const container = document.getElementById('validationMessages');
-  if (!container) return;
-  if (!window.AppState || window.AppState.showMessages === false) { container.innerHTML=''; return; }
-  if (!window.AppState.showMessages) { container.innerHTML=''; return; }
-  if (window.AppState.downtimeStarted) { container.innerHTML = ''; return; }
   const warnings = validateSchedules();
+  const container = document.getElementById('validationMessages');
+  
+  if (!container) return;
   
   container.innerHTML = '';
   if (warnings.length > 0) {
@@ -1377,6 +1301,7 @@ function displayValidationWarnings() {
     warningDiv.innerHTML = '<strong>⚠️ Validation Warnings:</strong><br>' + warnings.join('<br>');
     container.appendChild(warningDiv);
   }
+}
 
 // Check if element is actively being edited
 function isElementActive(element) {
@@ -1557,20 +1482,6 @@ window.clearRunbook = function() {
 };
 
 // Timeline Functions
-
-// Remove any dynamically injected CLASH overlays/labels to keep timeline clear
-function sanitizeConflicts() {
-  try {
-    document.querySelectorAll('.conflict-indicator, .conflict-overlay, .clash, .CLASH').forEach(el => el.remove());
-    // Remove inline 'CLASH' labels if any were added as children
-    document.querySelectorAll('.timeline-block').forEach(b => {
-      Array.from(b.children).forEach(child => {
-        if (child.textContent && child.textContent.trim().toUpperCase() === 'CLASH') child.remove();
-      });
-    });
-  } catch (e) { /* no-op */ }
-}
-
 window.updateTimeline = function() {
   const duration = parseInt(document.getElementById('downtimeDuration').value) || 24;
   window.AppState.downtimeDuration = duration;
@@ -1590,8 +1501,6 @@ window.updateTimeline = function() {
   if (window.AppState.downtimeStarted) {
     updateProgressIndicators();
   }
-  sanitizeConflicts();
-
 };
 
 function generateTimeScale(hours) {
@@ -1671,7 +1580,7 @@ function createTimelineRow(runbook, index) {
     const label = document.createElement('div');
     label.className = 'quality-gate-label';
     label.textContent = runbook.runblock;
-    label.title = `${runbook.runblock || ""}${runbook.responsibility ? " — " + runbook.responsibility : ""}`;
+    label.title = `${runbook.runblock} - ${runbook.phase}`;
     diamond.appendChild(label);
     
     track.appendChild(diamond);
@@ -1774,10 +1683,15 @@ function createTimelineBlock(runbook) {
   
   // Show sequence and phase inside
   block.textContent = `#${runbook.sequence} | ${runbook.phase}`;
-  block.title = `${runbook.runblock || ""}${runbook.responsibility ? " — " + runbook.responsibility : ""}`;
+  block.title = `${runbook.runblock} - ${runbook.phase}`;
   
-  // (external runblock label removed per request)
-if (runbook.critical) {
+  // Add external label for runblock name
+  const blockLabel = document.createElement('div');
+  blockLabel.className = 'block-label-external';
+  blockLabel.textContent = runbook.runblock;
+  block.appendChild(blockLabel);
+  
+  if (runbook.critical) {
     const indicator = document.createElement('div');
     indicator.className = 'critical-indicator';
     indicator.textContent = '!';
@@ -2081,8 +1995,6 @@ window.updateProgressIndicators = function() {
     document.getElementById('statusText').textContent = 'Completed';
     document.getElementById('statusText').style.color = 'var(--sap-accent)';
   }
-  sanitizeConflicts();
-
 };
 
 // Import/Export Functions
@@ -3222,12 +3134,6 @@ generateTimelineRows = function(){
     });
   }
 </script>
-
-
-  <div id="messagesToggleBar" class="messages-toggle-bar">
-    <label for="messagesToggleChk" style="margin:0;">Show messages & warnings</label>
-    <input type="checkbox" id="messagesToggleChk" aria-label="Show messages and warnings">
-  </div>
 
 </body>
 </html>
