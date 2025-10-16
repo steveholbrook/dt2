@@ -1507,7 +1507,7 @@ function renderRunbookTable() {
       
       var rowHTML = '<td>' +
         '<input type="number" min="1" max="30" value="' + runbook.sequence + '" ' +
-        'style="width:50px;" onchange="updateSequence(' + runbook.id + ', this.value)" ' + editingDisabled + '>' +
+        'style="width:60px;text-align:center;" onchange="updateSequence(' + runbook.id + ', this.value)" ' + editingDisabled + '>' +
         '</td>' +
         '<td>' +
         '<select onchange="updateStrategy(' + runbook.id + ', this.value)" ' + editingDisabled + '>' +
@@ -2586,7 +2586,7 @@ function debounce(fn, delay) {
 function attachTimeInputEnhancements(input, type, id) {
   if (!input) return;
   input.setAttribute('inputmode', 'numeric');
-  input.setAttribute('title', 'Use HH:MM (e.g., 01:30). Tip: Arrow Up/Down ±5 min, Shift+Arrow ±15 min.');
+  input.setAttribute('title', 'Use HH:MM (e.g., 01:30). Arrow Up/Down ±1 min, Shift+Arrow ±5 min.');
 
   var validate = function() {
     var val = input.value.trim();
@@ -2605,7 +2605,7 @@ function attachTimeInputEnhancements(input, type, id) {
   input.addEventListener('keydown', function(e) {
     if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
     e.preventDefault();
-    var delta = (e.shiftKey ? 15 : 5) * (e.key === 'ArrowUp' ? 1 : -1);
+    var delta = (e.shiftKey ? 5 : 1) * (e.key === 'ArrowUp' ? 1 : -1);
     var t = parseHHMM(input.value);
     var total = t.h * 60 + t.m + delta;
     if (total < 0) total = 0;
@@ -3404,6 +3404,296 @@ FUTURE ENHANCEMENT (5+ weeks):
 ✓ Firebase Sync: Works without overwriting edits
 ✓ Multiple Users: Host and viewers work simultaneously
 ✓ Stop Confirmation: Shows and resets properly
+✓ Sequence Number: Shows two digits clearly (width: 60px)
+✓ Arrow Keys: Up/Down ±1 min, Shift+Up/Down ±5 min
+
+═══════════════════════════════════════════════════════════════════════════════
+                    ADDITIONAL IMPROVEMENT SUGGESTIONS
+═══════════════════════════════════════════════════════════════════════════════
+
+🎯 **USER EXPERIENCE IMPROVEMENTS:**
+
+1. VISUAL TIMELINE ENHANCEMENTS
+   Current State: Basic colored blocks on timeline
+   Improvement:
+   • Add percentage completion indicator inside blocks (e.g., "75% done")
+   • Show estimated time remaining for in-progress tasks
+   • Color gradient for blocks nearing completion (green → yellow → red)
+   • Tooltip on hover showing full details (responsibility, notes, status)
+   • Mini progress bar inside each timeline block
+   
+   Implementation: 2-3 days
+   Impact: HIGH - Better at-a-glance status understanding
+
+2. DRAG-AND-DROP PRIORITY REORDERING
+   Current State: Manual sequence number editing
+   Improvement:
+   • Drag rows in Model Parameters table to reorder
+   • Automatic sequence number adjustment
+   • Visual indicator while dragging
+   • Undo/redo capability for sequence changes
+   • Bulk sequence operations (shift multiple tasks by +5)
+   
+   Implementation: 3-4 days
+   Impact: HIGH - Much faster planning adjustments
+
+3. SMART AUTO-SAVE WITH CONFLICT DETECTION
+   Current State: Firebase sync every 250ms
+   Improvement:
+   • Visual "Saved" indicator (like Google Docs)
+   • Show last saved timestamp
+   • Conflict resolution dialog if multiple users edit same field
+   • Auto-save draft before session timeout
+   • "Unsaved changes" warning before closing browser
+   
+   Implementation: 2-3 days
+   Impact: MEDIUM - Better data safety and user confidence
+
+4. KEYBOARD SHORTCUTS
+   Current State: Mouse-only interaction
+   Improvement:
+   • Space bar: Toggle current task completion
+   • Ctrl+N: Add new runbook line
+   • Ctrl+S: Force save/sync
+   • Ctrl+Z/Y: Undo/Redo
+   • Tab: Navigate between timeline inputs efficiently
+   • Ctrl+D: Duplicate selected runbook line
+   • Delete: Remove selected line
+   • Shortcuts help panel (press ?)
+   
+   Implementation: 2-3 days
+   Impact: HIGH - Power users will be much faster
+
+5. NOTES AND COMMENTS SYSTEM
+   Current State: No way to add contextual notes
+   Improvement:
+   • Add notes icon/button for each runbook
+   • Modal dialog for adding detailed notes
+   • Timestamp and user attribution on notes
+   • Note count indicator on timeline blocks
+   • Filter/search through notes
+   • Export notes in PDF report
+   
+   Implementation: 3-4 days
+   Impact: MEDIUM - Better documentation and communication
+
+6. TASK STATUS INDICATORS
+   Current State: Only completed/not completed
+   Improvement:
+   • Not Started (gray)
+   • In Progress (blue, animated pulse)
+   • Blocked (red, with reason)
+   • Completed (green, strikethrough)
+   • Skipped (yellow, with reason)
+   • Custom status dropdown on each task
+   • Filter timeline by status
+   
+   Implementation: 2-3 days
+   Impact: HIGH - More accurate real-time status
+
+7. BULK OPERATIONS
+   Current State: One-by-one editing
+   Improvement:
+   • Select multiple runbooks (checkbox column)
+   • Bulk update responsibility
+   • Bulk mark as critical
+   • Bulk time shift (move all selected by +30 min)
+   • Bulk delete
+   • Copy/paste multiple rows
+   • "Select all" option
+   
+   Implementation: 3-4 days
+   Impact: MEDIUM - Faster large-scale edits
+
+8. TIMELINE ZOOM AND PAN
+   Current State: Fixed timeline scale
+   Improvement:
+   • Zoom in/out buttons (show minutes vs hours)
+   • Mouse wheel zoom
+   • Pan timeline left/right with drag
+   • "Fit to window" button
+   • "Go to current time" button
+   • Mini-map showing full timeline overview
+   • Bookmarks for key milestones
+   
+   Implementation: 4-5 days
+   Impact: HIGH - Better for long downtimes (48+ hours)
+
+9. EXPORT AND SHARING
+   Current State: PDF report and CSV download
+   Improvement:
+   • Export to MS Project format
+   • Export to Excel with formulas
+   • Export to PowerPoint (executive summary)
+   • Share read-only link via email
+   • QR code for mobile viewer access
+   • Embed timeline in other websites (iframe)
+   • API endpoint for programmatic access
+   
+   Implementation: 5-6 days
+   Impact: MEDIUM - Better integration with other tools
+
+10. PREDICTIVE ANALYSIS
+    Current State: No predictive insights
+    Improvement:
+    • Machine learning model learns from historical data
+    • Predict likely completion time based on current pace
+    • Flag tasks likely to run over schedule (yellow warning)
+    • Suggest optimal start times based on dependencies
+    • Risk score for overall downtime success
+    • Confidence intervals on estimates
+    
+    Implementation: 10-15 days
+    Impact: VERY HIGH - Proactive issue prevention
+
+═══════════════════════════════════════════════════════════════════════════════
+                        QUICK WINS (1-2 Days Each)
+═══════════════════════════════════════════════════════════════════════════════
+
+✨ **IMMEDIATE IMPACT IMPROVEMENTS:**
+
+A. DARK MODE TOGGLE
+   • Add toggle button in header
+   • Save preference in localStorage
+   • Easy on eyes during overnight migrations
+   • CSS variables make implementation trivial
+
+B. ELAPSED TIME BADGE
+   • Show elapsed time next to each in-progress task
+   • Visual indicator if task is running late
+   • Simple setInterval implementation
+
+C. COMPLETION PERCENTAGE
+   • Show "X of Y tasks completed" in header
+   • Progress bar in status display
+   • Motivating for long migrations
+
+D. SOUND NOTIFICATIONS
+   • Configurable alerts for milestones
+   • "Ding" when critical task completes
+   • Browser notification API
+
+E. AUTO-SCROLL TO CURRENT TASK
+   • Button to jump timeline to current position
+   • Auto-scroll on page load if downtime active
+   • Smooth CSS scroll-behavior
+
+F. SEARCH/FILTER RUNBOOKS
+   • Search box above Model Parameters
+   • Filter by strategy, phase, responsibility
+   • Highlight matching rows
+
+G. RECENT CUSTOMERS DROPDOWN
+   • Remember last 10 customer names
+   • Quick select from dropdown
+   • localStorage implementation
+
+H. DUPLICATE RUNBOOK BUTTON
+   • "Duplicate" button next to "Remove"
+   • Copies all fields to new row
+   • Saves time on similar tasks
+
+I. TASK TIMER ALERTS
+   • Alert when task approaches planned end
+   • Configurable warning time (5, 10, 15 min)
+   • Browser notification
+
+J. ONE-CLICK PAUSE ALL
+   • Pause button in header
+   • Pauses all in-progress tasks
+   • For emergency situations
+
+═══════════════════════════════════════════════════════════════════════════════
+                            IMPLEMENTATION ROADMAP
+═══════════════════════════════════════════════════════════════════════════════
+
+**SPRINT 1 (Week 1-2): Quick Wins & UX Polish**
+✓ Fix sequence width (DONE)
+✓ Improve arrow key increments (DONE)
+→ Dark mode toggle (A)
+→ Elapsed time badges (B)
+→ Completion percentage (C)
+→ Search/filter runbooks (F)
+→ Recent customers dropdown (G)
+
+**SPRINT 2 (Week 3-4): Keyboard & Productivity**
+→ Keyboard shortcuts (Item 4)
+→ Drag-drop reordering (Item 2)
+→ Duplicate runbook button (H)
+→ Bulk operations basics (Item 7)
+
+**SPRINT 3 (Week 5-6): Status & Visualization**
+→ Task status indicators (Item 6)
+→ Visual timeline enhancements (Item 1)
+→ Timeline zoom and pan (Item 8)
+→ Auto-scroll to current (E)
+
+**SPRINT 4 (Week 7-8): Collaboration & Notes**
+→ Notes and comments system (Item 5)
+→ Smart auto-save indicators (Item 3)
+→ Sound notifications (D)
+→ Task timer alerts (I)
+
+**SPRINT 5 (Week 9-12): Advanced Features**
+→ Export and sharing options (Item 9)
+→ Template library (from earlier suggestions)
+→ Real-time notifications (from earlier suggestions)
+
+**SPRINT 6 (Week 13-16): Intelligence**
+→ Predictive analysis (Item 10)
+→ Task dependencies (from earlier suggestions)
+→ Advanced analytics (from earlier suggestions)
+
+**FUTURE CONSIDERATIONS:**
+→ Mobile companion app (PWA)
+→ AI-powered recommendations
+→ Multi-language support
+→ Integration with ServiceNow, JIRA, etc.
+
+═══════════════════════════════════════════════════════════════════════════════
+                        PRIORITY SCORING MATRIX
+═══════════════════════════════════════════════════════════════════════════════
+
+Priority = (Impact × Urgency) / Effort
+
+Scoring:
+- Impact: 1-10 (how much it improves user experience)
+- Urgency: 1-10 (how badly users need it)
+- Effort: 1-10 (days of development work)
+
+Top Priorities by Score:
+1. Dark Mode (A): (8 × 7) / 1 = 56.0
+2. Completion % (C): (7 × 8) / 1 = 56.0
+3. Keyboard Shortcuts (4): (9 × 8) / 3 = 24.0
+4. Search/Filter (F): (8 × 7) / 2 = 28.0
+5. Task Status (6): (9 × 9) / 3 = 27.0
+6. Timeline Zoom (8): (9 × 8) / 4 = 18.0
+7. Elapsed Time (B): (7 × 7) / 1 = 49.0
+8. Drag-Drop Reorder (2): (8 × 8) / 4 = 16.0
+
+Recommendation: Focus on Quick Wins (A-J) first for immediate user satisfaction,
+then tackle high-impact features (1, 4, 6, 8) in parallel with team expansion.
+
+═══════════════════════════════════════════════════════════════════════════════
+                            USER FEEDBACK AREAS
+═══════════════════════════════════════════════════════════════════════════════
+
+Suggested Questions for Beta Users:
+
+1. "What's the most frustrating part of using this tool?"
+2. "What feature would save you the most time?"
+3. "What information is missing that you need?"
+4. "What's the one thing you'd change if you could?"
+5. "How do you use this tool differently than we intended?"
+
+Metrics to Track:
+• Average session duration
+• Number of edits per session
+• Most-used features
+• Most-edited fields
+• Time to first productive action
+• Mobile vs desktop usage ratio
+• Viewer vs host session ratio
 
 ═══════════════════════════════════════════════════════════════════════════════
 -->
