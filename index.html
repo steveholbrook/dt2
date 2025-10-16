@@ -280,6 +280,210 @@
     font-size: 13px;
   }
   
+  /* Search/Filter Box */
+  .search-filter-container {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  
+  .search-box {
+    flex: 1;
+    min-width: 250px;
+    position: relative;
+  }
+  
+  .search-box input {
+    width: 100%;
+    padding: 9px 36px 9px 12px;
+  }
+  
+  .search-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--sap-muted);
+    pointer-events: none;
+  }
+  
+  .filter-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  
+  .filter-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--sap-accent);
+    color: white;
+    border-radius: 16px;
+    font-size: 12px;
+  }
+  
+  .filter-tag button {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+    font-size: 14px;
+  }
+  
+  /* Elapsed Time Badge */
+  .elapsed-time-badge {
+    position: absolute;
+    bottom: -18px;
+    left: 4px;
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffe08a;
+    pointer-events: none;
+    font-weight: 600;
+  }
+  
+  /* Task Status Indicators */
+  .status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  
+  .status-not-started {
+    background: #e9ecef;
+    color: #6c757d;
+  }
+  
+  .status-in-progress {
+    background: #cfe2ff;
+    color: #084298;
+    animation: pulse-status 2s infinite;
+  }
+  
+  .status-blocked {
+    background: #f8d7da;
+    color: #842029;
+  }
+  
+  .status-completed {
+    background: #d1e7dd;
+    color: #0f5132;
+  }
+  
+  .status-skipped {
+    background: #fff3cd;
+    color: #997404;
+  }
+  
+  @keyframes pulse-status {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+  
+  .status-select {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    border: 1px solid var(--sap-border);
+  }
+  
+  /* Drag Handle for Row Reordering */
+  .drag-handle {
+    cursor: grab;
+    padding: 4px;
+    color: var(--sap-muted);
+    display: inline-flex;
+    align-items: center;
+  }
+  
+  .drag-handle:active {
+    cursor: grabbing;
+  }
+  
+  .drag-handle:hover {
+    color: var(--sap-accent);
+  }
+  
+  tr.dragging {
+    opacity: 0.5;
+  }
+  
+  tr.drag-over {
+    border-top: 2px solid var(--sap-accent);
+  }
+  
+  /* Keyboard Shortcuts Help */
+  .keyboard-shortcuts-help {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--sap-panel);
+    border: 1px solid var(--sap-border);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    padding: 24px;
+    z-index: 10000;
+    max-width: 500px;
+    display: none;
+  }
+  
+  .keyboard-shortcuts-help.show {
+    display: block;
+  }
+  
+  .keyboard-shortcuts-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 9999;
+    display: none;
+  }
+  
+  .keyboard-shortcuts-overlay.show {
+    display: block;
+  }
+  
+  .shortcut-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--sap-border);
+  }
+  
+  .shortcut-item:last-child {
+    border-bottom: none;
+  }
+  
+  .shortcut-key {
+    background: #f8f9fa;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 12px;
+    border: 1px solid var(--sap-border);
+  }
+  
+  body.dark-mode .shortcut-key {
+    background: #3a3a3a;
+  }
+  
   .content{
     padding:16px;
     max-width: 1600px;
@@ -1352,16 +1556,46 @@ body.dark-mode #messageToggleBtn:hover{
       <h2>Model Parameters</h2>
 
       <h3>Runbook Configuration</h3>
+      
+      <!-- Search/Filter Box -->
+      <div class="search-filter-container">
+        <div class="search-box">
+          <input type="text" id="searchRunbooks" placeholder="🔍 Search runbooks..." oninput="filterRunbooks()">
+        </div>
+        <div class="filter-controls">
+          <select id="filterStrategy" onchange="filterRunbooks()">
+            <option value="">All Strategies</option>
+            <option value="Preparation">Preparation</option>
+            <option value="Export">Export</option>
+            <option value="Import">Import</option>
+            <option value="Quality Gate">Quality Gate</option>
+            <option value="Conversion">Conversion</option>
+            <option value="Validation">Validation</option>
+          </select>
+          <select id="filterStatus" onchange="filterRunbooks()">
+            <option value="">All Status</option>
+            <option value="not-started">Not Started</option>
+            <option value="in-progress">In Progress</option>
+            <option value="blocked">Blocked</option>
+            <option value="completed">Completed</option>
+            <option value="skipped">Skipped</option>
+          </select>
+          <button class="btn small" onclick="clearFilters()">Clear Filters</button>
+        </div>
+      </div>
+      
       <table class="table" id="runbookTable">
         <thead>
           <tr>
+            <th style="width:40px;"></th>
             <th style="width:60px;">Sequence</th>
             <th style="width:120px;">Strategy</th>
             <th style="width:120px;">Phase</th>
             <th style="width:160px;">Runblock</th>
             <th style="width:180px;">Responsibility</th>
+            <th style="width:100px;text-align:center;">Status</th>
             <th style="width:60px;text-align:center;">Critical</th>
-            <th style="width:80px;text-align:center;">Actions</th>
+            <th style="width:120px;text-align:center;">Actions</th>
           </tr>
         </thead>
         <tbody id="runbookBody">
@@ -1381,17 +1615,52 @@ body.dark-mode #messageToggleBtn:hover{
       
       <div class="info-box">
         <strong>Instructions:</strong><br>
-        • Enter sequences 1-30 to define execution order<br>
-        • Select strategy and phase for each runblock<br>
-        • Enter runblock name for identification (required for timeline display)<br>
+        • Use <strong>Search box</strong> to filter runbooks by name, strategy, phase, or responsibility<br>
+        • <strong>Drag rows</strong> (≡ icon) to reorder sequence<br>
+        • Set <strong>Status</strong> for each task: Not Started, In Progress, Blocked, Completed, or Skipped<br>
+        • Click <strong>🔄 Duplicate</strong> to copy a runbook with all settings<br>
+        • <strong>Keyboard shortcuts:</strong> Ctrl+N (add), Ctrl+D (duplicate), Ctrl+F (search), ? (help)<br>
+        • <strong>Elapsed time badges</strong> appear on timeline for in-progress tasks<br>
         • Mark critical path items with the Critical checkbox<br>
-        • Schedule time shows hours:minutes after downtime start<br>
-        • PLAN controls the planned duration of each runblock<br>
-        • ACTUAL is automatically populated when END is checked<br>
+        • PLAN controls the planned duration of each runbook<br>
+        • ACTUAL is automatically populated when status is set to Completed<br>
         • Viewer mode users see live progress but cannot make changes
       </div>
     </div>
   </div>
+
+<!-- Keyboard Shortcuts Help -->
+<div class="keyboard-shortcuts-overlay" id="keyboardShortcutsOverlay" onclick="hideKeyboardShortcuts()"></div>
+<div class="keyboard-shortcuts-help" id="keyboardShortcutsHelp">
+  <h3 style="margin-top:0;">Keyboard Shortcuts</h3>
+  <div class="shortcut-item">
+    <span>Add New Runbook</span>
+    <span class="shortcut-key">Ctrl + N</span>
+  </div>
+  <div class="shortcut-item">
+    <span>Duplicate Selected Row</span>
+    <span class="shortcut-key">Ctrl + D</span>
+  </div>
+  <div class="shortcut-item">
+    <span>Save/Sync</span>
+    <span class="shortcut-key">Ctrl + S</span>
+  </div>
+  <div class="shortcut-item">
+    <span>Focus Search</span>
+    <span class="shortcut-key">Ctrl + F</span>
+  </div>
+  <div class="shortcut-item">
+    <span>Show This Help</span>
+    <span class="shortcut-key">?</span>
+  </div>
+  <div class="shortcut-item">
+    <span>Close Help</span>
+    <span class="shortcut-key">Esc</span>
+  </div>
+  <div style="margin-top:16px;text-align:center;">
+    <button class="btn" onclick="hideKeyboardShortcuts()">Close</button>
+  </div>
+</div>
 
 <script>
 'use strict';
@@ -1423,12 +1692,208 @@ window.AppState = {
   lastRenderTime: 0,
   inputLock: false,
   timelineInputLock: false,
-  focusedTimelineInput: null
+  focusedTimelineInput: null,
+  selectedRunbookId: null,
+  draggedRowId: null,
+  searchQuery: '',
+  filterStrategy: '',
+  filterStatus: ''
 };
 
 // Constants
 var STRATEGIES = ['Preparation', 'Export', 'Import', 'Quality Gate', 'Conversion', 'Validation'];
 var PHASES = ['Tables', 'Delta', 'Checkpoint', 'Finance', 'Logistics', 'PCA Tool', 'MPP', 'Support', 'Collector', 'NZD'];
+var TASK_STATUSES = ['not-started', 'in-progress', 'blocked', 'completed', 'skipped'];
+
+// NEW: Keyboard Shortcuts Handler
+document.addEventListener('keydown', function(e) {
+  // Don't trigger shortcuts when typing in inputs
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
+    // Except for Ctrl+S to save
+    if (e.ctrlKey && e.key === 's') {
+      e.preventDefault();
+      // Force push state if host
+      if (window.canWrite && window.canWrite()) {
+        console.log('Manual save triggered');
+      }
+      return;
+    }
+    return;
+  }
+  
+  // Ctrl+N: Add new runbook
+  if (e.ctrlKey && e.key === 'n') {
+    e.preventDefault();
+    window.addRunbookRow();
+  }
+  
+  // Ctrl+D: Duplicate selected row
+  if (e.ctrlKey && e.key === 'd') {
+    e.preventDefault();
+    if (window.AppState.selectedRunbookId) {
+      window.duplicateRunbook(window.AppState.selectedRunbookId);
+    }
+  }
+  
+  // Ctrl+F: Focus search
+  if (e.ctrlKey && e.key === 'f') {
+    e.preventDefault();
+    var searchBox = document.getElementById('searchRunbooks');
+    if (searchBox) {
+      searchBox.focus();
+      searchBox.select();
+    }
+  }
+  
+  // ?: Show keyboard shortcuts help
+  if (e.key === '?' && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+    e.preventDefault();
+    showKeyboardShortcuts();
+  }
+  
+  // Esc: Close keyboard shortcuts help
+  if (e.key === 'Escape') {
+    hideKeyboardShortcuts();
+  }
+});
+
+// NEW: Keyboard Shortcuts Help Functions
+function showKeyboardShortcuts() {
+  document.getElementById('keyboardShortcutsOverlay').classList.add('show');
+  document.getElementById('keyboardShortcutsHelp').classList.add('show');
+}
+
+function hideKeyboardShortcuts() {
+  document.getElementById('keyboardShortcutsOverlay').classList.remove('show');
+  document.getElementById('keyboardShortcutsHelp').classList.remove('show');
+}
+
+window.showKeyboardShortcuts = showKeyboardShortcuts;
+window.hideKeyboardShortcuts = hideKeyboardShortcuts;
+
+// NEW: Search/Filter Functions
+window.filterRunbooks = function() {
+  var searchQuery = document.getElementById('searchRunbooks').value.toLowerCase();
+  var filterStrategy = document.getElementById('filterStrategy').value;
+  var filterStatus = document.getElementById('filterStatus').value;
+  
+  window.AppState.searchQuery = searchQuery;
+  window.AppState.filterStrategy = filterStrategy;
+  window.AppState.filterStatus = filterStatus;
+  
+  renderRunbookTable();
+  updateTimeline();
+};
+
+window.clearFilters = function() {
+  document.getElementById('searchRunbooks').value = '';
+  document.getElementById('filterStrategy').value = '';
+  document.getElementById('filterStatus').value = '';
+  window.AppState.searchQuery = '';
+  window.AppState.filterStrategy = '';
+  window.AppState.filterStatus = '';
+  renderRunbookTable();
+  updateTimeline();
+};
+
+// NEW: Get Filtered Runbooks
+function getFilteredRunbooks() {
+  return window.AppState.runbooks.filter(function(runbook) {
+    // Search filter
+    if (window.AppState.searchQuery) {
+      var searchMatch = (runbook.runblock || '').toLowerCase().includes(window.AppState.searchQuery) ||
+                       (runbook.responsibility || '').toLowerCase().includes(window.AppState.searchQuery) ||
+                       (runbook.strategy || '').toLowerCase().includes(window.AppState.searchQuery) ||
+                       (runbook.phase || '').toLowerCase().includes(window.AppState.searchQuery);
+      if (!searchMatch) return false;
+    }
+    
+    // Strategy filter
+    if (window.AppState.filterStrategy && runbook.strategy !== window.AppState.filterStrategy) {
+      return false;
+    }
+    
+    // Status filter
+    if (window.AppState.filterStatus) {
+      var status = runbook.status || 'not-started';
+      if (status !== window.AppState.filterStatus) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
+}
+
+// NEW: Duplicate Runbook Function
+window.duplicateRunbook = function(id) {
+  var original = window.AppState.runbooks.find(function(r) { return r.id === id; });
+  if (!original) return;
+  
+  var duplicate = {
+    id: Date.now() + Math.random(),
+    sequence: window.AppState.runbooks.length + 1,
+    strategy: original.strategy,
+    phase: original.phase,
+    runblock: original.runblock + ' (Copy)',
+    responsibility: original.responsibility,
+    critical: original.critical,
+    scheduleHours: original.scheduleHours,
+    scheduleMinutes: original.scheduleMinutes,
+    durationHours: original.durationHours,
+    durationMinutes: original.durationMinutes,
+    completed: false,
+    actualDuration: null,
+    position: 0,
+    status: 'not-started'
+  };
+  
+  window.AppState.runbooks.push(duplicate);
+  renderRunbookTable();
+  updateTimeline();
+  updateCompletionPercentage();
+};
+
+// NEW: Update Elapsed Time for In-Progress Tasks
+function updateElapsedTimes() {
+  if (!window.AppState.downtimeStarted || !window.AppState.downtimeStartTime) return;
+  
+  var now = new Date();
+  var startTime = new Date(window.AppState.downtimeStartTime);
+  
+  window.AppState.runbooks.forEach(function(runbook) {
+    if (runbook.status === 'in-progress' && !runbook.completed) {
+      var scheduledOffset = runbook.scheduleHours * 3600000 + runbook.scheduleMinutes * 60000;
+      var taskStart = new Date(startTime.getTime() + scheduledOffset);
+      
+      if (now >= taskStart) {
+        var elapsedMs = now - taskStart - window.AppState.pausedDuration;
+        var elapsedHours = Math.floor(elapsedMs / 3600000);
+        var elapsedMinutes = Math.floor((elapsedMs % 3600000) / 60000);
+        
+        // Update elapsed time badge on timeline
+        var block = document.querySelector('.timeline-block[data-runbook-id="' + runbook.id + '"]');
+        if (block) {
+          var existingBadge = block.querySelector('.elapsed-time-badge');
+          if (!existingBadge) {
+            var badge = document.createElement('div');
+            badge.className = 'elapsed-time-badge';
+            block.appendChild(badge);
+            existingBadge = badge;
+          }
+          existingBadge.textContent = 'Elapsed: ' + String(elapsedHours).padStart(2,'0') + ':' + String(elapsedMinutes).padStart(2,'0');
+        }
+      }
+    }
+  });
+}
+
+// Update clock to also update elapsed times
+setInterval(function() {
+  if (window.AppState.downtimeStarted && !window.AppState.downtimePaused) {
+    updateElapsedTimes();
+  }
+}, 1000);
 
 // NEW: Dark Mode Functions
 function initDarkMode() {
@@ -1814,7 +2279,8 @@ window.addRunbookRow = function() {
     durationMinutes: 0,
     completed: false,
     actualDuration: null,
-    position: 0
+    position: 0,
+    status: 'not-started'
   };
   
   window.AppState.runbooks.push(runbook);
@@ -1845,16 +2311,37 @@ function renderRunbookTable() {
   window.AppState.renderLock = true;
   
   try {
-    var currentRows = Array.from(tbody.querySelectorAll('tr'));
-    window.AppState.runbooks.sort(function(a, b) { return a.sequence - b.sequence; });
+    // Get filtered runbooks
+    var filteredRunbooks = getFilteredRunbooks();
+    filteredRunbooks.sort(function(a, b) { return a.sequence - b.sequence; });
+    
+    // Clear tbody
+    tbody.innerHTML = '';
     
     // Check if we're the host and can write
     var canEdit = !window.canWrite || window.canWrite();
     
-    // Update or create rows
-    window.AppState.runbooks.forEach(function(runbook, index) {
-      var row = currentRows[index];
-      // Host can always edit model parameters, even during active downtime
+    // Create rows for filtered runbooks
+    filteredRunbooks.forEach(function(runbook) {
+      var row = document.createElement('tr');
+      row.dataset.runbookId = runbook.id;
+      row.draggable = canEdit;
+      
+      // Add drag events
+      if (canEdit) {
+        row.addEventListener('dragstart', handleRowDragStart);
+        row.addEventListener('dragend', handleRowDragEnd);
+        row.addEventListener('dragover', handleRowDragOver);
+        row.addEventListener('drop', handleRowDrop);
+        row.addEventListener('click', function() {
+          window.AppState.selectedRunbookId = runbook.id;
+          document.querySelectorAll('#runbookBody tr').forEach(function(r) {
+            r.style.backgroundColor = '';
+          });
+          row.style.backgroundColor = 'rgba(10,110,209,0.1)';
+        });
+      }
+      
       var editingDisabled = canEdit ? '' : 'disabled';
       
       var strategyOptions = STRATEGIES.map(function(s) {
@@ -1865,7 +2352,20 @@ function renderRunbookTable() {
         return '<option value="' + p + '" ' + (runbook.phase === p ? 'selected' : '') + '>' + p + '</option>';
       }).join('');
       
-      var rowHTML = '<td>' +
+      var statusOptions = [
+        {value: 'not-started', label: 'Not Started'},
+        {value: 'in-progress', label: 'In Progress'},
+        {value: 'blocked', label: 'Blocked'},
+        {value: 'completed', label: 'Completed'},
+        {value: 'skipped', label: 'Skipped'}
+      ].map(function(s) {
+        var selected = (runbook.status || 'not-started') === s.value ? 'selected' : '';
+        return '<option value="' + s.value + '" ' + selected + '>' + s.label + '</option>';
+      }).join('');
+      
+      row.innerHTML = 
+        '<td style="padding:4px;"><span class="drag-handle" title="Drag to reorder">â‰¡</span></td>' +
+        '<td>' +
         '<input type="number" min="1" max="30" value="' + runbook.sequence + '" ' +
         'style="width:60px;text-align:center;" onchange="updateSequence(' + runbook.id + ', this.value)" ' + editingDisabled + '>' +
         '</td>' +
@@ -1889,31 +2389,110 @@ function renderRunbookTable() {
         'maxlength="40" style="width:100%;" ' +
         'onchange="updateResponsibility(' + runbook.id + ', this.value)" ' + editingDisabled + '>' +
         '</td>' +
+        '<td class="center">' +
+        '<select class="status-select" onchange="updateStatus(' + runbook.id + ', this.value)" ' + editingDisabled + '>' +
+        statusOptions +
+        '</select>' +
+        '</td>' +
         '<td class="critical-cell center">' +
         '<input type="checkbox" class="critical-checkbox" ' +
         (runbook.critical ? 'checked' : '') + ' ' +
         'onchange="updateCritical(' + runbook.id + ', this.checked)" ' + editingDisabled + '>' +
         '</td>' +
         '<td class="center">' +
+        '<button class="btn small" onclick="duplicateRunbook(' + runbook.id + ')" ' + editingDisabled + ' title="Duplicate">ðŸ"„</button> ' +
         '<button class="btn small danger" onclick="removeRunbook(' + runbook.id + ')" ' + editingDisabled + '>Remove</button>' +
         '</td>';
       
-      if (!row) {
-        row = document.createElement('tr');
-        tbody.appendChild(row);
-      }
-      
-      row.innerHTML = rowHTML;
+      tbody.appendChild(row);
     });
     
-    // Remove extra rows
-    while (tbody.children.length > window.AppState.runbooks.length) {
-      tbody.removeChild(tbody.lastChild);
-    }
   } finally {
     window.AppState.renderLock = false;
   }
 }
+
+// NEW: Drag and Drop Row Reordering Functions
+function handleRowDragStart(e) {
+  window.AppState.draggedRowId = parseFloat(e.currentTarget.dataset.runbookId);
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleRowDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('#runbookBody tr').forEach(function(row) {
+    row.classList.remove('drag-over');
+  });
+}
+
+function handleRowDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  
+  var draggedId = window.AppState.draggedRowId;
+  var targetId = parseFloat(e.currentTarget.dataset.runbookId);
+  
+  if (draggedId !== targetId) {
+    e.currentTarget.classList.add('drag-over');
+  }
+}
+
+function handleRowDrop(e) {
+  e.preventDefault();
+  
+  var draggedId = window.AppState.draggedRowId;
+  var targetId = parseFloat(e.currentTarget.dataset.runbookId);
+  
+  if (draggedId === targetId) return;
+  
+  var draggedRunbook = window.AppState.runbooks.find(function(r) { return r.id === draggedId; });
+  var targetRunbook = window.AppState.runbooks.find(function(r) { return r.id === targetId; });
+  
+  if (!draggedRunbook || !targetRunbook) return;
+  
+  // Swap sequences
+  var tempSeq = draggedRunbook.sequence;
+  draggedRunbook.sequence = targetRunbook.sequence;
+  targetRunbook.sequence = tempSeq;
+  
+  // Re-render
+  setTimeout(function() {
+    renderRunbookTable();
+    updateTimeline();
+  }, 10);
+}
+
+// NEW: Update Status Function
+window.updateStatus = function(id, value) {
+  var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
+  if (runbook) {
+    runbook.status = value;
+    
+    // Auto-update completed flag
+    if (value === 'completed') {
+      runbook.completed = true;
+      // Calculate actual duration if downtime is running
+      if (window.AppState.downtimeStarted && window.AppState.downtimeStartTime && !runbook.actualDuration) {
+        var now = new Date();
+        var startTime = new Date(window.AppState.downtimeStartTime);
+        var scheduledOffset = runbook.scheduleHours * 3600000 + runbook.scheduleMinutes * 60000;
+        var taskStart = new Date(startTime.getTime() + scheduledOffset);
+        
+        var actualMs = now - taskStart - window.AppState.pausedDuration;
+        var actualHours = Math.floor(actualMs / 3600000);
+        var actualMinutes = Math.floor((actualMs % 3600000) / 60000);
+        
+        runbook.actualDuration = String(Math.max(0, actualHours)).padStart(2,'0') + ':' + String(Math.max(0, actualMinutes)).padStart(2,'0');
+      }
+    } else {
+      runbook.completed = false;
+    }
+    
+    updateCompletionPercentage();
+    setTimeout(function() { updateTimeline(); }, 100);
+  }
+};
 
 window.updateSequence = function(id, value) {
   var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
@@ -2038,7 +2617,8 @@ function generateTimelineRows() {
     return;
   }
   
-  var visibleRunbooks = window.AppState.runbooks
+  // Use filtered runbooks for timeline
+  var visibleRunbooks = getFilteredRunbooks()
     .filter(function(rb) { return rb && rb.runblock && rb.runblock.trim().length > 0; })
     .sort(function(a, b) { return a.sequence - b.sequence; });
 
@@ -2269,11 +2849,23 @@ function createTimelineBlock(runbook) {
   block.className = 'timeline-block block-' + strategyClass;
   block.dataset.runbookId = runbook.id;
   
+  // Add status-specific styling
+  var status = runbook.status || 'not-started';
+  if (status === 'blocked') {
+    block.style.border = '2px solid #f44336';
+    block.style.filter = 'brightness(0.8)';
+  } else if (status === 'in-progress') {
+    block.style.boxShadow = '0 0 8px rgba(33, 150, 243, 0.8)';
+  } else if (status === 'skipped') {
+    block.style.opacity = '0.5';
+    block.style.textDecoration = 'line-through';
+  }
+  
   if (runbook.critical) {
     block.classList.add('critical');
   }
   
-  if (runbook.completed) {
+  if (runbook.completed || status === 'completed') {
     block.classList.add('completed');
     block.draggable = false;
   } else {
@@ -2289,7 +2881,7 @@ function createTimelineBlock(runbook) {
   
   // Show sequence and phase inside
   block.textContent = '#' + runbook.sequence + ' | ' + runbook.phase;
-  block.title = runbook.runblock + ' - ' + runbook.phase;
+  block.title = runbook.runblock + ' - ' + runbook.phase + ' [' + status + ']';
   
   // Add external label for runblock name
   var blockLabel = document.createElement('div');
@@ -2305,7 +2897,7 @@ function createTimelineBlock(runbook) {
     block.appendChild(indicator);
   }
   
-  if (!runbook.completed) {
+  if (!runbook.completed && status !== 'completed') {
     block.addEventListener('dragstart', handleDragStart);
     block.addEventListener('dragend', handleDragEnd);
   }
@@ -2670,6 +3262,7 @@ window.downloadExcel = function() {
       Phase: r.phase,
       Runblock: r.runblock || '',
       Responsibility: r.responsibility || '',
+      Status: r.status || 'not-started',
       Critical: r.critical ? 'Yes' : 'No',
       ScheduleTime: String(r.scheduleHours).padStart(2,'0') + ':' + String(r.scheduleMinutes).padStart(2,'0'),
       PlannedDuration: String(r.durationHours).padStart(2,'0') + ':' + String(r.durationMinutes).padStart(2,'0'),
@@ -2678,7 +3271,7 @@ window.downloadExcel = function() {
     };
   });
   
-  var headers = ['Sequence','Strategy','Phase','Runblock','Responsibility','Critical','ScheduleTime','PlannedDuration','ActualDuration','Completed'];
+  var headers = ['Sequence','Strategy','Phase','Runblock','Responsibility','Status','Critical','ScheduleTime','PlannedDuration','ActualDuration','Completed'];
   var csvContent = [
     headers.join(',')
   ].concat(data.map(function(row) {
@@ -2730,6 +3323,11 @@ window.uploadExcel = function(event) {
           var durationHours = planDurationParts[0] || 1;
           var durationMinutes = planDurationParts[1] || 0;
           
+          var status = values[headers.indexOf('Status')] || 'not-started';
+          if (TASK_STATUSES.indexOf(status) === -1) {
+            status = 'not-started';
+          }
+          
           var runbook = {
             id: Date.now() + Math.random() + i,
             sequence: parseInt(values[headers.indexOf('Sequence')]) || i,
@@ -2737,6 +3335,7 @@ window.uploadExcel = function(event) {
             phase: values[headers.indexOf('Phase')] || PHASES[0],
             runblock: values[headers.indexOf('Runblock')] || '',
             responsibility: values[headers.indexOf('Responsibility')] || '',
+            status: status,
             critical: values[headers.indexOf('Critical')] === 'Yes',
             scheduleHours: scheduleHours,
             scheduleMinutes: scheduleMinutes,
@@ -3115,7 +3714,7 @@ generateTimelineRows = function() {
   var controls = document.getElementById('timelineControlsRows');
   if (controls) {
     var rows = controls.querySelectorAll('.timeline-control-row');
-    var sorted = window.AppState.runbooks
+    var sorted = getFilteredRunbooks()
       .filter(function(r) { return r && r.runblock && r.runblock.trim().length > 0; })
       .sort(function(a, b) { return a.sequence - b.sequence; });
     rows.forEach(function(row, i) {
@@ -3304,8 +3903,13 @@ function applyRemoteState(remoteState) {
   
   const state = window.AppState;
   
-  // Update runbooks
-  state.runbooks = Array.isArray(remoteState.runbooks) ? remoteState.runbooks : [];
+  // Update runbooks - ensure they have status field
+  state.runbooks = Array.isArray(remoteState.runbooks) ? remoteState.runbooks.map(function(r) {
+    return {
+      ...r,
+      status: r.status || 'not-started'
+    };
+  }) : [];
   state.downtimeStarted = !!remoteState.downtimeStarted;
   state.downtimeDuration = remoteState.downtimeDuration || 24;
   state.downtimePaused = !!remoteState.downtimePaused;
@@ -3520,7 +4124,8 @@ const mutationFunctions = [
   "addRunbookRow", "removeRunbook", "clearRunbook",
   "updateSequence", "updateStrategy", "updatePhase", "updateRunblock",
   "updateResponsibility", "updateCritical", "updateScheduleTime",
-  "updateDurationTime", "toggleCompleted", "calculateEndTime", "updateTimeline"
+  "updateDurationTime", "toggleCompleted", "calculateEndTime", "updateTimeline",
+  "updateStatus", "duplicateRunbook", "filterRunbooks", "clearFilters"
 ];
 
 mutationFunctions.forEach(fnName => {
