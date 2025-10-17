@@ -185,6 +185,102 @@
     background: rgba(255,255,255,0.3);
   }
   
+  /* Full Screen Toggle Button */
+  .fullscreen-toggle {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 20px;
+    padding: 6px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    transition: all 0.3s ease;
+  }
+  
+  .fullscreen-toggle:hover {
+    background: rgba(255,255,255,0.3);
+  }
+  
+  .fullscreen-toggle.active {
+    background: rgba(255,255,255,0.4);
+    border-color: rgba(255,255,255,0.5);
+  }
+  
+  /* Full Screen Mode Styles */
+  body.fullscreen-mode .customer-info-panel {
+    display: none !important;
+  }
+  
+  body.fullscreen-mode .model-parameters-panel {
+    display: none !important;
+  }
+  
+  body.fullscreen-mode #progressPanel {
+    margin-bottom: 0;
+    height: calc(100vh - 80px);
+    display: flex;
+    flex-direction: column;
+  }
+  
+  body.fullscreen-mode .timeline-container {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
+  
+  body.fullscreen-mode .content {
+    padding: 8px;
+    height: calc(100vh - 80px);
+    display: flex;
+    flex-direction: column;
+  }
+  
+  body.fullscreen-mode .app-header {
+    padding: 8px 16px;
+  }
+  
+  body.fullscreen-mode h1 {
+    font-size: 16px;
+  }
+  
+  body.fullscreen-mode .status-display {
+    gap: 16px;
+  }
+  
+  body.fullscreen-mode .fullscreen-customer-info {
+    display: flex !important;
+    gap: 16px;
+    align-items: center;
+    font-size: 13px;
+    padding: 4px 12px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 6px;
+  }
+  
+  .fullscreen-customer-info {
+    display: none;
+  }
+  
+  .fullscreen-customer-info .info-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .fullscreen-customer-info .info-label {
+    font-size: 10px;
+    opacity: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .fullscreen-customer-info .info-value {
+    font-size: 13px;
+    font-weight: 600;
+  }
+  
   /* Completion Progress */
   .completion-progress {
     display: flex;
@@ -1398,6 +1494,16 @@ body.dark-mode #messageToggleBtn:hover{
       </svg>
       <h1>Technical Downtime Tracking <span class="sync-indicator" id="syncIndicator"></span></h1>
     </div>
+    <div class="fullscreen-customer-info" id="fullscreenCustomerInfo">
+      <div class="info-item">
+        <span class="info-label">Customer</span>
+        <span class="info-value" id="fullscreenCustomerName">-</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Cycle</span>
+        <span class="info-value" id="fullscreenTransformCycle">-</span>
+      </div>
+    </div>
     <div class="status-display">
       <div class="status-item">
         <span class="status-label">Current Time</span>
@@ -1414,6 +1520,10 @@ body.dark-mode #messageToggleBtn:hover{
         <span class="status-label">Status</span>
         <span class="status-value" id="statusText" style="color:var(--sap-warning);">Not Started</span>
       </div>
+      <button class="fullscreen-toggle" id="fullscreenToggle" title="Toggle full screen mode">
+        <span id="fullscreenIcon">⛶</span>
+        <span id="fullscreenText">Focus</span>
+      </button>
       <button class="dark-mode-toggle" id="darkModeToggle" title="Toggle dark mode">
         <span id="darkModeIcon">🌙</span>
         <span id="darkModeText">Dark</span>
@@ -1423,7 +1533,7 @@ body.dark-mode #messageToggleBtn:hover{
 
   <div class="content">
     <!-- Customer Information -->
-    <div class="panel" style="margin-bottom:16px;padding:16px;">
+    <div class="panel customer-info-panel" style="margin-bottom:16px;padding:16px;">
       <div class="field-row">
         <div class="field customer-input-wrapper">
           <label>Customer Name *</label>
@@ -1552,7 +1662,7 @@ body.dark-mode #messageToggleBtn:hover{
     </div>
 
     <!-- Model Parameters Section -->
-    <div class="panel">
+    <div class="panel model-parameters-panel">
       <h2>Model Parameters</h2>
 
       <h3>Runbook Configuration</h3>
@@ -1650,6 +1760,10 @@ body.dark-mode #messageToggleBtn:hover{
     <span class="shortcut-key">Ctrl + F</span>
   </div>
   <div class="shortcut-item">
+    <span>Toggle Full Screen</span>
+    <span class="shortcut-key">F</span>
+  </div>
+  <div class="shortcut-item">
     <span>Show This Help</span>
     <span class="shortcut-key">?</span>
   </div>
@@ -1697,7 +1811,8 @@ window.AppState = {
   draggedRowId: null,
   searchQuery: '',
   filterStrategy: '',
-  filterStatus: ''
+  filterStatus: '',
+  fullscreenMode: false
 };
 
 // Constants
@@ -1745,17 +1860,81 @@ document.addEventListener('keydown', function(e) {
     }
   }
   
+  // F: Toggle full screen mode
+  if (e.key === 'f' && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+    e.preventDefault();
+    toggleFullscreenMode();
+  }
+  
   // ?: Show keyboard shortcuts help
   if (e.key === '?' && !e.ctrlKey && !e.shiftKey && !e.altKey) {
     e.preventDefault();
     showKeyboardShortcuts();
   }
   
-  // Esc: Close keyboard shortcuts help
+  // Esc: Close keyboard shortcuts help or exit fullscreen
   if (e.key === 'Escape') {
     hideKeyboardShortcuts();
+    if (window.AppState.fullscreenMode) {
+      toggleFullscreenMode();
+    }
   }
 });
+
+// NEW: Full Screen Mode Functions
+function toggleFullscreenMode() {
+  window.AppState.fullscreenMode = !window.AppState.fullscreenMode;
+  
+  if (window.AppState.fullscreenMode) {
+    document.body.classList.add('fullscreen-mode');
+    updateFullscreenCustomerInfo();
+  } else {
+    document.body.classList.remove('fullscreen-mode');
+  }
+  
+  updateFullscreenButton(window.AppState.fullscreenMode);
+  
+  // Trigger timeline update to adjust for new dimensions
+  setTimeout(function() {
+    if (typeof window.updateTimeline === 'function') {
+      window.updateTimeline();
+    }
+  }, 100);
+}
+
+function updateFullscreenButton(isFullscreen) {
+  var icon = document.getElementById('fullscreenIcon');
+  var text = document.getElementById('fullscreenText');
+  var btn = document.getElementById('fullscreenToggle');
+  
+  if (icon) icon.textContent = isFullscreen ? '⛶' : '⛶';
+  if (text) text.textContent = isFullscreen ? 'Exit Focus' : 'Focus';
+  if (btn) {
+    if (isFullscreen) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  }
+}
+
+function updateFullscreenCustomerInfo() {
+  var customerNameEl = document.getElementById('fullscreenCustomerName');
+  var transformCycleEl = document.getElementById('fullscreenTransformCycle');
+  
+  var customerName = document.getElementById('customerName');
+  var transformCycle = document.getElementById('transformCycle');
+  
+  if (customerNameEl && customerName) {
+    customerNameEl.textContent = customerName.value || 'Not Set';
+  }
+  
+  if (transformCycleEl && transformCycle) {
+    transformCycleEl.textContent = transformCycle.value || 'Not Set';
+  }
+}
+
+window.toggleFullscreenMode = toggleFullscreenMode;
 
 // NEW: Keyboard Shortcuts Help Functions
 function showKeyboardShortcuts() {
@@ -1985,6 +2164,11 @@ window.selectRecentCustomer = function(name) {
   
   var dropdown = document.getElementById('recentCustomersDropdown');
   if (dropdown) dropdown.classList.remove('show');
+  
+  // Update fullscreen info if in fullscreen mode
+  if (window.AppState.fullscreenMode) {
+    updateFullscreenCustomerInfo();
+  }
 };
 
 // Close dropdown when clicking outside
@@ -2024,6 +2208,12 @@ document.addEventListener('DOMContentLoaded', function() {
     darkModeToggle.addEventListener('click', toggleDarkMode);
   }
   
+  // Full screen toggle listener
+  var fullscreenToggle = document.getElementById('fullscreenToggle');
+  if (fullscreenToggle) {
+    fullscreenToggle.addEventListener('click', toggleFullscreenMode);
+  }
+  
   // Recent customers button listener
   var recentBtn = document.getElementById('recentCustomersBtn');
   if (recentBtn) {
@@ -2040,6 +2230,10 @@ document.addEventListener('DOMContentLoaded', function() {
       if (this.value && this.value.trim().length > 0) {
         addRecentCustomer(this.value.trim());
       }
+      // Update fullscreen info if in fullscreen mode
+      if (window.AppState.fullscreenMode) {
+        updateFullscreenCustomerInfo();
+      }
     });
     
     customerNameInput.addEventListener('focus', function() {
@@ -2055,6 +2249,13 @@ document.addEventListener('DOMContentLoaded', function() {
   // Protect transform cycle input from Firebase overwrites
   var transformCycleInput = document.getElementById('transformCycle');
   if (transformCycleInput) {
+    transformCycleInput.addEventListener('change', function() {
+      // Update fullscreen info if in fullscreen mode
+      if (window.AppState.fullscreenMode) {
+        updateFullscreenCustomerInfo();
+      }
+    });
+    
     transformCycleInput.addEventListener('focus', function() {
       window.AppState.inputLock = true;
     });
@@ -2364,7 +2565,7 @@ function renderRunbookTable() {
       }).join('');
       
       row.innerHTML = 
-        '<td style="padding:4px;"><span class="drag-handle" title="Drag to reorder">â‰¡</span></td>' +
+        '<td style="padding:4px;"><span class="drag-handle" title="Drag to reorder">≡</span></td>' +
         '<td>' +
         '<input type="number" min="1" max="30" value="' + runbook.sequence + '" ' +
         'style="width:60px;text-align:center;" onchange="updateSequence(' + runbook.id + ', this.value)" ' + editingDisabled + '>' +
@@ -2400,7 +2601,7 @@ function renderRunbookTable() {
         'onchange="updateCritical(' + runbook.id + ', this.checked)" ' + editingDisabled + '>' +
         '</td>' +
         '<td class="center">' +
-        '<button class="btn small" onclick="duplicateRunbook(' + runbook.id + ')" ' + editingDisabled + ' title="Duplicate">ðŸ"„</button> ' +
+        '<button class="btn small" onclick="duplicateRunbook(' + runbook.id + ')" ' + editingDisabled + ' title="Duplicate">🔄</button> ' +
         '<button class="btn small danger" onclick="removeRunbook(' + runbook.id + ')" ' + editingDisabled + '>Remove</button>' +
         '</td>';
       
@@ -2723,7 +2924,7 @@ function createTimelineControlRow(runbook) {
   startInput.value = String(runbook.scheduleHours).padStart(2,'0') + ':' + String(runbook.scheduleMinutes).padStart(2,'0');
   startInput.dataset.runbookId = runbook.id;
   startInput.dataset.fieldType = 'start';
-  startInput.readOnly = runbook.completed; // Read-only after completion
+  startInput.readOnly = runbook.completed;
   if (runbook.completed) startInput.style.background = '#f8fafb';
   
   startInput.onfocus = function() { 
@@ -2751,7 +2952,7 @@ function createTimelineControlRow(runbook) {
   planInput.value = String(runbook.durationHours).padStart(2,'0') + ':' + String(runbook.durationMinutes).padStart(2,'0');
   planInput.dataset.runbookId = runbook.id;
   planInput.dataset.fieldType = 'plan';
-  planInput.readOnly = runbook.completed; // Read-only after completion
+  planInput.readOnly = runbook.completed;
   if (runbook.completed) planInput.style.background = '#f8fafb';
   
   planInput.onfocus = function() { 
@@ -3133,7 +3334,7 @@ window.startDowntime = function() {
   
   document.getElementById('downtimeControls').innerHTML = 
     '<button class="btn warning" onclick="pauseDowntime()">⏸ Pause</button>' +
-    '<button class="btn danger" onclick="stopDowntime()">■ Stop</button>';
+    '<button class="btn danger" onclick="stopDowntime()">⏹ Stop</button>';
   
   var currentLine = document.getElementById('currentTimeLine');
   if (currentLine) {
@@ -3155,7 +3356,7 @@ window.pauseDowntime = function() {
     
     document.getElementById('downtimeControls').innerHTML = 
       '<button class="btn primary" onclick="resumeDowntime()">▶ Resume</button>' +
-      '<button class="btn danger" onclick="stopDowntime()">■ Stop</button>';
+      '<button class="btn danger" onclick="stopDowntime()">⏹ Stop</button>';
 
     updateTimeline();
     renderRunbookTable();
@@ -3174,7 +3375,7 @@ window.resumeDowntime = function() {
     
     document.getElementById('downtimeControls').innerHTML = 
       '<button class="btn warning" onclick="pauseDowntime()">⏸ Pause</button>' +
-      '<button class="btn danger" onclick="stopDowntime()">■ Stop</button>';
+      '<button class="btn danger" onclick="stopDowntime()">⏹ Stop</button>';
     
     var currentLine = document.getElementById('currentTimeLine');
     if (currentLine) currentLine.style.display = 'block';
@@ -3893,7 +4094,8 @@ function serialize() {
     completionTimes: state.completionTimes || {},
     customerName: nameInput?.value || "",
     transformCycle: phaseInput?.value || "",
-    syncedTimelinePosition: state.syncedTimelinePosition || 0
+    syncedTimelinePosition: state.syncedTimelinePosition || 0,
+    fullscreenMode: state.fullscreenMode || false
   };
 }
 
@@ -3917,6 +4119,18 @@ function applyRemoteState(remoteState) {
   state.downtimeStartTime = remoteState.downtimeStartTime ? new Date(remoteState.downtimeStartTime) : null;
   state.completionTimes = remoteState.completionTimes || {};
   state.syncedTimelinePosition = remoteState.syncedTimelinePosition || 0;
+  
+  // Sync fullscreen mode for viewers
+  if (!window.canWrite() && remoteState.fullscreenMode !== undefined && state.fullscreenMode !== remoteState.fullscreenMode) {
+    state.fullscreenMode = remoteState.fullscreenMode;
+    if (state.fullscreenMode) {
+      document.body.classList.add('fullscreen-mode');
+      window.updateFullscreenCustomerInfo();
+    } else {
+      document.body.classList.remove('fullscreen-mode');
+    }
+    window.updateFullscreenButton(state.fullscreenMode);
+  }
   
   // Only update UI fields if not currently being edited
   if (!state.inputLock) {
@@ -3971,6 +4185,11 @@ function applyRemoteState(remoteState) {
     if (currentLine) {
       currentLine.style.display = state.downtimeStarted ? 'block' : 'none';
     }
+  }
+  
+  // Update fullscreen customer info
+  if (state.fullscreenMode) {
+    window.updateFullscreenCustomerInfo();
   }
   
   // Update tables and timeline
@@ -4118,14 +4337,15 @@ onSnapshot(sessionRef, async (snap) => {
   }
 });
 
-// Hook into mutation functions
+// Hook into mutation functions (including fullscreen toggle)
 const mutationFunctions = [
   "startDowntime", "pauseDowntime", "resumeDowntime", "stopDowntime",
   "addRunbookRow", "removeRunbook", "clearRunbook",
   "updateSequence", "updateStrategy", "updatePhase", "updateRunblock",
   "updateResponsibility", "updateCritical", "updateScheduleTime",
   "updateDurationTime", "toggleCompleted", "calculateEndTime", "updateTimeline",
-  "updateStatus", "duplicateRunbook", "filterRunbooks", "clearFilters"
+  "updateStatus", "duplicateRunbook", "filterRunbooks", "clearFilters",
+  "toggleFullscreenMode"
 ];
 
 mutationFunctions.forEach(fnName => {
@@ -4209,7 +4429,8 @@ document.getElementById("rt-reset").onclick = async function() {
     isFirstUser: false,
     syncedTimelinePosition: 0,
     renderLock: false,
-    messagesOn: false
+    messagesOn: false,
+    fullscreenMode: false
   };
   
   // Reset UI
