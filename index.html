@@ -47,6 +47,7 @@
   body.dark-mode input[type="text"],
   body.dark-mode input[type="time"],
   body.dark-mode input[type="number"],
+  body.dark-mode input[type="password"],
   body.dark-mode select {
     background:#3a3a3a;
     color:var(--sap-text);
@@ -165,6 +166,84 @@
   .status-value{
     font-size:16px;
     font-weight:700;
+  }
+  
+  /* Password Protection Modal */
+  .password-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100000;
+  }
+  
+  .password-modal.hidden {
+    display: none;
+  }
+  
+  .password-content {
+    background: var(--sap-panel);
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    max-width: 450px;
+    width: 90%;
+    text-align: center;
+  }
+  
+  .password-content h2 {
+    margin: 0 0 20px 0;
+    color: var(--sap-accent);
+  }
+  
+  .password-content input {
+    width: 100%;
+    padding: 12px;
+    margin: 16px 0;
+    border: 2px solid var(--sap-border);
+    border-radius: 8px;
+    font-size: 16px;
+    text-align: center;
+  }
+  
+  .password-content .btn {
+    width: 100%;
+    margin-top: 8px;
+  }
+  
+  .password-error {
+    color: var(--sap-error);
+    margin-top: 12px;
+    font-size: 14px;
+  }
+  
+  .user-guide {
+    text-align: left;
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid var(--sap-border);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  
+  .user-guide h3 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    color: var(--sap-accent);
+  }
+  
+  .user-guide ul {
+    margin: 8px 0;
+    padding-left: 20px;
+  }
+  
+  .user-guide li {
+    margin: 6px 0;
   }
   
   /* Dark Mode Toggle Button */
@@ -376,6 +455,108 @@
     font-size: 13px;
   }
   
+  /* Enhanced Tooltip */
+  .enhanced-tooltip {
+    position: fixed;
+    background: var(--sap-panel);
+    border: 2px solid var(--sap-accent);
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    z-index: 10000;
+    pointer-events: none;
+    display: none;
+    min-width: 300px;
+    max-width: 400px;
+  }
+  
+  body.dark-mode .enhanced-tooltip {
+    background: #2d2d2d;
+    border-color: #3d9bff;
+  }
+  
+  .enhanced-tooltip.show {
+    display: block;
+  }
+  
+  .tooltip-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--sap-border);
+  }
+  
+  .tooltip-icon {
+    font-size: 32px;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--sap-accent), var(--sap-accent-2));
+    color: white;
+  }
+  
+  .tooltip-title {
+    flex: 1;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--sap-text);
+  }
+  
+  .tooltip-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .tooltip-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+  }
+  
+  .tooltip-label {
+    font-weight: 600;
+    color: var(--sap-muted);
+    min-width: 100px;
+  }
+  
+  .tooltip-value {
+    color: var(--sap-text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .status-icon {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  
+  .status-icon.not-started { background: #9e9e9e; }
+  .status-icon.in-progress { background: #2196f3; animation: pulse-dot 2s infinite; }
+  .status-icon.blocked { background: #f44336; }
+  .status-icon.completed { background: #4caf50; }
+  .status-icon.skipped { background: #ff9800; }
+  .status-icon.in-error { background: #d32f2f; animation: blink-error 1s infinite; }
+  
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.2); }
+  }
+  
+  @keyframes blink-error {
+    0%, 50%, 100% { opacity: 1; }
+    25%, 75% { opacity: 0.4; }
+  }
+  
   /* Search/Filter Box */
   .search-filter-container {
     display: flex;
@@ -432,6 +613,69 @@
     font-size: 14px;
   }
   
+  /* Template Management */
+  .template-section {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 2px solid var(--sap-border);
+  }
+  
+  .template-controls {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+  
+  .template-field {
+    flex: 1;
+    min-width: 200px;
+  }
+  
+  .template-list {
+    margin-top: 16px;
+    border: 1px solid var(--sap-border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  
+  .template-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    border-bottom: 1px solid var(--sap-border);
+    transition: background-color 0.2s;
+  }
+  
+  .template-item:last-child {
+    border-bottom: none;
+  }
+  
+  .template-item:hover {
+    background: rgba(10,110,209,0.05);
+  }
+  
+  .template-info {
+    flex: 1;
+  }
+  
+  .template-name {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+  
+  .template-meta {
+    font-size: 12px;
+    color: var(--sap-muted);
+  }
+  
+  .template-actions {
+    display: flex;
+    gap: 8px;
+  }
+  
   /* Elapsed Time Badge */
   .elapsed-time-badge {
     position: absolute;
@@ -481,6 +725,12 @@
   .status-skipped {
     background: #fff3cd;
     color: #997404;
+  }
+  
+  .status-in-error {
+    background: #f8d7da;
+    color: #d32f2f;
+    animation: pulse-status 2s infinite;
   }
   
   @keyframes pulse-status {
@@ -638,6 +888,7 @@
   input[type="text"],
   input[type="time"],
   input[type="number"],
+  input[type="password"],
   select{
     padding:9px 12px;
     border:1px solid var(--sap-border);
@@ -651,6 +902,7 @@
   input[type="text"]:focus,
   input[type="time"]:focus,
   input[type="number"]:focus,
+  input[type="password"]:focus,
   select:focus{
     outline:none;
     border-color:var(--sap-accent);
@@ -1327,7 +1579,7 @@
   .viewer-mode input:not(#rt-copy),
   .viewer-mode select,
   .viewer-mode textarea,
-  .viewer-mode button:not(#rt-copy):not(#rt-reset):not(#reportBtn) {
+  .viewer-mode button:not(#rt-copy):not(#rt-reset):not(#reportBtn):not(#fullscreenToggle):not(#darkModeToggle) {
     pointer-events: none !important;
     opacity: 0.6 !important;
   }
@@ -1342,7 +1594,9 @@
   
   .viewer-mode #rt-copy,
   .viewer-mode #rt-reset,
-  .viewer-mode #reportBtn {
+  .viewer-mode #reportBtn,
+  .viewer-mode #fullscreenToggle,
+  .viewer-mode #darkModeToggle {
     pointer-events: auto !important;
     opacity: 1 !important;
   }
@@ -1486,6 +1740,58 @@ body.dark-mode #messageToggleBtn:hover{
   crossorigin="anonymous"></script>
 </head>
 <body>
+  <!-- Password Protection Modal -->
+  <div class="password-modal" id="passwordModal">
+    <div class="password-content">
+      <h2>🔒 Secure Access</h2>
+      <p>Please enter the password to access the Downtime Tracking App</p>
+      <input type="password" id="passwordInput" placeholder="Enter password" autocomplete="off">
+      <button class="btn primary" onclick="checkPassword()">Unlock</button>
+      <div class="password-error" id="passwordError"></div>
+      
+      <div class="user-guide">
+        <h3>📖 Quick Start Guide</h3>
+        <ul>
+          <li><strong>Host Mode:</strong> First user becomes the host and can edit all data</li>
+          <li><strong>Viewer Mode:</strong> Additional users can view live progress</li>
+          <li><strong>Password:</strong> <code>downtime2025</code></li>
+          <li><strong>Share Link:</strong> Click "📋 Copy link" to share viewer access</li>
+          <li><strong>Templates:</strong> Save/load runbook configurations for reuse</li>
+          <li><strong>Focus Mode:</strong> Press 'F' or click Focus button for fullscreen</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Enhanced Tooltip -->
+  <div class="enhanced-tooltip" id="enhancedTooltip">
+    <div class="tooltip-header">
+      <div class="tooltip-icon" id="tooltipIcon">📦</div>
+      <div class="tooltip-title" id="tooltipTitle">Runblock Name</div>
+    </div>
+    <div class="tooltip-body">
+      <div class="tooltip-row">
+        <span class="tooltip-label">Responsibility:</span>
+        <span class="tooltip-value" id="tooltipResponsibility">—</span>
+      </div>
+      <div class="tooltip-row">
+        <span class="tooltip-label">Status:</span>
+        <span class="tooltip-value" id="tooltipStatus">
+          <span class="status-icon" id="tooltipStatusIcon"></span>
+          <span id="tooltipStatusText">—</span>
+        </span>
+      </div>
+      <div class="tooltip-row">
+        <span class="tooltip-label">Phase:</span>
+        <span class="tooltip-value" id="tooltipPhase">—</span>
+      </div>
+      <div class="tooltip-row">
+        <span class="tooltip-label">Strategy:</span>
+        <span class="tooltip-value" id="tooltipStrategy">—</span>
+      </div>
+    </div>
+  </div>
+
   <div class="app-header">
     <div class="brand">
       <svg viewBox="0 0 100 28" xmlns="http://www.w3.org/2000/svg">
@@ -1689,6 +1995,7 @@ body.dark-mode #messageToggleBtn:hover{
             <option value="blocked">Blocked</option>
             <option value="completed">Completed</option>
             <option value="skipped">Skipped</option>
+            <option value="in-error">In Error</option>
           </select>
           <button class="btn small" onclick="clearFilters()">Clear Filters</button>
         </div>
@@ -1727,14 +2034,38 @@ body.dark-mode #messageToggleBtn:hover{
         <strong>Instructions:</strong><br>
         • Use <strong>Search box</strong> to filter runbooks by name, strategy, phase, or responsibility<br>
         • <strong>Drag rows</strong> (≡ icon) to reorder sequence<br>
-        • Set <strong>Status</strong> for each task: Not Started, In Progress, Blocked, Completed, or Skipped<br>
+        • Set <strong>Status</strong> for each task: Not Started, In Progress, Blocked, Completed, Skipped, or In Error<br>
         • Click <strong>🔄 Duplicate</strong> to copy a runbook with all settings<br>
         • <strong>Keyboard shortcuts:</strong> Ctrl+N (add), Ctrl+D (duplicate), Ctrl+F (search), ? (help)<br>
         • <strong>Elapsed time badges</strong> appear on timeline for in-progress tasks<br>
         • Mark critical path items with the Critical checkbox<br>
         • PLAN controls the planned duration of each runbook<br>
         • ACTUAL is automatically populated when status is set to Completed<br>
-        • Viewer mode users see live progress but cannot make changes
+        • Viewer mode users see live progress but cannot make changes<br>
+        • <strong>Hover over timeline blocks</strong> to see detailed information
+      </div>
+
+      <!-- Template Management Section -->
+      <div class="template-section">
+        <h3>📋 Runbook Templates</h3>
+        <p style="font-size:13px;color:var(--sap-muted);margin-bottom:16px;">
+          Save your current runbook configuration as a template for future use. Templates are stored in the cloud and can be loaded anytime.
+        </p>
+        
+        <div class="template-controls">
+          <div class="template-field">
+            <label>Template Name</label>
+            <input type="text" id="templateName" placeholder="Enter template name (e.g., 'SAP S/4HANA Standard')" style="width:100%;">
+          </div>
+          <button class="btn primary" onclick="saveTemplate()">💾 Save as Template</button>
+          <button class="btn" onclick="refreshTemplates()">🔄 Refresh List</button>
+        </div>
+
+        <div class="template-list" id="templateList">
+          <div style="padding:20px;text-align:center;color:var(--sap-muted);">
+            No templates saved yet. Create your first template above!
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1779,6 +2110,45 @@ body.dark-mode #messageToggleBtn:hover{
 <script>
 'use strict';
 
+// Password Protection
+const APP_PASSWORD = 'downtime2025';
+let isAuthenticated = false;
+
+function checkPassword() {
+  const input = document.getElementById('passwordInput');
+  const error = document.getElementById('passwordError');
+  const modal = document.getElementById('passwordModal');
+  
+  if (input.value === APP_PASSWORD) {
+    isAuthenticated = true;
+    modal.classList.add('hidden');
+    localStorage.setItem('appAuthenticated', 'true');
+    initializeApp();
+  } else {
+    error.textContent = '❌ Incorrect password. Please try again.';
+    input.value = '';
+    input.focus();
+  }
+}
+
+// Check authentication on load
+document.addEventListener('DOMContentLoaded', function() {
+  const passwordInput = document.getElementById('passwordInput');
+  if (localStorage.getItem('appAuthenticated') === 'true') {
+    isAuthenticated = true;
+    document.getElementById('passwordModal').classList.add('hidden');
+  } else {
+    passwordInput.focus();
+  }
+  
+  // Allow Enter key to submit password
+  passwordInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      checkPassword();
+    }
+  });
+});
+
 // Initialize Microsoft Teams if running inside Teams
 if (typeof microsoftTeams !== 'undefined' && microsoftTeams.app && typeof microsoftTeams.app.initialize === 'function') {
   const validOrigins = ['https://snpcom.sharepoint.com'];
@@ -1818,7 +2188,190 @@ window.AppState = {
 // Constants
 var STRATEGIES = ['Preparation', 'Export', 'Import', 'Quality Gate', 'Conversion', 'Validation'];
 var PHASES = ['Tables', 'Delta', 'Checkpoint', 'Finance', 'Logistics', 'PCA Tool', 'MPP', 'Support', 'Collector', 'NZD'];
-var TASK_STATUSES = ['not-started', 'in-progress', 'blocked', 'completed', 'skipped'];
+var TASK_STATUSES = ['not-started', 'in-progress', 'blocked', 'completed', 'skipped', 'in-error'];
+
+// Enhanced Tooltip Functions
+let tooltipTimeout;
+
+function showEnhancedTooltip(runbook, event) {
+  clearTimeout(tooltipTimeout);
+  
+  tooltipTimeout = setTimeout(function() {
+    const tooltip = document.getElementById('enhancedTooltip');
+    if (!tooltip) return;
+    
+    // Update tooltip content
+    document.getElementById('tooltipTitle').textContent = runbook.runblock || 'Unnamed Task';
+    document.getElementById('tooltipResponsibility').textContent = runbook.responsibility || 'Not Assigned';
+    document.getElementById('tooltipPhase').textContent = runbook.phase || '—';
+    document.getElementById('tooltipStrategy').textContent = runbook.strategy || '—';
+    
+    // Update status with icon
+    const status = runbook.status || 'not-started';
+    const statusText = status.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    document.getElementById('tooltipStatusText').textContent = statusText;
+    
+    const statusIcon = document.getElementById('tooltipStatusIcon');
+    statusIcon.className = 'status-icon ' + status;
+    
+    // Update icon based on strategy
+    const iconMap = {
+      'Preparation': '🔧',
+      'Export': '📤',
+      'Import': '📥',
+      'Quality Gate': '✓',
+      'Conversion': '🔄',
+      'Validation': '✔️'
+    };
+    document.getElementById('tooltipIcon').textContent = iconMap[runbook.strategy] || '📦';
+    
+    // Position tooltip near cursor
+    tooltip.style.left = (event.clientX + 20) + 'px';
+    tooltip.style.top = (event.clientY + 20) + 'px';
+    
+    // Show tooltip
+    tooltip.classList.add('show');
+  }, 300);
+}
+
+function hideEnhancedTooltip() {
+  clearTimeout(tooltipTimeout);
+  const tooltip = document.getElementById('enhancedTooltip');
+  if (tooltip) tooltip.classList.remove('show');
+}
+
+// Template Management Functions
+window.saveTemplate = async function() {
+  const templateName = document.getElementById('templateName');
+  if (!templateName.value.trim()) {
+    alert('Please enter a template name');
+    return;
+  }
+  
+  if (window.AppState.runbooks.length === 0) {
+    alert('No runbook data to save. Please add some runbooks first.');
+    return;
+  }
+  
+  const template = {
+    name: templateName.value.trim(),
+    runbooks: window.AppState.runbooks.map(r => ({
+      sequence: r.sequence,
+      strategy: r.strategy,
+      phase: r.phase,
+      runblock: r.runblock,
+      responsibility: r.responsibility,
+      critical: r.critical,
+      scheduleHours: r.scheduleHours,
+      scheduleMinutes: r.scheduleMinutes,
+      durationHours: r.durationHours,
+      durationMinutes: r.durationMinutes
+    })),
+    createdAt: new Date().toISOString(),
+    createdBy: document.getElementById('customerName')?.value || 'Unknown'
+  };
+  
+  try {
+    // Will be saved via Firebase
+    if (window.saveTemplateToFirebase) {
+      await window.saveTemplateToFirebase(template);
+      templateName.value = '';
+      alert('✅ Template saved successfully!');
+      refreshTemplates();
+    } else {
+      alert('⚠️ Template saving not available yet. Please wait for Firebase initialization.');
+    }
+  } catch (e) {
+    console.error('Error saving template:', e);
+    alert('❌ Error saving template: ' + e.message);
+  }
+};
+
+window.loadTemplate = async function(templateId) {
+  if (!confirm('Load this template? Current runbook data will be replaced.')) {
+    return;
+  }
+  
+  try {
+    if (window.loadTemplateFromFirebase) {
+      const template = await window.loadTemplateFromFirebase(templateId);
+      
+      window.AppState.runbooks = template.runbooks.map(function(r, idx) {
+        return {
+          ...r,
+          id: Date.now() + Math.random() + idx,
+          completed: false,
+          actualDuration: null,
+          position: 0,
+          status: 'not-started'
+        };
+      });
+      
+      renderRunbookTable();
+      updateTimeline();
+      updateCompletionPercentage();
+      
+      alert('✅ Template loaded successfully!');
+    }
+  } catch (e) {
+    console.error('Error loading template:', e);
+    alert('❌ Error loading template: ' + e.message);
+  }
+};
+
+window.deleteTemplate = async function(templateId) {
+  if (!confirm('Are you sure you want to delete this template? This cannot be undone.')) {
+    return;
+  }
+  
+  try {
+    if (window.deleteTemplateFromFirebase) {
+      await window.deleteTemplateFromFirebase(templateId);
+      alert('✅ Template deleted successfully!');
+      refreshTemplates();
+    }
+  } catch (e) {
+    console.error('Error deleting template:', e);
+    alert('❌ Error deleting template: ' + e.message);
+  }
+};
+
+window.refreshTemplates = async function() {
+  const listContainer = document.getElementById('templateList');
+  if (!listContainer) return;
+  
+  try {
+    if (window.loadTemplatesFromFirebase) {
+      const templates = await window.loadTemplatesFromFirebase();
+      
+      if (templates.length === 0) {
+        listContainer.innerHTML = '<div style="padding:20px;text-align:center;color:var(--sap-muted);">No templates saved yet. Create your first template above!</div>';
+        return;
+      }
+      
+      listContainer.innerHTML = templates.map(function(t) {
+        const date = new Date(t.createdAt).toLocaleDateString();
+        const runbookCount = t.runbooks.length;
+        
+        return `
+          <div class="template-item">
+            <div class="template-info">
+              <div class="template-name">${t.name}</div>
+              <div class="template-meta">${runbookCount} runbooks • Created ${date} by ${t.createdBy}</div>
+            </div>
+            <div class="template-actions">
+              <button class="btn small primary" onclick="loadTemplate('${t.id}')">📂 Load</button>
+              <button class="btn small danger" onclick="deleteTemplate('${t.id}')">🗑️ Delete</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  } catch (e) {
+    console.error('Error refreshing templates:', e);
+    listContainer.innerHTML = '<div style="padding:20px;text-align:center;color:var(--sap-error);">Error loading templates</div>';
+  }
+};
 
 // NEW: Keyboard Shortcuts Handler
 document.addEventListener('keydown', function(e) {
@@ -2193,6 +2746,8 @@ window.addEventListener('beforeunload', function (e) {
 
 // Initialize application
 document.addEventListener('DOMContentLoaded', function() {
+  if (!isAuthenticated) return;
+  
   initializeApp();
   initDarkMode();
   updateRecentCustomersDropdown();
@@ -2295,6 +2850,7 @@ function initializeApp() {
   setupStartTimeInputs();
   calculateEndTime();
   updateCompletionPercentage();
+  refreshTemplates();
 }
 
 function setupStartTimeInputs() {
@@ -2558,7 +3114,8 @@ function renderRunbookTable() {
         {value: 'in-progress', label: 'In Progress'},
         {value: 'blocked', label: 'Blocked'},
         {value: 'completed', label: 'Completed'},
-        {value: 'skipped', label: 'Skipped'}
+        {value: 'skipped', label: 'Skipped'},
+        {value: 'in-error', label: 'In Error'}
       ].map(function(s) {
         var selected = (runbook.status || 'not-started') === s.value ? 'selected' : '';
         return '<option value="' + s.value + '" ' + selected + '>' + s.label + '</option>';
@@ -2886,6 +3443,19 @@ function createTimelineRow(runbook, index) {
       diamond.style.boxShadow = '0 0 8px rgba(255, 0, 0, 0.6)';
     }
     
+    // Add tooltip events
+    diamond.addEventListener('mouseenter', function(e) {
+      showEnhancedTooltip(runbook, e);
+    });
+    diamond.addEventListener('mousemove', function(e) {
+      var tooltip = document.getElementById('enhancedTooltip');
+      if (tooltip && tooltip.classList.contains('show')) {
+        tooltip.style.left = (e.clientX + 20) + 'px';
+        tooltip.style.top = (e.clientY + 20) + 'px';
+      }
+    });
+    diamond.addEventListener('mouseleave', hideEnhancedTooltip);
+    
     track.appendChild(diamond);
     
     // Add horizontal label to the RIGHT of diamond (positioned relative to track, not diamond)
@@ -3060,6 +3630,9 @@ function createTimelineBlock(runbook) {
   } else if (status === 'skipped') {
     block.style.opacity = '0.5';
     block.style.textDecoration = 'line-through';
+  } else if (status === 'in-error') {
+    block.style.border = '2px solid #d32f2f';
+    block.style.boxShadow = '0 0 8px rgba(211, 47, 47, 0.8)';
   }
   
   if (runbook.critical) {
@@ -3097,6 +3670,19 @@ function createTimelineBlock(runbook) {
     indicator.title = 'Critical Path Item';
     block.appendChild(indicator);
   }
+  
+  // Add tooltip events
+  block.addEventListener('mouseenter', function(e) {
+    showEnhancedTooltip(runbook, e);
+  });
+  block.addEventListener('mousemove', function(e) {
+    var tooltip = document.getElementById('enhancedTooltip');
+    if (tooltip && tooltip.classList.contains('show')) {
+      tooltip.style.left = (e.clientX + 20) + 'px';
+      tooltip.style.top = (e.clientY + 20) + 'px';
+    }
+  });
+  block.addEventListener('mouseleave', hideEnhancedTooltip);
   
   if (!runbook.completed && status !== 'completed') {
     block.addEventListener('dragstart', handleDragStart);
@@ -3916,7 +4502,7 @@ generateTimelineRows = function() {
   if (controls) {
     var rows = controls.querySelectorAll('.timeline-control-row');
     var sorted = getFilteredRunbooks()
-      .filter(function(r) { return r && r.runblock && r.runblock.trim().length > 0; })
+      .filter(function(r) { return r && r.runbook && r.runblock.trim().length > 0; })
       .sort(function(a, b) { return a.sequence - b.sequence; });
     rows.forEach(function(row, i) {
       var rb = sorted[i];
@@ -3933,7 +4519,7 @@ generateTimelineRows = function() {
 <!-- Firebase realtime sync -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp, collection } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp, collection, addDoc, deleteDoc, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const firebaseConfig = {
@@ -3949,6 +4535,42 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+
+// Template Management Functions
+window.saveTemplateToFirebase = async function(template) {
+  const templatesRef = collection(db, "templates");
+  await addDoc(templatesRef, template);
+};
+
+window.loadTemplateFromFirebase = async function(templateId) {
+  const templateRef = doc(db, "templates", templateId);
+  const templateSnap = await getDoc(templateRef);
+  if (templateSnap.exists()) {
+    return templateSnap.data();
+  }
+  throw new Error('Template not found');
+};
+
+window.deleteTemplateFromFirebase = async function(templateId) {
+  const templateRef = doc(db, "templates", templateId);
+  await deleteDoc(templateRef);
+};
+
+window.loadTemplatesFromFirebase = async function() {
+  const templatesRef = collection(db, "templates");
+  const q = query(templatesRef, orderBy("createdAt", "desc"));
+  const querySnapshot = await getDocs(q);
+  
+  const templates = [];
+  querySnapshot.forEach((doc) => {
+    templates.push({
+      id: doc.id,
+      ...doc.data()
+    });
+  });
+  
+  return templates;
+};
 
 // Get URL parameters
 const url = new URL(window.location.href);
