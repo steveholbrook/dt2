@@ -2010,6 +2010,7 @@ body.dark-mode #messageToggleBtn:hover{
             <th style="width:120px;">Phase</th>
             <th style="width:160px;">Runblock</th>
             <th style="width:180px;">Responsibility</th>
+            <th style="width:80px;text-align:center;">Predecessor</th>
             <th style="width:100px;text-align:center;">Status</th>
             <th style="width:60px;text-align:center;">Critical</th>
             <th style="width:120px;text-align:center;">Actions</th>
@@ -3029,6 +3030,7 @@ window.addRunbookRow = function() {
     phase: PHASES[0],
     runblock: '',
     responsibility: '',
+    predecessor: '',
     critical: false,
     scheduleHours: 0,
     scheduleMinutes: 0,
@@ -3146,6 +3148,11 @@ function renderRunbookTable() {
         '<input type="text" value="' + (runbook.responsibility || '') + '" placeholder="Enter responsibility" ' +
         'maxlength="40" style="width:100%;" ' +
         'onchange="updateResponsibility(' + runbook.id + ', this.value)" ' + editingDisabled + '>' +
+        '</td>' +
+        '<td class="center">' +
+        '<input type="text" value="' + (runbook.predecessor || '') + '" placeholder="Seq#" ' +
+        'maxlength="10" style="width:70px;text-align:center;" ' +
+        'onchange="updatePredecessor(' + runbook.id + ', this.value)" ' + editingDisabled + ' title="Enter sequence number of task that must complete first">' +
         '</td>' +
         '<td class="center">' +
         '<select class="status-select" onchange="updateStatus(' + runbook.id + ', this.value)" ' + editingDisabled + '>' +
@@ -3293,6 +3300,15 @@ window.updateResponsibility = function(id, value) {
   if (runbook) {
     runbook.responsibility = value;
   }
+}
+
+// NEW: Update Predecessor Function
+window.updatePredecessor = function(id, value) {
+  var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
+  if (runbook) {
+    runbook.predecessor = value.trim();
+    updateTimeline();
+  }
 };
 
 window.updateCritical = function(id, value) {
@@ -3409,6 +3425,70 @@ function generateTimelineRows() {
   }
 }
 
+// NEW: Calculate block positions considering predecessors
+function calculateBlockPositions() {
+  var positions = {};
+  var resolved = new Set();
+  
+  // Create a map for quick lookup by sequence
+  var runbooksMap = {};
+  window.AppState.runbooks.forEach(function(rb) {
+    runbooksMap[rb.sequence] = rb;
+  });
+  
+  // Resolve positions recursively
+  function resolvePosition(rb) {
+    if (resolved.has(rb.id)) {
+      return positions[rb.id];
+    }
+    
+    var scheduleTimeHours = (rb.scheduleHours || 0) + (rb.scheduleMinutes || 0) / 60;
+    var durationTimeHours = (rb.durationHours || 1) + (rb.durationMinutes || 0) / 60;
+    var startTime = scheduleTimeHours;
+    
+    // Check if there's a predecessor
+    if (rb.predecessor) {
+      var predSeq = parseInt(rb.predecessor);
+      if (!isNaN(predSeq)) {
+        var predecessor = null;
+        // Find predecessor by sequence
+        for (var i = 0; i < window.AppState.runbooks.length; i++) {
+          if (window.AppState.runbooks[i].sequence === predSeq) {
+            predecessor = window.AppState.runbooks[i];
+            break;
+          }
+        }
+        
+        if (predecessor && predecessor.id !== rb.id) {
+          // Resolve predecessor first (recursive)
+          var predPos = resolvePosition(predecessor);
+          var predDuration = (predecessor.durationHours || 1) + (predecessor.durationMinutes || 0) / 60;
+          var predEndTime = predPos.start + predDuration;
+          // Start after predecessor ends
+          startTime = Math.max(startTime, predEndTime);
+        }
+      }
+    }
+    
+    positions[rb.id] = {
+      start: startTime,
+      end: startTime + durationTimeHours
+    };
+    resolved.add(rb.id);
+    
+    return positions[rb.id];
+  }
+  
+  // Resolve all runbooks
+  window.AppState.runbooks.forEach(function(rb) {
+    if (!resolved.has(rb.id)) {
+      resolvePosition(rb);
+    }
+  });
+  
+  return positions;
+}
+
 function createTimelineRow(runbook, index) {
   var row = document.createElement('div');
   row.className = 'timeline-row';
@@ -3427,7 +3507,11 @@ function createTimelineRow(runbook, index) {
   track.style.width = totalWidth + 'px';
 
   var isQualityGate = (runbook.strategy === 'Quality Gate');
-  var startPos = runbook.scheduleHours + (runbook.scheduleMinutes / 60);
+  
+  // Calculate position considering predecessors
+  var blockPositions = calculateBlockPositions();
+  var pos = blockPositions[runbook.id];
+  var startPos = pos ? pos.start : (runbook.scheduleHours + (runbook.scheduleMinutes / 60));
   var startX = startPos * pixelsPerHour;
 
   if (isQualityGate) {
@@ -3647,14 +3731,23 @@ function createTimelineBlock(runbook) {
   }
   
   var pixelsPerHour = 60;
-  var position = runbook.scheduleHours + (runbook.scheduleMinutes / 60);
+  
+  // Calculate position considering predecessors
+  var blockPositions = calculateBlockPositions();
+  var pos = blockPositions[runbook.id];
+  var position = pos ? pos.start : (runbook.scheduleHours + (runbook.scheduleMinutes / 60));
   var duration = runbook.durationHours + (runbook.durationMinutes / 60);
   
   block.style.left = (position * pixelsPerHour) + 'px';
   block.style.width = Math.max(60, duration * pixelsPerHour - 4) + 'px';
   
-  // Show sequence and phase inside
-  block.textContent = '#' + runbook.sequence + ' | ' + runbook.phase;
+  // Show sequence and phase inside with predecessor indicator
+  var labelText = '#' + runbook.sequence;
+  if (runbook.predecessor) {
+    labelText += ' (→' + runbook.predecessor + ')';
+  }
+  labelText += ' | ' + runbook.phase;
+  block.textContent = labelText;
   block.title = runbook.runblock + ' - ' + runbook.phase + ' [' + status + ']';
   
   // Add external label for runblock name
@@ -4668,9 +4761,9 @@ const presenceRef = doc(db, "sessions", customerKey, "presence", uid);
 
 async function updatePresence() {
   try {
-    await setDoc(presenceRef, {
+    await window.firestore.setDoc(presenceRef, {
       name: nameInput?.value || customerParam || "Guest",
-      lastActive: serverTimestamp()
+      lastActive: window.firestore.serverTimestamp()
     }, { merge: true });
   } catch(e) {
     console.error("Presence update failed:", e);
@@ -4681,7 +4774,7 @@ await updatePresence();
 setInterval(updatePresence, 20000);
 
 // Track online users
-onSnapshot(collection(db, "sessions", customerKey, "presence"), (snap) => {
+window.firestore.onSnapshot(collection(db, "sessions", customerKey, "presence"), (snap) => {
   const now = Date.now();
   let online = 0;
   snap.forEach(d => {
@@ -4897,18 +4990,18 @@ async function pushState(reason = "update") {
   
   writing = true;
   try {
-    await updateDoc(sessionRef, {
+    await window.firestore.updateDoc(sessionRef, {
       state: currentState,
-      updatedAt: serverTimestamp(),
+      updatedAt: window.firestore.serverTimestamp(),
       reason
     });
     lastSentState = stateJson;
   } catch (e) {
     try {
-      await setDoc(sessionRef, {
+      await window.firestore.setDoc(sessionRef, {
         state: currentState,
         controllerUid: uid,
-        updatedAt: serverTimestamp(),
+        updatedAt: window.firestore.serverTimestamp(),
         reason
       }, { merge: true });
       lastSentState = stateJson;
@@ -4929,7 +5022,7 @@ function schedulePush() {
 
 // Subscribe to session changes
 let initialSync = true;
-onSnapshot(sessionRef, async (snap) => {
+window.firestore.onSnapshot(sessionRef, async (snap) => {
   const data = snap.data() || {};
   remoteController = data.controllerUid || null;
   
@@ -4941,9 +5034,9 @@ onSnapshot(sessionRef, async (snap) => {
   // Try to become controller if none exists
   if (!remoteController && !viewerForced && initialSync) {
     try {
-      await setDoc(sessionRef, {
+      await window.firestore.setDoc(sessionRef, {
         controllerUid: uid,
-        controllerSetAt: serverTimestamp()
+        controllerSetAt: window.firestore.serverTimestamp()
       }, { merge: true });
     } catch (e) {
       console.error("Failed to set controller:", e);
