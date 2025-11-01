@@ -149,6 +149,116 @@
     align-items:center;
     font-size:13px;
   }
+
+  .status-item.host-status {
+    align-items:flex-start;
+    min-width:160px;
+    gap:4px;
+  }
+
+  .status-item .status-meta {
+    font-size:11px;
+    color:var(--sap-muted);
+  }
+
+  .status-item .pending-request {
+    font-size:11px;
+    color:var(--sap-warning);
+    display:none;
+  }
+
+  .status-item .pending-request.show {
+    display:block;
+  }
+
+  .btn.subtle {
+    background:transparent;
+    border:1px solid var(--sap-border);
+    color:var(--sap-accent);
+    padding:4px 8px;
+    font-size:11px;
+    border-radius:999px;
+    transition:all 0.2s ease;
+  }
+
+  .btn.subtle:hover:not(:disabled) {
+    background:rgba(10,110,209,0.1);
+  }
+
+  .btn.subtle:disabled {
+    color:var(--sap-muted);
+    border-color:rgba(0,0,0,0.05);
+    cursor:not-allowed;
+    background:rgba(0,0,0,0.03);
+  }
+
+  .control-request-banner {
+    display:none;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    background:linear-gradient(135deg, rgba(10,110,209,0.12), rgba(8,84,160,0.12));
+    border:1px solid rgba(10,110,209,0.3);
+    padding:12px 16px;
+    border-radius:8px;
+    margin-bottom:16px;
+  }
+
+  .control-request-banner.show {
+    display:flex;
+  }
+
+  .control-request-banner strong {
+    color:var(--sap-accent-2);
+  }
+
+  .control-request-timestamp {
+    font-size:12px;
+    color:var(--sap-muted);
+  }
+
+  .context-switch-toast {
+    position:fixed;
+    top:90px;
+    right:24px;
+    background:var(--sap-panel);
+    color:var(--sap-text);
+    border:1px solid var(--sap-border);
+    border-radius:8px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.18);
+    padding:12px 16px;
+    z-index:2000;
+    display:none;
+    gap:12px;
+    align-items:center;
+  }
+
+  .context-switch-toast.show {
+    display:flex;
+  }
+
+  .context-switch-spinner {
+    width:16px;
+    height:16px;
+    border-radius:50%;
+    border:3px solid rgba(10,110,209,0.2);
+    border-top-color:var(--sap-accent);
+    animation:spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform:rotate(360deg); }
+  }
+
+  .flash-update {
+    animation:flashHighlight 1.4s ease;
+  }
+
+  @keyframes flashHighlight {
+    0% { box-shadow:0 0 0 rgba(10,110,209,0); }
+    20% { box-shadow:0 0 0 4px rgba(10,110,209,0.25); }
+    100% { box-shadow:0 0 0 rgba(10,110,209,0); }
+  }
   
   .status-item{
     display:flex;
@@ -291,24 +401,28 @@
   body.fullscreen-mode .customer-info-panel {
     display: none !important;
   }
-  
+
   body.fullscreen-mode .model-parameters-panel {
     display: none !important;
   }
-  
+
+  body.fullscreen-mode .content > *:not(#progressPanel) {
+    display: none !important;
+  }
+
   body.fullscreen-mode #progressPanel {
     margin-bottom: 0;
     height: calc(100vh - 80px);
     display: flex;
     flex-direction: column;
   }
-  
+
   body.fullscreen-mode .timeline-container {
     flex: 1;
     display: flex;
     min-height: 0;
   }
-  
+
   body.fullscreen-mode .content {
     padding: 8px;
     height: calc(100vh - 80px);
@@ -1612,23 +1726,45 @@
   
   /* Status indicators */
   .sync-indicator {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
-    background: #00ff00;
+    background: #9ca3af;
     display: inline-block;
     margin-left: 8px;
-    animation: blink 2s infinite;
+    box-shadow: 0 0 0 0 rgba(15,118,110,0.4);
   }
-  
-  @keyframes blink {
-    0%, 50%, 100% { opacity: 1; }
-    25%, 75% { opacity: 0.3; }
+
+  .sync-indicator.online {
+    background: #22c55e;
+    animation: pulse-online 2s infinite;
   }
-  
+
+  .sync-indicator.degraded {
+    background: #facc15;
+    animation: pulse-degraded 3s infinite;
+  }
+
   .sync-indicator.offline {
-    background: #ff0000;
+    background: #ef4444;
     animation: none;
+  }
+
+  .sync-indicator.pending {
+    background: #60a5fa;
+    animation: pulse-online 1.4s infinite;
+  }
+
+  @keyframes pulse-online {
+    0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.5); }
+    70% { box-shadow: 0 0 0 6px rgba(34,197,94,0); }
+    100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+  }
+
+  @keyframes pulse-degraded {
+    0% { box-shadow: 0 0 0 0 rgba(250,204,21,0.5); }
+    70% { box-shadow: 0 0 0 6px rgba(250,204,21,0); }
+    100% { box-shadow: 0 0 0 0 rgba(250,204,21,0); }
   }
   
   /* Responsive design */
@@ -1826,6 +1962,13 @@ body.dark-mode #messageToggleBtn:hover{
         <span class="status-label">Status</span>
         <span class="status-value" id="statusText" style="color:var(--sap-warning);">Not Started</span>
       </div>
+      <div class="status-item host-status">
+        <span class="status-label">Host</span>
+        <span class="status-value" id="hostStatusValue">Unassigned</span>
+        <span class="status-meta" id="hostStatusMeta">Awaiting first host</span>
+        <button class="btn subtle" id="requestControlBtn">Request control</button>
+        <div class="pending-request" id="pendingRequestStatus">Request sent…</div>
+      </div>
       <button class="fullscreen-toggle" id="fullscreenToggle" title="Toggle full screen mode">
         <span id="fullscreenIcon">⛶</span>
         <span id="fullscreenText">Focus</span>
@@ -1837,7 +1980,26 @@ body.dark-mode #messageToggleBtn:hover{
     </div>
   </div>
 
+  <div class="context-switch-toast" id="contextSwitchToast" role="status" aria-live="polite">
+    <div class="context-switch-spinner" aria-hidden="true"></div>
+    <div>
+      <div><strong>Loading session…</strong></div>
+      <div class="status-meta" id="contextSwitchDetails">Retrieving latest runbooks</div>
+    </div>
+  </div>
+
   <div class="content">
+    <div class="control-request-banner" id="controlRequestBanner" role="alert">
+      <div>
+        <div><strong id="controlRequestName">-</strong> is requesting host control</div>
+        <div class="control-request-timestamp" id="controlRequestTimestamp">Just now</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn primary" id="approveControlBtn">Approve takeover</button>
+        <button class="btn" id="dismissControlBtn">Dismiss</button>
+      </div>
+    </div>
+
     <!-- Customer Information -->
     <div class="panel customer-info-panel" style="margin-bottom:16px;padding:16px;">
       <div class="field-row">
@@ -1856,6 +2018,10 @@ body.dark-mode #messageToggleBtn:hover{
             <option value="Go Live Simulation">Go Live Simulation</option>
             <option value="Go-Live">Go-Live</option>
           </select>
+        </div>
+        <div class="field" style="flex:1;">
+          <label>Your Display Name</label>
+          <input type="text" id="operatorName" placeholder="e.g., Jane Doe (Host)">
         </div>
       </div>
     </div>
@@ -2114,17 +2280,149 @@ body.dark-mode #messageToggleBtn:hover{
 // Password Protection
 const APP_PASSWORD = 'downtime2025';
 let isAuthenticated = false;
+let authUiInitialized = false;
+let clockIntervalId = null;
+
+function runAuthenticatedStartup() {
+  if (!isAuthenticated || authUiInitialized) return;
+  authUiInitialized = true;
+
+  initializeApp();
+  initDarkMode();
+  updateRecentCustomersDropdown();
+  renderHostStatus();
+  renderControlRequestBanner();
+
+  bindMessageToggleButton();
+  window.setMessagesEnabled(window.AppState && typeof window.AppState.messagesOn === 'boolean' ? window.AppState.messagesOn : false);
+
+  updateClock();
+  if (!clockIntervalId) {
+    clockIntervalId = setInterval(updateClock, 1000);
+  }
+
+  var darkModeToggle = document.getElementById('darkModeToggle');
+  if (darkModeToggle && !darkModeToggle.__bound) {
+    darkModeToggle.addEventListener('click', toggleDarkMode);
+    darkModeToggle.__bound = true;
+  }
+
+  var fullscreenToggle = document.getElementById('fullscreenToggle');
+  if (fullscreenToggle && !fullscreenToggle.__bound) {
+    fullscreenToggle.addEventListener('click', toggleFullscreenMode);
+    fullscreenToggle.__bound = true;
+  }
+
+  var recentBtn = document.getElementById('recentCustomersBtn');
+  if (recentBtn && !recentBtn.__bound) {
+    recentBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      toggleRecentCustomersDropdown();
+    });
+    recentBtn.__bound = true;
+  }
+
+  var requestBtn = document.getElementById('requestControlBtn');
+  if (requestBtn && !requestBtn.__bound) {
+    requestBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      requestHostControl();
+    });
+    requestBtn.__bound = true;
+  }
+
+  var approveBtn = document.getElementById('approveControlBtn');
+  if (approveBtn && !approveBtn.__bound) {
+    approveBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      approveControlRequest();
+    });
+    approveBtn.__bound = true;
+  }
+
+  var dismissBtn = document.getElementById('dismissControlBtn');
+  if (dismissBtn && !dismissBtn.__bound) {
+    dismissBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      dismissControlRequest();
+    });
+    dismissBtn.__bound = true;
+  }
+
+  var operatorNameInput = document.getElementById('operatorName');
+  if (operatorNameInput && !operatorNameInput.__bound) {
+    operatorNameInput.addEventListener('change', function() {
+      persistOperatorProfile(this.value || '');
+      if (typeof updatePresence === 'function') {
+        setTimeout(updatePresence, 100);
+      }
+      if (typeof window.canWrite === 'function' && window.canWrite() && window.firestore && typeof window.firestore.setDoc === 'function') {
+        try {
+          window.firestore.setDoc(sessionRef, { controllerName: getOperatorName() }, { merge: true });
+        } catch (err) {
+          console.warn('Failed to persist controller name update', err);
+        }
+      }
+      renderHostStatus();
+    });
+    operatorNameInput.__bound = true;
+  }
+
+  var customerNameInput = document.getElementById('customerName');
+  if (customerNameInput && !customerNameInput.__bound) {
+    customerNameInput.addEventListener('change', function() {
+      if (this.value && this.value.trim().length > 0) {
+        var transformCycleInput = document.getElementById('transformCycle');
+        addRecentCustomer(this.value.trim(), transformCycleInput ? transformCycleInput.value : '');
+      }
+      if (window.AppState.fullscreenMode) {
+        updateFullscreenCustomerInfo();
+      }
+    });
+    customerNameInput.addEventListener('focus', function() {
+      window.AppState.inputLock = true;
+    });
+    customerNameInput.addEventListener('blur', function() {
+      setTimeout(function() {
+        window.AppState.inputLock = false;
+      }, 500);
+    });
+    customerNameInput.__bound = true;
+  }
+
+  var transformCycleInput = document.getElementById('transformCycle');
+  if (transformCycleInput && !transformCycleInput.__bound) {
+    transformCycleInput.addEventListener('change', function() {
+      var customerInput = document.getElementById('customerName');
+      if (customerInput && customerInput.value.trim()) {
+        addRecentCustomer(customerInput.value.trim(), this.value);
+      }
+      if (window.AppState.fullscreenMode) {
+        updateFullscreenCustomerInfo();
+      }
+    });
+    transformCycleInput.addEventListener('focus', function() {
+      window.AppState.inputLock = true;
+    });
+    transformCycleInput.addEventListener('blur', function() {
+      setTimeout(function() {
+        window.AppState.inputLock = false;
+      }, 500);
+    });
+    transformCycleInput.__bound = true;
+  }
+}
 
 function checkPassword() {
   const input = document.getElementById('passwordInput');
   const error = document.getElementById('passwordError');
   const modal = document.getElementById('passwordModal');
-  
+
   if (input.value === APP_PASSWORD) {
     isAuthenticated = true;
     modal.classList.add('hidden');
     localStorage.setItem('appAuthenticated', 'true');
-    initializeApp();
+    runAuthenticatedStartup();
   } else {
     error.textContent = '❌ Incorrect password. Please try again.';
     input.value = '';
@@ -2138,10 +2436,11 @@ document.addEventListener('DOMContentLoaded', function() {
   if (localStorage.getItem('appAuthenticated') === 'true') {
     isAuthenticated = true;
     document.getElementById('passwordModal').classList.add('hidden');
+    runAuthenticatedStartup();
   } else {
     passwordInput.focus();
   }
-  
+
   // Allow Enter key to submit password
   passwordInput.addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
@@ -2185,6 +2484,8 @@ window.AppState = {
   filterStatus: '',
   fullscreenMode: false
 };
+
+document.body.classList.add('messages-off');
 
 // Constants
 var STRATEGIES = ['Preparation', 'Export', 'Import', 'Quality Gate', 'Conversion', 'Validation'];
@@ -2307,11 +2608,15 @@ window.loadTemplate = async function(templateId) {
           status: 'not-started'
         };
       });
-      
+
+      if (typeof window.setMessagesEnabled === 'function') {
+        window.setMessagesEnabled(false);
+      }
+
       renderRunbookTable();
       updateTimeline();
       updateCompletionPercentage();
-      
+
       alert('✅ Template loaded successfully!');
     }
   } catch (e) {
@@ -2437,17 +2742,31 @@ document.addEventListener('keydown', function(e) {
 
 // NEW: Full Screen Mode Functions
 function toggleFullscreenMode() {
-  window.AppState.fullscreenMode = !window.AppState.fullscreenMode;
-  
-  if (window.AppState.fullscreenMode) {
+  var entering = !window.AppState.fullscreenMode;
+  window.AppState.fullscreenMode = entering;
+
+  if (entering) {
     document.body.classList.add('fullscreen-mode');
     updateFullscreenCustomerInfo();
+
+    var panel = document.getElementById('progressPanel');
+    var fullscreenTarget = panel && panel.requestFullscreen ? panel : document.documentElement;
+    if (fullscreenTarget && fullscreenTarget.requestFullscreen) {
+      fullscreenTarget.requestFullscreen().catch(function(err) {
+        console.warn('Fullscreen request failed:', err);
+      });
+    }
   } else {
     document.body.classList.remove('fullscreen-mode');
+    if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(function(err) {
+        console.warn('Failed to exit fullscreen:', err);
+      });
+    }
   }
-  
+
   updateFullscreenButton(window.AppState.fullscreenMode);
-  
+
   // Trigger timeline update to adjust for new dimensions
   setTimeout(function() {
     if (typeof window.updateTimeline === 'function') {
@@ -2475,20 +2794,40 @@ function updateFullscreenButton(isFullscreen) {
 function updateFullscreenCustomerInfo() {
   var customerNameEl = document.getElementById('fullscreenCustomerName');
   var transformCycleEl = document.getElementById('fullscreenTransformCycle');
-  
+
   var customerName = document.getElementById('customerName');
   var transformCycle = document.getElementById('transformCycle');
-  
+
   if (customerNameEl && customerName) {
     customerNameEl.textContent = customerName.value || 'Not Set';
   }
-  
+
   if (transformCycleEl && transformCycle) {
     transformCycleEl.textContent = transformCycle.value || 'Not Set';
   }
 }
 
 window.toggleFullscreenMode = toggleFullscreenMode;
+
+document.addEventListener('fullscreenchange', function() {
+  var isFullscreen = !!document.fullscreenElement;
+  if (!isFullscreen && window.AppState.fullscreenMode) {
+    window.AppState.fullscreenMode = false;
+    document.body.classList.remove('fullscreen-mode');
+    updateFullscreenButton(false);
+    if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
+      schedulePush();
+    }
+  } else if (isFullscreen && !window.AppState.fullscreenMode) {
+    window.AppState.fullscreenMode = true;
+    document.body.classList.add('fullscreen-mode');
+    updateFullscreenCustomerInfo();
+    updateFullscreenButton(true);
+    if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
+      schedulePush();
+    }
+  }
+});
 
 // NEW: Keyboard Shortcuts Help Functions
 function showKeyboardShortcuts() {
@@ -2590,17 +2929,19 @@ window.duplicateRunbook = function(id) {
 // NEW: Update Elapsed Time for In-Progress Tasks
 function updateElapsedTimes() {
   if (!window.AppState.downtimeStarted || !window.AppState.downtimeStartTime) return;
-  
+
   var now = new Date();
-  var startTime = new Date(window.AppState.downtimeStartTime);
-  
+  var startTime = resolveDowntimeStartTime();
+  if (!startTime) return;
+  var pausedOffset = getEffectivePausedDuration(now);
+
   window.AppState.runbooks.forEach(function(runbook) {
     if (runbook.status === 'in-progress' && !runbook.completed) {
       var scheduledOffset = runbook.scheduleHours * 3600000 + runbook.scheduleMinutes * 60000;
       var taskStart = new Date(startTime.getTime() + scheduledOffset);
-      
+
       if (now >= taskStart) {
-        var elapsedMs = now - taskStart - window.AppState.pausedDuration;
+        var elapsedMs = now - taskStart - pausedOffset;
         var elapsedHours = Math.floor(elapsedMs / 3600000);
         var elapsedMinutes = Math.floor((elapsedMs % 3600000) / 60000);
         
@@ -2664,50 +3005,177 @@ function updateCompletionPercentage() {
 }
 
 // NEW: Recent Customers Functions
-function getRecentCustomers() {
-  var stored = localStorage.getItem('recentCustomers');
-  return stored ? JSON.parse(stored) : [];
+function normalizeRecentSessions(rawList) {
+  if (!Array.isArray(rawList)) return [];
+  return rawList
+    .map(function(entry) {
+      if (!entry) return null;
+      if (typeof entry === 'string') {
+        return { customer: entry, transform: phaseInput?.value || 'Test Migration', savedAt: Date.now() };
+      }
+      if (entry.customer) {
+        return {
+          customer: entry.customer,
+          transform: entry.transform || 'Test Migration',
+          savedAt: entry.savedAt || Date.now()
+        };
+      }
+      return null;
+    })
+    .filter(function(entry) { return entry && entry.customer; });
 }
 
-function addRecentCustomer(name) {
+function getRecentCustomers() {
+  try {
+    var stored = JSON.parse(localStorage.getItem('recentSessions') || 'null');
+    if (stored) {
+      return normalizeRecentSessions(stored);
+    }
+  } catch (err) {
+    console.warn('Failed to parse recent sessions', err);
+  }
+  try {
+    var legacy = JSON.parse(localStorage.getItem('recentCustomers') || 'null');
+    return normalizeRecentSessions(legacy);
+  } catch (err) {
+    return [];
+  }
+}
+
+function persistRecentSessions(recent) {
+  try {
+    localStorage.setItem('recentSessions', JSON.stringify(recent));
+  } catch (err) {
+    console.warn('Unable to persist recent sessions', err);
+  }
+}
+
+function rememberSessionContext(customer, transform) {
+  var normalizedCustomer = (customer || '').toString().trim();
+  var normalizedTransform = (transform || '').toString().trim();
+  if (!normalizedCustomer) return;
+  try {
+    localStorage.setItem('lastSessionContext', JSON.stringify({
+      customer: normalizedCustomer,
+      transform: normalizedTransform || 'Test Migration',
+      savedAt: Date.now()
+    }));
+  } catch (err) {
+    console.warn('Failed to persist last session context', err);
+  }
+}
+
+function addRecentCustomer(name, transform) {
   if (!name || name.trim().length === 0) return;
-  
+
+  var normalizedCustomer = name.trim();
+  var normalizedTransform = (transform || '').toString().trim() || 'Test Migration';
   var recent = getRecentCustomers();
-  // Remove if already exists
-  recent = recent.filter(function(c) { return c !== name; });
-  // Add to beginning
-  recent.unshift(name);
-  // Keep only last 10
+
+  recent = recent.filter(function(entry) {
+    return !(entry.customer === normalizedCustomer && entry.transform === normalizedTransform);
+  });
+
+  recent.unshift({
+    customer: normalizedCustomer,
+    transform: normalizedTransform,
+    savedAt: Date.now()
+  });
+
   recent = recent.slice(0, 10);
-  
-  localStorage.setItem('recentCustomers', JSON.stringify(recent));
+  persistRecentSessions(recent);
+  rememberSessionContext(normalizedCustomer, normalizedTransform);
   updateRecentCustomersDropdown();
+}
+
+function escapeHtml(value) {
+  return (value || '').replace(/[&<>"']/g, function(char) {
+    switch (char) {
+      case '&': return '&amp;';
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '"': return '&quot;';
+      case "'": return '&#39;';
+      default: return char;
+    }
+  });
 }
 
 function updateRecentCustomersDropdown() {
   var dropdown = document.getElementById('recentCustomersDropdown');
   if (!dropdown) return;
-  
+
   var recent = getRecentCustomers();
-  
+
   if (recent.length === 0) {
-    dropdown.innerHTML = '<div class="recent-customer-item-empty">No recent customers</div>';
-  } else {
-    dropdown.innerHTML = recent.map(function(name) {
-      return '<div class="recent-customer-item" onclick="selectRecentCustomer(\'' + 
-             name.replace(/'/g, "\\'") + '\')">' + name + '</div>';
-    }).join('');
+    dropdown.innerHTML = '<div class="recent-customer-item-empty">No recent sessions</div>';
+    return;
   }
+
+  dropdown.innerHTML = recent.map(function(session) {
+    var encodedCustomer = encodeURIComponent(session.customer || '');
+    var encodedTransform = encodeURIComponent(session.transform || '');
+    var customerLabel = escapeHtml(session.customer || '');
+    var transformLabel = escapeHtml(session.transform || '');
+    return '<div class="recent-customer-item" data-customer="' + encodedCustomer + '" data-transform="' + encodedTransform + '">' +
+      customerLabel + ' — <span style="color:var(--sap-muted);font-size:12px;">' + transformLabel + '</span></div>';
+  }).join('');
+
+  dropdown.querySelectorAll('.recent-customer-item').forEach(function(item) {
+    item.addEventListener('click', function() {
+      var customer = decodeURIComponent(this.getAttribute('data-customer') || '');
+      var transform = decodeURIComponent(this.getAttribute('data-transform') || '');
+      window.selectRecentCustomer(customer, transform);
+    });
+  });
 }
 
 function toggleRecentCustomersDropdown() {
   var dropdown = document.getElementById('recentCustomersDropdown');
   if (!dropdown) return;
-  
+
   dropdown.classList.toggle('show');
 }
 
-window.selectRecentCustomer = function(name) {
+let messageToggleBound = false;
+
+function applyMessageToggleState() {
+  var on = !!(window.AppState && window.AppState.messagesOn);
+  document.body.classList.toggle('messages-off', !on);
+  var toggleBtn = document.getElementById('messageToggleBtn');
+  if (toggleBtn) {
+    toggleBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    toggleBtn.textContent = on ? 'Messages: On' : 'Messages: Off';
+  }
+  if (typeof displayValidationWarnings === 'function') {
+    try {
+      displayValidationWarnings();
+    } catch (e) {
+      console.error('Error displaying warnings:', e);
+    }
+  }
+}
+
+function bindMessageToggleButton() {
+  if (messageToggleBound) return;
+  var toggleBtn = document.getElementById('messageToggleBtn');
+  if (!toggleBtn) return;
+  messageToggleBound = true;
+  toggleBtn.addEventListener('click', function() {
+    window.setMessagesEnabled(!window.AppState.messagesOn);
+  });
+  applyMessageToggleState();
+}
+
+function setMessagesEnabled(enabled) {
+  window.AppState = window.AppState || {};
+  window.AppState.messagesOn = !!enabled;
+  applyMessageToggleState();
+}
+
+window.setMessagesEnabled = setMessagesEnabled;
+
+window.selectRecentCustomer = function(name, transform) {
   var input = document.getElementById('customerName');
   if (input) {
     input.value = name;
@@ -2715,10 +3183,17 @@ window.selectRecentCustomer = function(name) {
     var event = new Event('change', { bubbles: true });
     input.dispatchEvent(event);
   }
-  
+
+  var transformInput = document.getElementById('transformCycle');
+  if (transformInput && typeof transform === 'string') {
+    transformInput.value = transform;
+    var transformEvent = new Event('change', { bubbles: true });
+    transformInput.dispatchEvent(transformEvent);
+  }
+
   var dropdown = document.getElementById('recentCustomersDropdown');
   if (dropdown) dropdown.classList.remove('show');
-  
+
   // Update fullscreen info if in fullscreen mode
   if (window.AppState.fullscreenMode) {
     updateFullscreenCustomerInfo();
@@ -2745,104 +3220,10 @@ window.addEventListener('beforeunload', function (e) {
   }
 });
 
-// Initialize application
+// Initialize application after authentication when needed
 document.addEventListener('DOMContentLoaded', function() {
-  if (!isAuthenticated) return;
-  
-  initializeApp();
-  initDarkMode();
-  updateRecentCustomersDropdown();
-  
-  document.body.classList.add('messages-off');
-  if (window.AppState) window.AppState.messagesOn = false;
-  updateClock();
-  setInterval(updateClock, 1000);
-  
-  // Dark mode toggle listener
-  var darkModeToggle = document.getElementById('darkModeToggle');
-  if (darkModeToggle) {
-    darkModeToggle.addEventListener('click', toggleDarkMode);
-  }
-  
-  // Full screen toggle listener
-  var fullscreenToggle = document.getElementById('fullscreenToggle');
-  if (fullscreenToggle) {
-    fullscreenToggle.addEventListener('click', toggleFullscreenMode);
-  }
-  
-  // Recent customers button listener
-  var recentBtn = document.getElementById('recentCustomersBtn');
-  if (recentBtn) {
-    recentBtn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      toggleRecentCustomersDropdown();
-    });
-  }
-  
-  // Customer name change listener
-  var customerNameInput = document.getElementById('customerName');
-  if (customerNameInput) {
-    customerNameInput.addEventListener('change', function() {
-      if (this.value && this.value.trim().length > 0) {
-        addRecentCustomer(this.value.trim());
-      }
-      // Update fullscreen info if in fullscreen mode
-      if (window.AppState.fullscreenMode) {
-        updateFullscreenCustomerInfo();
-      }
-    });
-    
-    customerNameInput.addEventListener('focus', function() {
-      window.AppState.inputLock = true;
-    });
-    customerNameInput.addEventListener('blur', function() {
-      setTimeout(function() {
-        window.AppState.inputLock = false;
-      }, 500);
-    });
-  }
-  
-  // Protect transform cycle input from Firebase overwrites
-  var transformCycleInput = document.getElementById('transformCycle');
-  if (transformCycleInput) {
-    transformCycleInput.addEventListener('change', function() {
-      // Update fullscreen info if in fullscreen mode
-      if (window.AppState.fullscreenMode) {
-        updateFullscreenCustomerInfo();
-      }
-    });
-    
-    transformCycleInput.addEventListener('focus', function() {
-      window.AppState.inputLock = true;
-    });
-    transformCycleInput.addEventListener('blur', function() {
-      setTimeout(function() {
-        window.AppState.inputLock = false;
-      }, 500);
-    });
-  }
-  
-  var toggleBtn = document.getElementById('messageToggleBtn');
-  if (toggleBtn) {
-    var applyState = function() {
-      var on = !!(window.AppState && window.AppState.messagesOn);
-      document.body.classList.toggle('messages-off', !on);
-      toggleBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
-      toggleBtn.textContent = on ? 'Messages: On' : 'Messages: Off';
-      if (typeof displayValidationWarnings === 'function') { 
-        try { 
-          displayValidationWarnings(); 
-        } catch(e){
-          console.error('Error displaying warnings:', e);
-        } 
-      }
-    };
-    applyState();
-    toggleBtn.addEventListener('click', function() {
-      window.AppState = window.AppState || {};
-      window.AppState.messagesOn = !window.AppState.messagesOn;
-      applyState();
-    });
+  if (isAuthenticated) {
+    runAuthenticatedStartup();
   }
 });
 
@@ -2916,14 +3297,14 @@ function updateClock() {
   var now = new Date();
   var timeElement = document.getElementById('currentTime');
   if (timeElement) {
-    timeElement.textContent = now.toLocaleTimeString('en-US', { 
+    timeElement.textContent = now.toLocaleTimeString('en-US', {
       hour: '2-digit', 
       minute: '2-digit', 
       second: '2-digit', 
       hour12: false 
     });
   }
-  
+
   // Only update duration if downtime has actually started
   if (window.AppState.downtimeStarted && window.AppState.downtimeStartTime && !window.AppState.downtimePaused) {
     updateDuration();
@@ -2937,20 +3318,43 @@ function updateClock() {
   }
 }
 
+function resolveDowntimeStartTime() {
+  var start = window.AppState.downtimeStartTime;
+  if (!start) return null;
+  return start instanceof Date ? start : new Date(start);
+}
+
+function getEffectivePausedDuration(now) {
+  var pausedTotal = window.AppState.pausedDuration || 0;
+  var pauseStart = window.AppState.pauseStartTime;
+  if (window.AppState.downtimePaused && pauseStart) {
+    var pauseStartDate = pauseStart instanceof Date ? pauseStart : new Date(pauseStart);
+    if (!isNaN(pauseStartDate)) {
+      pausedTotal += Math.max(0, now - pauseStartDate);
+    }
+  }
+  return pausedTotal;
+}
+
 function updateDuration() {
-  if (!window.AppState.downtimeStartTime) return;
-  
+  var durationDisplay = document.getElementById('currentDurationDisplay');
+  if (!durationDisplay) return;
+
+  var startTime = resolveDowntimeStartTime();
+  if (!window.AppState.downtimeStarted || !startTime) {
+    durationDisplay.textContent = '00:00:00';
+    return;
+  }
+
   var now = new Date();
-  var elapsed = now - window.AppState.downtimeStartTime - window.AppState.pausedDuration;
+  var pausedOffset = getEffectivePausedDuration(now);
+  var elapsed = Math.max(0, now - startTime - pausedOffset);
   var hours = Math.floor(elapsed / 3600000);
   var minutes = Math.floor((elapsed % 3600000) / 60000);
   var seconds = Math.floor((elapsed % 60000) / 1000);
-  
-  var durationDisplay = document.getElementById('currentDurationDisplay');
-  if (durationDisplay) {
-    durationDisplay.textContent = 
-      String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
-  }
+
+  durationDisplay.textContent =
+    String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
 }
 
 // Data Validation Functions
@@ -3238,18 +3642,21 @@ window.updateStatus = function(id, value) {
     if (value === 'completed') {
       runbook.completed = true;
       // Calculate actual duration if downtime is running
-      if (window.AppState.downtimeStarted && window.AppState.downtimeStartTime && !runbook.actualDuration) {
-        var now = new Date();
-        var startTime = new Date(window.AppState.downtimeStartTime);
-        var scheduledOffset = runbook.scheduleHours * 3600000 + runbook.scheduleMinutes * 60000;
-        var taskStart = new Date(startTime.getTime() + scheduledOffset);
-        
-        var actualMs = now - taskStart - window.AppState.pausedDuration;
-        var actualHours = Math.floor(actualMs / 3600000);
-        var actualMinutes = Math.floor((actualMs % 3600000) / 60000);
-        
-        runbook.actualDuration = String(Math.max(0, actualHours)).padStart(2,'0') + ':' + String(Math.max(0, actualMinutes)).padStart(2,'0');
-      }
+        if (window.AppState.downtimeStarted && window.AppState.downtimeStartTime && !runbook.actualDuration) {
+          var now = new Date();
+          var startTime = resolveDowntimeStartTime();
+          if (startTime) {
+            var pausedOffset = getEffectivePausedDuration(now);
+            var scheduledOffset = runbook.scheduleHours * 3600000 + runbook.scheduleMinutes * 60000;
+            var taskStart = new Date(startTime.getTime() + scheduledOffset);
+
+            var actualMs = now - taskStart - pausedOffset;
+            var actualHours = Math.floor(actualMs / 3600000);
+            var actualMinutes = Math.floor((actualMs % 3600000) / 60000);
+
+            runbook.actualDuration = String(Math.max(0, actualHours)).padStart(2,'0') + ':' + String(Math.max(0, actualMinutes)).padStart(2,'0');
+          }
+        }
     } else {
       runbook.completed = false;
     }
@@ -3934,40 +4341,43 @@ window.toggleCompleted = function(id, checked) {
   if (runbook) {
     runbook.completed = checked;
     
-    if (checked && window.AppState.downtimeStartTime) {
-      var now = new Date();
-      var startTime = new Date(window.AppState.downtimeStartTime);
-      var scheduledOffset = runbook.scheduleHours * 3600000 + runbook.scheduleMinutes * 60000;
-      var taskStart = new Date(startTime.getTime() + scheduledOffset);
-      
-      var actualMs = now - taskStart - window.AppState.pausedDuration;
-      var actualHours = Math.floor(actualMs / 3600000);
-      var actualMinutes = Math.floor((actualMs % 3600000) / 60000);
-      
-      // Store the actual duration permanently
-      runbook.actualDuration = String(Math.max(0, actualHours)).padStart(2,'0') + ':' + String(Math.max(0, actualMinutes)).padStart(2,'0');
-      window.AppState.completionTimes[id] = now.toISOString();
-      
-      // Force immediate update to timeline to show actual duration
-      setTimeout(function() {
-        var controls = document.getElementById('timelineControlsRows');
-        var sorted = window.AppState.runbooks.slice().sort(function(a,b) { return a.sequence - b.sequence; });
-        var idx = sorted.findIndex(function(r) { return r.id === id; });
-        if (controls && idx > -1 && controls.children[idx]) {
-          var actualCell = controls.children[idx].querySelectorAll('.timeline-control-cell')[3];
-          if (actualCell) {
-            var actualSpan = actualCell.querySelector('span');
-            if (actualSpan) {
-              actualSpan.textContent = runbook.actualDuration;
-              actualSpan.style.color = '#107e3e';
+      if (checked && window.AppState.downtimeStartTime) {
+        var now = new Date();
+        var startTime = resolveDowntimeStartTime();
+        if (startTime) {
+          var pausedOffset = getEffectivePausedDuration(now);
+          var scheduledOffset = runbook.scheduleHours * 3600000 + runbook.scheduleMinutes * 60000;
+          var taskStart = new Date(startTime.getTime() + scheduledOffset);
+
+          var actualMs = now - taskStart - pausedOffset;
+          var actualHours = Math.floor(actualMs / 3600000);
+          var actualMinutes = Math.floor((actualMs % 3600000) / 60000);
+
+          // Store the actual duration permanently
+          runbook.actualDuration = String(Math.max(0, actualHours)).padStart(2,'0') + ':' + String(Math.max(0, actualMinutes)).padStart(2,'0');
+          window.AppState.completionTimes[id] = now.toISOString();
+
+          // Force immediate update to timeline to show actual duration
+          setTimeout(function() {
+            var controls = document.getElementById('timelineControlsRows');
+            var sorted = window.AppState.runbooks.slice().sort(function(a,b) { return a.sequence - b.sequence; });
+            var idx = sorted.findIndex(function(r) { return r.id === id; });
+            if (controls && idx > -1 && controls.children[idx]) {
+              var actualCell = controls.children[idx].querySelectorAll('.timeline-control-cell')[3];
+              if (actualCell) {
+                var actualSpan = actualCell.querySelector('span');
+                if (actualSpan) {
+                  actualSpan.textContent = runbook.actualDuration;
+                  actualSpan.style.color = '#107e3e';
+                }
+              }
             }
-          }
+          }, 50);
         }
-      }, 50);
-    } else if (!checked) {
-      runbook.actualDuration = null;
-      delete window.AppState.completionTimes[id];
-    }
+      } else if (!checked) {
+        runbook.actualDuration = null;
+        delete window.AppState.completionTimes[id];
+      }
     
     // Update completion percentage
     updateCompletionPercentage();
@@ -4003,8 +4413,19 @@ window.startDowntime = function() {
   var transformCycleInput = document.getElementById('transformCycle');
   if (customerNameInput) customerNameInput.disabled = true;
   if (transformCycleInput) transformCycleInput.disabled = true;
-  
-  console.log("✓ Downtime started by host:", uid);
+
+  var hostId = null;
+  if (typeof window.getCurrentUid === 'function') {
+    try {
+      hostId = window.getCurrentUid();
+    } catch (e) {
+      console.warn('Unable to read current UID from helper', e);
+    }
+  }
+  if (!hostId && typeof window !== 'undefined' && window.currentUid) {
+    hostId = window.currentUid;
+  }
+  console.log("✓ Downtime started by host:", hostId || 'unknown');
   
   // Update UI
   document.getElementById('startTimeInput').style.display = 'none';
@@ -4046,13 +4467,18 @@ window.pauseDowntime = function() {
     window.AppState.pauseStartTime = new Date();
     document.getElementById('statusText').textContent = 'Paused';
     document.getElementById('statusText').style.color = 'var(--sap-warning)';
-    
-    document.getElementById('downtimeControls').innerHTML = 
+
+    document.getElementById('downtimeControls').innerHTML =
       '<button class="btn primary" onclick="resumeDowntime()">▶ Resume</button>' +
       '<button class="btn danger" onclick="stopDowntime()">⏹ Stop</button>';
 
+    updateDuration();
+    updateProgressIndicators();
     updateTimeline();
     renderRunbookTable();
+    if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
+      schedulePush();
+    }
   }
 };
 
@@ -4062,19 +4488,24 @@ window.resumeDowntime = function() {
     window.AppState.pausedDuration += pauseDuration;
     window.AppState.downtimePaused = false;
     window.AppState.pauseStartTime = null;
-    
+
     document.getElementById('statusText').textContent = 'In Progress';
     document.getElementById('statusText').style.color = 'var(--sap-error)';
-    
-    document.getElementById('downtimeControls').innerHTML = 
+
+    document.getElementById('downtimeControls').innerHTML =
       '<button class="btn warning" onclick="pauseDowntime()">⏸ Pause</button>' +
       '<button class="btn danger" onclick="stopDowntime()">⏹ Stop</button>';
-    
+
     var currentLine = document.getElementById('currentTimeLine');
     if (currentLine) currentLine.style.display = 'block';
 
+    updateDuration();
+    updateProgressIndicators();
     updateTimeline();
     renderRunbookTable();
+    if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
+      schedulePush();
+    }
   }
 };
 
@@ -4121,9 +4552,12 @@ window.stopDowntime = function() {
 
 window.updateProgressIndicators = function() {
   if (!window.AppState.downtimeStarted || !window.AppState.downtimeStartTime) return;
-  
+
   var now = new Date();
-  var elapsedMs = now - window.AppState.downtimeStartTime - window.AppState.pausedDuration;
+  var startTime = resolveDowntimeStartTime();
+  if (!startTime) return;
+  var pausedOffset = getEffectivePausedDuration(now);
+  var elapsedMs = now - startTime - pausedOffset;
   var elapsed = elapsedMs / 3600000;
   
   var pixelsPerHour = 60;
@@ -4655,6 +5089,41 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+let uid = null;
+window.currentUid = null;
+const sessionInstanceId = (() => {
+  try {
+    const existing = sessionStorage.getItem('dt2PresenceInstance');
+    if (existing) return existing;
+    const generated = (window.crypto && typeof window.crypto.randomUUID === 'function')
+      ? window.crypto.randomUUID()
+      : 'sess-' + Math.random().toString(36).slice(2, 10);
+    sessionStorage.setItem('dt2PresenceInstance', generated);
+    return generated;
+  } catch (err) {
+    return 'sess-' + Math.random().toString(36).slice(2, 10);
+  }
+})();
+let presenceDocId = null;
+let presenceRef = null;
+window.getCurrentUid = function() {
+  return uid;
+};
+
+window.firestore = {
+  setDoc,
+  updateDoc,
+  onSnapshot,
+  serverTimestamp,
+  collection,
+  addDoc,
+  deleteDoc,
+  query,
+  orderBy,
+  getDocs,
+  doc,
+  getDoc
+};
 
 // Template Management Functions
 window.saveTemplateToFirebase = async function(template) {
@@ -4694,12 +5163,51 @@ window.loadTemplatesFromFirebase = async function() {
 
 // Get URL parameters
 const url = new URL(window.location.href);
-let customerParam = url.searchParams.get("customer") || "default";
+let customerParam = url.searchParams.get("customer") || "";
 let phaseParam = url.searchParams.get("phase") || url.searchParams.get("transformCycle") || "";
 let viewerParam = url.searchParams.get("viewer");
 
 const nameInput = document.getElementById("customerName");
 const phaseInput = document.getElementById("transformCycle");
+const operatorInput = document.getElementById("operatorName");
+
+function readStoredOperatorName() {
+  try {
+    const storedProfile = JSON.parse(localStorage.getItem('operatorProfile') || 'null');
+    if (storedProfile && storedProfile.name) {
+      return storedProfile.name;
+    }
+  } catch (err) {
+    console.warn('Failed to parse stored operator profile', err);
+  }
+  const legacy = localStorage.getItem('operatorName');
+  return legacy || "";
+}
+
+function loadLastSessionContext() {
+  try {
+    const stored = JSON.parse(localStorage.getItem('lastSessionContext') || 'null');
+    if (stored && typeof stored === 'object') {
+      return {
+        customer: stored.customer || "",
+        transform: stored.transform || "",
+        savedAt: stored.savedAt || Date.now()
+      };
+    }
+  } catch (err) {
+    console.warn('Failed to parse last session context', err);
+  }
+  return { customer: "", transform: "" };
+}
+
+const lastSessionContext = loadLastSessionContext();
+if (!customerParam && lastSessionContext.customer) customerParam = lastSessionContext.customer;
+if (!phaseParam && lastSessionContext.transform) phaseParam = lastSessionContext.transform;
+
+const storedOperatorName = readStoredOperatorName();
+if (operatorInput && storedOperatorName) {
+  operatorInput.value = storedOperatorName;
+}
 
 // Set initial values
 if (customerParam && nameInput) nameInput.value = customerParam;
@@ -4707,14 +5215,239 @@ if (phaseParam && phaseInput) phaseInput.value = phaseParam;
 
 // Generate safe key for Firebase
 const toKey = s => (s||"default").toString().trim().toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"") || "default";
-const customerKey = toKey(customerParam);
+
+function deriveSessionContext({ customerValue, transformValue }) {
+  const normalizedCustomer = (customerValue || "").toString().trim() || "default";
+  const normalizedTransform = (transformValue || "").toString().trim() || "default";
+  const customerKey = toKey(normalizedCustomer);
+  const phaseKey = toKey(normalizedTransform);
+  return {
+    customerValue: normalizedCustomer,
+    transformValue: normalizedTransform,
+    customerKey,
+    phaseKey,
+    sessionKey: `${customerKey}__${phaseKey}`
+  };
+}
+
+let sessionContext = deriveSessionContext({
+  customerValue: nameInput?.value || customerParam,
+  transformValue: phaseInput?.value || phaseParam
+});
+
+customerParam = sessionContext.customerValue;
+phaseParam = sessionContext.transformValue;
 
 console.log("Session initialization:", {
   customerParam: customerParam,
-  customerKey: customerKey,
+  customerKey: sessionContext.customerKey,
+  phaseParam: phaseParam,
+  phaseKey: sessionContext.phaseKey,
+  sessionKey: sessionContext.sessionKey,
   domain: window.location.hostname,
   fullUrl: window.location.href
 });
+
+function getOperatorName() {
+  const raw = (operatorInput && operatorInput.value) ? operatorInput.value.trim() : "";
+  if (raw) return raw;
+  const stored = readStoredOperatorName();
+  return stored || "Guest";
+}
+
+function persistOperatorProfile(name) {
+  const normalized = (name || "").trim();
+  try {
+    localStorage.setItem('operatorProfile', JSON.stringify({
+      name: normalized,
+      updatedAt: Date.now()
+    }));
+  } catch (err) {
+    console.warn('Failed to persist operator profile', err);
+  }
+  if (operatorInput && operatorInput.value !== normalized) {
+    operatorInput.value = normalized;
+  }
+}
+
+let presenceRoster = {};
+let controllerName = null;
+let controlRequest = null;
+let latestSessionData = {};
+let lastControlRequestUid = null;
+let connectionStatus = 'pending';
+let connectionDetail = 'Awaiting Firebase handshake';
+let lastSnapshotAt = Date.now();
+let contextSwitchInFlight = false;
+let remoteController = null;
+let remoteDowntimeActive = false;
+let attemptedControllerClaim = false;
+
+function updateConnectionIndicator(status, detail) {
+  connectionStatus = status;
+  connectionDetail = detail || connectionDetail;
+  const indicator = document.getElementById('syncIndicator');
+  if (!indicator) return;
+  indicator.className = 'sync-indicator ' + status;
+  if (connectionDetail) {
+    indicator.setAttribute('title', connectionDetail);
+  } else {
+    indicator.removeAttribute('title');
+  }
+}
+
+function showContextSwitchToast(detail) {
+  const toast = document.getElementById('contextSwitchToast');
+  if (!toast) return;
+  const detailEl = document.getElementById('contextSwitchDetails');
+  if (detailEl) {
+    detailEl.textContent = detail || 'Preparing workspace…';
+  }
+  toast.classList.add('show');
+}
+
+function hideContextSwitchToast() {
+  const toast = document.getElementById('contextSwitchToast');
+  if (!toast) return;
+  toast.classList.remove('show');
+}
+
+function resolveControllerName() {
+  if (!remoteController) return null;
+  if (latestSessionData && latestSessionData.controllerName) {
+    return latestSessionData.controllerName;
+  }
+  const presence = presenceRoster[remoteController];
+  if (presence) {
+    return presence.displayName || presence.name || null;
+  }
+  return 'User ' + remoteController.slice(-6);
+}
+
+function renderHostStatus() {
+  const hostValue = document.getElementById('hostStatusValue');
+  const hostMeta = document.getElementById('hostStatusMeta');
+  const requestBtn = document.getElementById('requestControlBtn');
+  const pendingText = document.getElementById('pendingRequestStatus');
+
+  const activeName = controllerName || resolveControllerName();
+  const canWrite = typeof window.canWrite === 'function' ? window.canWrite() : true;
+  const isViewer = typeof window.canWrite === 'function' ? !window.canWrite() : false;
+
+  if (hostValue) {
+    hostValue.textContent = activeName || 'Unassigned';
+  }
+
+  if (hostMeta) {
+    if (!remoteController) {
+      hostMeta.textContent = 'Awaiting first host';
+    } else if (canWrite && remoteController === uid) {
+      hostMeta.textContent = 'You are controlling this session';
+    } else if (activeName) {
+      hostMeta.textContent = 'Controlled by ' + activeName;
+    } else {
+      hostMeta.textContent = 'Host connection pending';
+    }
+  }
+
+  if (requestBtn) {
+    if (!isViewer) {
+      requestBtn.style.display = 'none';
+      if (pendingText) {
+        pendingText.classList.remove('show');
+      }
+    } else {
+      requestBtn.style.display = 'inline-flex';
+      const pendingForUser = controlRequest && controlRequest.uid === uid;
+      const requestBlocked = controlRequest && controlRequest.uid !== uid;
+      const offline = typeof navigator !== 'undefined' ? !navigator.onLine : false;
+      requestBtn.disabled = !!requestBlocked || offline;
+      if (requestBtn.disabled) {
+        requestBtn.setAttribute('title', offline ? 'Reconnect to request host control' : 'Host is reviewing another request');
+      } else {
+        requestBtn.setAttribute('title', 'Ask the host to hand over control');
+      }
+      if (pendingText) {
+        if (pendingForUser) {
+          pendingText.textContent = 'Request sent to host';
+          pendingText.classList.add('show');
+        } else if (!controlRequest && lastControlRequestUid === uid && remoteController === uid) {
+          pendingText.textContent = 'Request approved! Switching roles…';
+          pendingText.classList.add('show');
+          setTimeout(function() {
+            if (pendingText) pendingText.classList.remove('show');
+            lastControlRequestUid = null;
+          }, 4000);
+        } else {
+          pendingText.classList.remove('show');
+        }
+      }
+    }
+  }
+}
+
+function formatControlRequestTimestamp(requestedAt) {
+  if (!requestedAt) return 'Just now';
+  try {
+    const ts = typeof requestedAt.toDate === 'function' ? requestedAt.toDate() :
+      (requestedAt.toMillis ? new Date(requestedAt.toMillis()) : new Date(requestedAt));
+    if (ts && !isNaN(ts.getTime())) {
+      return 'Requested at ' + ts.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+  } catch (err) {
+    console.warn('Failed to format control request timestamp', err);
+  }
+  return 'Just now';
+}
+
+function renderControlRequestBanner() {
+  const banner = document.getElementById('controlRequestBanner');
+  const nameEl = document.getElementById('controlRequestName');
+  const timestampEl = document.getElementById('controlRequestTimestamp');
+  const canWrite = typeof window.canWrite === 'function' ? window.canWrite() : false;
+
+  if (!banner) return;
+
+  if (canWrite && controlRequest && controlRequest.uid && controlRequest.uid !== uid) {
+    const presence = presenceRoster[controlRequest.uid] || {};
+    const displayName = controlRequest.name || presence.displayName || presence.name || ('User ' + controlRequest.uid.slice(-6));
+    if (nameEl) nameEl.textContent = displayName;
+    if (timestampEl) timestampEl.textContent = formatControlRequestTimestamp(controlRequest.requestedAt);
+    banner.classList.add('show');
+  } else {
+    banner.classList.remove('show');
+  }
+
+  renderHostStatus();
+}
+
+updateConnectionIndicator('pending', 'Connecting to Firebase…');
+
+window.addEventListener('online', function() {
+  if (connectionStatus === 'offline') {
+    updateConnectionIndicator('pending', 'Re-establishing connection…');
+  }
+});
+
+window.addEventListener('offline', function() {
+  updateConnectionIndicator('offline', 'Browser is offline');
+});
+
+setInterval(function() {
+  if (connectionStatus === 'online' && Date.now() - lastSnapshotAt > 15000) {
+    updateConnectionIndicator('degraded', 'Waiting for realtime updates…');
+  }
+}, 5000);
+
+// Ensure URL reflects the active customer/transform cycle for easy sharing
+try {
+  url.searchParams.set("customer", sessionContext.customerValue);
+  url.searchParams.set("transformCycle", sessionContext.transformValue);
+  url.searchParams.set("phase", sessionContext.transformValue);
+  history.replaceState(null, "", url.toString());
+} catch (e) {
+  console.warn("Failed to update URL parameters", e);
+}
 
 // Determine mode (host vs viewer)
 let isFirstUser = false;
@@ -4722,12 +5455,12 @@ let viewerForced = false;
 
 // Auto-detect first user
 async function detectMode() {
-  const sessionRef = doc(db, "sessions", customerKey);
-  
-  console.log("Detecting mode for customer:", customerParam, "key:", customerKey);
+  const sessionRef = doc(db, "sessions", sessionContext.sessionKey);
+
+  console.log("Detecting mode for customer:", customerParam, "key:", sessionContext.customerKey, "transform:", phaseParam, "phaseKey:", sessionContext.phaseKey);
   console.log("Current domain:", window.location.hostname);
   console.log("Viewer param:", viewerParam);
-  
+
   if (viewerParam === null || viewerParam === undefined) {
     try {
       const sessionSnap = await getDoc(sessionRef);
@@ -4735,12 +5468,15 @@ async function detectMode() {
       if (sessionSnap.exists()) {
         console.log("Session data:", sessionSnap.data());
       }
-      
-      if (!sessionSnap.exists() || !sessionSnap.data()?.controllerUid) {
+
+      const sessionData = sessionSnap.data() || {};
+      const isDowntimeActive = !!sessionData.state?.downtimeStarted;
+
+      if (!sessionSnap.exists() || !sessionData.controllerUid || !isDowntimeActive) {
         isFirstUser = true;
         url.searchParams.set("viewer", "0");
         window.AppState.isFirstUser = true;
-        console.log("Mode: HOST (first user)");
+        console.log("Mode: HOST (available)");
       } else {
         url.searchParams.set("viewer", "1");
         viewerForced = true;
@@ -4764,9 +5500,10 @@ await detectMode();
   statusPanel.style.cssText = "position:fixed;right:10px;bottom:10px;background:#fff;border:1px solid #dcdcdc;border-radius:8px;padding:10px 12px;font:12px system-ui,-apple-system,sans-serif;box-shadow:0 2px 6px rgba(0,0,0,.08);z-index:100000;min-width:280px";
   statusPanel.innerHTML = `
     <div style="display:flex;gap:6px;align-items:center;justify-content:space-between;margin-bottom:6px;">
-      <div><strong>Customer:</strong> <span style="font-family:monospace">${customerParam}</span></div>
+      <div><strong>Customer:</strong> <span id="rt-customer" style="font-family:monospace">${customerParam}</span></div>
       <button id="rt-copy" style="padding:4px 8px;border:1px solid #ccc;border-radius:6px;cursor:pointer;background:#f9f9fb;">📋 Copy link</button>
     </div>
+    <div style="font-size:12px;margin-bottom:6px;"><strong>Transform:</strong> <span id="rt-transform" style="font-family:monospace">${phaseParam}</span></div>
     <div style="display:flex;gap:6px;align-items:center;justify-content:space-between;">
       <span id="rt-online" style="display:inline-block;padding:2px 8px;border:1px solid #dcdcdc;border-radius:999px;">0 online</span>
       <span id="rt-mode" style="font-weight:600;color:#444">mode: —</span>
@@ -4781,10 +5518,13 @@ await detectMode();
       <div id="rt-bar-label" style="font-size:11px;margin-top:4px;text-align:right">0%</div>
     </div>`;
   document.body.appendChild(statusPanel);
-  
+
   document.getElementById("rt-copy").onclick = async () => {
     const shareUrl = new URL(window.location.href);
     shareUrl.searchParams.set("viewer", "1");
+    shareUrl.searchParams.set("customer", sessionContext.customerValue);
+    shareUrl.searchParams.set("transformCycle", sessionContext.transformValue);
+    shareUrl.searchParams.set("phase", sessionContext.transformValue);
     await navigator.clipboard.writeText(shareUrl.toString());
     const btn = document.getElementById("rt-copy");
     const prev = btn.textContent;
@@ -4796,19 +5536,31 @@ await detectMode();
   resetBtn.style.cssText = "position:fixed;left:10px;bottom:10px;z-index:100001";
   resetBtn.innerHTML = `<button id="rt-reset" style="padding:10px 14px;border:none;border-radius:8px;cursor:pointer;background:#d32f2f;color:#fff;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,.15)">🔄 Reset</button>`;
   document.body.appendChild(resetBtn);
+
+  if (typeof updateViewerPanel === 'function') {
+    setTimeout(() => updateViewerPanel(), 0);
+  }
 })();
 
 // Authenticate
 await signInAnonymously(auth);
-const uid = await new Promise((resolve) => onAuthStateChanged(auth, (u) => { if(u) resolve(u.uid); }));
+uid = await new Promise((resolve) => onAuthStateChanged(auth, (u) => { if(u) resolve(u.uid); }));
+window.currentUid = uid;
+presenceDocId = `${uid}-${sessionInstanceId}`;
 
 // Presence tracking
-const presenceRef = doc(db, "sessions", customerKey, "presence", uid);
+presenceRef = doc(db, "sessions", sessionContext.sessionKey, "presence", presenceDocId);
 
 async function updatePresence() {
+  if (!presenceRef) return;
   try {
     await window.firestore.setDoc(presenceRef, {
-      name: nameInput?.value || customerParam || "Guest",
+      displayName: getOperatorName(),
+      name: getOperatorName(),
+      customer: sessionContext.customerValue,
+      transform: sessionContext.transformValue,
+      uid,
+      instanceId: sessionInstanceId,
       lastActive: window.firestore.serverTimestamp()
     }, { merge: true });
   } catch(e) {
@@ -4816,40 +5568,83 @@ async function updatePresence() {
   }
 }
 
-await updatePresence();
-setInterval(updatePresence, 20000);
+let presenceIntervalId = null;
+let presenceUnsubscribe = null;
 
-// Track online users
-window.firestore.onSnapshot(collection(db, "sessions", customerKey, "presence"), (snap) => {
-  const now = Date.now();
-  let online = 0;
-  snap.forEach(d => {
-    const t = d.data().lastActive?.toMillis?.() || 0;
-    if (now - t < 45000) online++;
+async function bindPresenceListeners() {
+  if (presenceIntervalId) clearInterval(presenceIntervalId);
+  await updatePresence();
+  presenceIntervalId = setInterval(updatePresence, 20000);
+
+  if (presenceUnsubscribe) presenceUnsubscribe();
+  const presenceCollectionRef = collection(db, "sessions", sessionContext.sessionKey, "presence");
+  presenceUnsubscribe = window.firestore.onSnapshot(presenceCollectionRef, (snap) => {
+    const now = Date.now();
+    let online = 0;
+    const roster = {};
+    snap.forEach(d => {
+      const data = d.data() || {};
+      const entry = { ...data, presenceDocId: d.id };
+      roster[d.id] = entry;
+      if (entry.uid) {
+        roster[entry.uid] = entry;
+      }
+      const t = entry.lastActive?.toMillis?.() || (entry.lastActive?.seconds ? entry.lastActive.seconds * 1000 : 0);
+      if (now - t < 45000) online++;
+    });
+    presenceRoster = roster;
+    controllerName = resolveControllerName();
+    const el = document.getElementById("rt-online");
+    if (el) el.textContent = `${online} online`;
+    renderControlRequestBanner();
+  }, (error) => {
+    console.warn('Presence listener error', error);
+    updateConnectionIndicator('degraded', 'Presence updates delayed');
   });
-  const el = document.getElementById("rt-online");
-  if (el) el.textContent = `${online} online`;
-});
+}
+
+await bindPresenceListeners();
 
 // Session management
-const sessionRef = doc(db, "sessions", customerKey);
-let remoteController = null;
+let sessionRef = doc(db, "sessions", sessionContext.sessionKey);
+let sessionUnsubscribe = null;
+remoteController = null;
+remoteDowntimeActive = false;
+attemptedControllerClaim = false;
 let lastSentState = null;
 let writing = false;
 
 // Check if can write - PROPERLY OVERRIDE THE EARLY INIT
 window.canWrite = function() {
   // If viewer mode is forced via URL parameter, always return false
-  if (viewerForced) return false;
-  
+  const currentUrl = new URL(window.location.href);
+  if (viewerForced || currentUrl.searchParams.get("viewer") === "1") return false;
+
   // If no remote controller set, we can write (we are/can be the host)
   if (!remoteController) return true;
-  
+
   // If we are the remote controller, we can write
   if (remoteController === uid) return true;
-  
+
+  // If downtime is not active, allow takeover actions
+  if (!remoteDowntimeActive) return true;
+
   // Otherwise, we're a viewer
   return false;
+};
+
+if (typeof updateViewerPanel === 'function') {
+  updateViewerPanel();
+}
+
+window.getViewerState = function() {
+  const currentUrl = new URL(window.location.href);
+  return {
+    viewerParam,
+    viewerForced,
+    urlViewer: currentUrl.searchParams.get('viewer'),
+    canWrite: typeof window.canWrite === 'function' ? window.canWrite() : null
+  };
 };
 
 // Serialize state
@@ -4862,6 +5657,7 @@ function serialize() {
     downtimeDuration: state.downtimeDuration || 24,
     downtimePaused: !!state.downtimePaused,
     pausedDuration: state.pausedDuration || 0,
+    pauseStartTime: state.pauseStartTime ? new Date(state.pauseStartTime).toISOString() : null,
     completionTimes: state.completionTimes || {},
     customerName: nameInput?.value || "",
     transformCycle: phaseInput?.value || "",
@@ -4887,6 +5683,7 @@ function applyRemoteState(remoteState) {
   state.downtimeDuration = remoteState.downtimeDuration || 24;
   state.downtimePaused = !!remoteState.downtimePaused;
   state.pausedDuration = remoteState.pausedDuration || 0;
+  state.pauseStartTime = remoteState.pauseStartTime ? new Date(remoteState.pauseStartTime) : null;
   state.downtimeStartTime = remoteState.downtimeStartTime ? new Date(remoteState.downtimeStartTime) : null;
   state.completionTimes = remoteState.completionTimes || {};
   state.syncedTimelinePosition = remoteState.syncedTimelinePosition || 0;
@@ -4908,7 +5705,7 @@ function applyRemoteState(remoteState) {
     if (nameInput && remoteState.customerName) nameInput.value = remoteState.customerName;
     if (phaseInput && remoteState.transformCycle) phaseInput.value = remoteState.transformCycle;
   }
-  
+
   // Lock/unlock customer name and transform cycle based on downtime status
   var customerNameInput = document.getElementById('customerName');
   var transformCycleInput = document.getElementById('transformCycle');
@@ -5026,7 +5823,7 @@ function updateViewerPanel() {
   // If viewer and downtime started, ensure UI shows it
   if (isViewer && state.downtimeStarted) {
     console.log("📊 Viewer: Updating UI for active downtime");
-    
+
     // Show progress panel
     const progressPanel = document.getElementById('progressPanel');
     if (progressPanel) progressPanel.style.display = 'block';
@@ -5064,16 +5861,10 @@ function updateViewerPanel() {
     if (currentDurationInput) currentDurationInput.style.display = 'none';
   }
   
-  // Update sync indicator
-  const syncIndicator = document.getElementById("syncIndicator");
-  if (syncIndicator) {
-    syncIndicator.className = remoteController ? "sync-indicator" : "sync-indicator offline";
-  }
-  
   if (isViewer) {
     // Apply viewer mode class
     document.body.classList.add('viewer-mode');
-    
+
     // Update viewer status
     const statusEl = document.getElementById("rt-status");
     if (statusEl) {
@@ -5081,36 +5872,76 @@ function updateViewerPanel() {
       else if (state.downtimePaused) statusEl.textContent = "Paused";
       else statusEl.textContent = "Running";
     }
-    
+
+    const durationText = document.getElementById('durationText');
+    if (durationText) {
+      if (state.downtimeStarted && state.downtimeStartTime) {
+        const startTime = new Date(state.downtimeStartTime).getTime();
+        let pausedOffset = state.pausedDuration || 0;
+        if (state.downtimePaused && state.pauseStartTime) {
+          const pauseStart = new Date(state.pauseStartTime).getTime();
+          if (!isNaN(pauseStart)) {
+            pausedOffset += Math.max(0, Date.now() - pauseStart);
+          }
+        }
+        const elapsedMs = Date.now() - startTime - pausedOffset;
+        const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        durationText.textContent = `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+      } else {
+        durationText.textContent = '00:00:00';
+      }
+    }
+
     // Update start time
     const startEl = document.getElementById("rt-start");
     if (startEl && state.downtimeStartTime) {
       startEl.textContent = new Date(state.downtimeStartTime).toLocaleString();
+    } else if (startEl) {
+      startEl.textContent = "—";
     }
-    
+
     // Update ETA
     const etaEl = document.getElementById("rt-eta");
     if (etaEl && state.downtimeStartTime) {
       const endTime = new Date(state.downtimeStartTime.getTime() + state.downtimeDuration * 3600000);
       etaEl.textContent = endTime.toLocaleString();
+    } else if (etaEl) {
+      etaEl.textContent = "—";
     }
-    
+
     // Update progress bar
     if (state.downtimeStarted && state.downtimeStartTime) {
       const now = Date.now();
       const start = new Date(state.downtimeStartTime).getTime();
       const duration = state.downtimeDuration * 3600000;
-      const elapsed = now - start - state.pausedDuration;
+      let pausedOffset = state.pausedDuration || 0;
+      if (state.downtimePaused && state.pauseStartTime) {
+        const pauseStart = new Date(state.pauseStartTime).getTime();
+        if (!isNaN(pauseStart)) {
+          pausedOffset += Math.max(0, now - pauseStart);
+        }
+      }
+      const elapsed = now - start - pausedOffset;
       const percent = Math.min(100, Math.max(0, (elapsed / duration) * 100));
-      
+
       const bar = document.getElementById("rt-bar");
       const label = document.getElementById("rt-bar-label");
       if (bar) bar.style.width = `${percent}%`;
       if (label) label.textContent = `${Math.round(percent)}%`;
+    } else {
+      const bar = document.getElementById("rt-bar");
+      const label = document.getElementById("rt-bar-label");
+      if (bar) bar.style.width = '0%';
+      if (label) label.textContent = '0%';
     }
   } else {
     document.body.classList.remove('viewer-mode');
   }
+
+  renderHostStatus();
 }
 
 // Push state to Firebase (host only)
@@ -5135,6 +5966,7 @@ async function pushState(reason = "update") {
       await window.firestore.setDoc(sessionRef, {
         state: currentState,
         controllerUid: uid,
+        controllerName: getOperatorName(),
         updatedAt: window.firestore.serverTimestamp(),
         reason
       }, { merge: true });
@@ -5156,11 +5988,26 @@ function schedulePush() {
 
 // Subscribe to session changes
 let initialSync = true;
-window.firestore.onSnapshot(sessionRef, async (snap) => {
+
+function subscribeToSession() {
+  if (sessionUnsubscribe) sessionUnsubscribe();
+  sessionUnsubscribe = window.firestore.onSnapshot(
+    sessionRef,
+    async (snap) => {
   const data = snap.data() || {};
   remoteController = data.controllerUid || null;
+  latestSessionData = data;
+  controlRequest = data.controlRequest && data.controlRequest.uid ? { ...data.controlRequest } : null;
+  if (controlRequest && !controlRequest.name) {
+    controlRequest.name = controlRequest.displayName || controlRequest.requesterName || null;
+  }
+  controllerName = resolveControllerName();
   const isDowntimeActive = data.state?.downtimeStarted || false;
-  
+  remoteDowntimeActive = isDowntimeActive;
+  if (!remoteController) attemptedControllerClaim = false;
+  lastSnapshotAt = Date.now();
+  updateConnectionIndicator('online', 'Realtime updates connected');
+
   console.log("Session snapshot received:", {
     hasData: !!data,
     hasState: !!data.state,
@@ -5169,30 +6016,49 @@ window.firestore.onSnapshot(sessionRef, async (snap) => {
     downtimeStarted: isDowntimeActive,
     currentUid: uid
   });
-  
+
   // Apply state
   if (data.state) {
     applyRemoteState(data.state);
   }
-  
+
+  renderControlRequestBanner();
+
   // CRITICAL FIX: Only block host mode when downtime is ACTIVE with another controller
   if (!viewerForced && remoteController && remoteController !== uid && isDowntimeActive) {
     console.warn("⚠️ Cannot become host: Downtime is active with another controller");
     alert("⚠️ HOST MODE BLOCKED\n\nAnother user is currently controlling an active downtime session for this customer and transformation cycle.\n\nYou have been switched to VIEWER mode.\n\nWait for the current session to complete or contact the current host.");
     viewerForced = true;
-    
+
     // Update URL to reflect viewer mode
     const url = new URL(window.location.href);
     url.searchParams.set("viewer", "1");
     history.replaceState(null, "", url.toString());
   }
-  
+
+  // Allow takeover if downtime is not active
+  if (!viewerForced && remoteController && remoteController !== uid && !isDowntimeActive && !attemptedControllerClaim) {
+    attemptedControllerClaim = true;
+    try {
+      await window.firestore.setDoc(sessionRef, {
+        controllerUid: uid,
+        controllerName: getOperatorName(),
+        controllerSetAt: window.firestore.serverTimestamp()
+      }, { merge: true });
+      console.log("✓ Took control of inactive session:", uid);
+      remoteController = uid;
+    } catch (err) {
+      console.warn("Could not take control of inactive session", err);
+    }
+  }
+
   // Try to become controller if none exists, not forced as viewer, AND downtime is NOT active
   // This allows new hosts to take over when no active session is running
   if (!remoteController && !viewerForced && !isDowntimeActive && initialSync) {
     try {
       await window.firestore.setDoc(sessionRef, {
         controllerUid: uid,
+        controllerName: getOperatorName(),
         controllerSetAt: window.firestore.serverTimestamp()
       }, { merge: true });
       console.log("✓ Became controller:", uid);
@@ -5200,15 +6066,18 @@ window.firestore.onSnapshot(sessionRef, async (snap) => {
       console.error("Failed to set controller:", e);
     }
   }
-  
+
   // Update UI based on role
   updateViewerPanel();
-  
+
   if (initialSync) {
     initialSync = false;
     lastSentState = JSON.stringify(serialize());
     console.log("Initial sync complete, mode:", window.canWrite() ? "HOST" : "VIEWER");
-    
+    hideContextSwitchToast();
+    contextSwitchInFlight = false;
+    renderHostStatus();
+
     // CRITICAL FIX: For viewers, force UI update and start duration counter
     if (!window.canWrite() && data.state) {
       console.log("🔄 Forcing viewer UI update on initial load");
@@ -5216,7 +6085,7 @@ window.firestore.onSnapshot(sessionRef, async (snap) => {
         updateViewerPanel();
         if (typeof window.updateDuration === 'function') window.updateDuration();
         if (typeof window.updateTimeline === 'function') window.updateTimeline();
-        
+
         // Start continuous updates for viewers when downtime is active
         if (window.AppState.downtimeStarted) {
           console.log("🔄 Starting viewer duration counter");
@@ -5225,7 +6094,205 @@ window.firestore.onSnapshot(sessionRef, async (snap) => {
       }, 500);
     }
   }
-});
+  },
+  (error) => {
+    console.error("Session listener error", error);
+    updateConnectionIndicator('offline', 'Realtime session disconnected');
+  });
+}
+
+subscribeToSession();
+
+async function requestHostControl() {
+  if (typeof window.canWrite === 'function' && window.canWrite()) {
+    alert('You are already the host of this session.');
+    return;
+  }
+  if (!uid) {
+    alert('Authentication is still in progress. Please try again momentarily.');
+    return;
+  }
+  if (controlRequest && controlRequest.uid && controlRequest.uid !== uid) {
+    alert('Another teammate has already requested control. Please wait for the host to respond.');
+    return;
+  }
+  if (!navigator.onLine) {
+    alert('You are offline. Reconnect to request host control.');
+    return;
+  }
+  try {
+    lastControlRequestUid = uid;
+    await window.firestore.setDoc(sessionRef, {
+      controlRequest: {
+        uid,
+        name: getOperatorName(),
+        requestedAt: window.firestore.serverTimestamp()
+      }
+    }, { merge: true });
+    renderControlRequestBanner();
+  } catch (err) {
+    console.error('Failed to request host control', err);
+    alert('Could not send host control request. Please try again.');
+    lastControlRequestUid = null;
+  }
+}
+
+async function approveControlRequest() {
+  if (typeof window.canWrite !== 'function' || !window.canWrite()) {
+    alert('Only the current host can approve a request.');
+    return;
+  }
+  if (!controlRequest || !controlRequest.uid) {
+    renderControlRequestBanner();
+    return;
+  }
+  try {
+    const presence = presenceRoster[controlRequest.uid] || {};
+    await window.firestore.setDoc(sessionRef, {
+      controllerUid: controlRequest.uid,
+      controllerName: controlRequest.name || presence.displayName || presence.name || null,
+      controllerSetAt: window.firestore.serverTimestamp(),
+      controlRequest: null
+    }, { merge: true });
+    renderControlRequestBanner();
+  } catch (err) {
+    console.error('Failed to approve host control request', err);
+    alert('Unable to hand over control. Please retry.');
+  }
+}
+
+async function dismissControlRequest() {
+  if (typeof window.canWrite !== 'function' || !window.canWrite()) return;
+  if (!controlRequest) return;
+  try {
+    await window.firestore.setDoc(sessionRef, { controlRequest: null }, { merge: true });
+    renderControlRequestBanner();
+  } catch (err) {
+    console.error('Failed to dismiss host control request', err);
+  }
+}
+
+async function switchSessionContext(newValues) {
+  const newContext = deriveSessionContext(newValues);
+  const previousContext = sessionContext;
+
+  if (newContext.sessionKey === previousContext.sessionKey) {
+    sessionContext = { ...previousContext, ...newContext };
+    customerParam = sessionContext.customerValue;
+    phaseParam = sessionContext.transformValue;
+    try {
+      url.searchParams.set("customer", sessionContext.customerValue);
+      url.searchParams.set("transformCycle", sessionContext.transformValue);
+      url.searchParams.set("phase", sessionContext.transformValue);
+      history.replaceState(null, "", url.toString());
+    } catch (err) {
+      console.warn("Failed to refresh URL on session switch", err);
+    }
+    const customerLabel = document.getElementById('rt-customer');
+    if (customerLabel) customerLabel.textContent = sessionContext.customerValue;
+    const transformLabel = document.getElementById('rt-transform');
+    if (transformLabel) transformLabel.textContent = sessionContext.transformValue;
+    addRecentCustomer(sessionContext.customerValue, sessionContext.transformValue);
+    renderHostStatus();
+    return;
+  }
+
+  if (window.AppState.downtimeStarted) {
+    console.warn("Cannot change session while downtime is active");
+    if (nameInput) nameInput.value = customerParam;
+    if (phaseInput) phaseInput.value = phaseParam;
+    alert("Cannot change customer or transform cycle while downtime tracker is active.");
+    return;
+  }
+
+  console.log("Switching session context", previousContext.sessionKey, "->", newContext.sessionKey);
+  contextSwitchInFlight = true;
+  showContextSwitchToast(`Switching to ${newContext.customerValue} · ${newContext.transformValue}`);
+  updateConnectionIndicator('pending', 'Syncing new session context…');
+
+  const previousPresenceRef = presenceRef;
+  const previousSessionRef = sessionRef;
+
+  try {
+    if (previousPresenceRef) {
+      await window.firestore.deleteDoc(previousPresenceRef);
+    }
+  } catch (err) {
+    console.warn("Failed to delete previous presence record", err);
+  }
+
+  try {
+    if (remoteController === uid) {
+      await window.firestore.setDoc(previousSessionRef, {
+        controllerUid: null,
+        controllerName: null,
+        controlRequest: null,
+        updatedAt: window.firestore.serverTimestamp(),
+        reason: "context-switch"
+      }, { merge: true });
+    }
+  } catch (err) {
+    console.warn("Failed to release previous controller", err);
+  }
+
+  sessionContext = newContext;
+  customerParam = sessionContext.customerValue;
+  phaseParam = sessionContext.transformValue;
+  if (!presenceDocId && uid) {
+    presenceDocId = `${uid}-${sessionInstanceId}`;
+  }
+  presenceRef = doc(db, "sessions", sessionContext.sessionKey, "presence", presenceDocId || uid);
+  sessionRef = doc(db, "sessions", sessionContext.sessionKey);
+  attemptedControllerClaim = false;
+  remoteController = null;
+  remoteDowntimeActive = false;
+  initialSync = true;
+  viewerParam = url.searchParams.get("viewer");
+  viewerForced = viewerParam === "1";
+  window.AppState.isFirstUser = false;
+  controlRequest = null;
+  controllerName = null;
+  presenceRoster = {};
+
+  try {
+    url.searchParams.set("customer", sessionContext.customerValue);
+    url.searchParams.set("transformCycle", sessionContext.transformValue);
+    url.searchParams.set("phase", sessionContext.transformValue);
+    history.replaceState(null, "", url.toString());
+  } catch (err) {
+    console.warn("Failed to refresh URL on session switch", err);
+  }
+
+  const customerLabel = document.getElementById('rt-customer');
+  if (customerLabel) customerLabel.textContent = sessionContext.customerValue;
+  const transformLabel = document.getElementById('rt-transform');
+  if (transformLabel) transformLabel.textContent = sessionContext.transformValue;
+  addRecentCustomer(sessionContext.customerValue, sessionContext.transformValue);
+  renderControlRequestBanner();
+
+  await bindPresenceListeners();
+  subscribeToSession();
+  await detectMode();
+  updateViewerPanel();
+}
+
+if (nameInput) {
+  nameInput.addEventListener('change', () => {
+    switchSessionContext({
+      customerValue: nameInput.value,
+      transformValue: phaseInput?.value || phaseParam
+    }).catch(err => console.error('Failed to switch session context (customer change)', err));
+  });
+}
+
+if (phaseInput) {
+  phaseInput.addEventListener('change', () => {
+    switchSessionContext({
+      customerValue: nameInput?.value || customerParam,
+      transformValue: phaseInput.value
+    }).catch(err => console.error('Failed to switch session context (transform change)', err));
+  });
+}
 
 // Hook into mutation functions (including fullscreen toggle)
 const mutationFunctions = [
@@ -5264,42 +6331,45 @@ setInterval(() => {
   if (window.AppState.downtimeStarted && window.AppState.downtimeStartTime) {
     // Calculate current position
     const now = new Date();
-    const elapsed = (now - new Date(window.AppState.downtimeStartTime) - window.AppState.pausedDuration) / 3600000;
+    const startTime = resolveDowntimeStartTime();
+    if (!startTime) return;
+    const pausedOffset = getEffectivePausedDuration(now);
+    const elapsed = (now - startTime - pausedOffset) / 3600000;
     const pixelsPerHour = 60;
     const linePosition = Math.min(elapsed * pixelsPerHour, window.AppState.downtimeDuration * pixelsPerHour);
     
     // Update timeline
-    const currentLine = document.getElementById('currentTimeLine');
-    if (currentLine) {
-      currentLine.style.left = `${linePosition}px`;
-      currentLine.style.display = 'block';
-      
-      // Update label
-      const elapsedMs = now - new Date(window.AppState.downtimeStartTime) - window.AppState.pausedDuration;
-      const totalSeconds = Math.floor(elapsedMs / 1000);
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
-      
-      const label = document.getElementById('currentTimeLabel');
-      if (label) {
-        label.textContent = `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+      const currentLine = document.getElementById('currentTimeLine');
+      if (currentLine) {
+        currentLine.style.left = `${linePosition}px`;
+        currentLine.style.display = 'block';
+
+        // Update label
+        const elapsedMs = now - startTime - pausedOffset;
+        const totalSeconds = Math.floor(elapsedMs / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        const label = document.getElementById('currentTimeLabel');
+        if (label) {
+          label.textContent = `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+        }
       }
-    }
-    
-    // Update duration display
-    if (typeof window.updateDuration === 'function') window.updateDuration();
-    
-    // Update main duration text in header
-    const durationText = document.getElementById('durationText');
-    if (durationText) {
-      const elapsedMs = now - new Date(window.AppState.downtimeStartTime) - window.AppState.pausedDuration;
-      const totalSeconds = Math.floor(elapsedMs / 1000);
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
-      durationText.textContent = `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
-    }
+
+      // Update duration display
+      if (typeof window.updateDuration === 'function') window.updateDuration();
+
+      // Update main duration text in header
+      const durationText = document.getElementById('durationText');
+      if (durationText) {
+        const elapsedMs = now - startTime - pausedOffset;
+        const totalSeconds = Math.floor(elapsedMs / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        durationText.textContent = `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+      }
     
     // Update viewer panel
     updateViewerPanel();
@@ -5350,13 +6420,17 @@ document.getElementById("rt-reset").onclick = async function() {
   
   // CRITICAL FIX: Clear controller from Firebase to allow new hosts
   try {
-    await window.firestore.setDoc(sessionRef, {
-      controllerUid: null,
-      state: serialize(),
-      updatedAt: window.firestore.serverTimestamp(),
-      reason: "reset"
-    }, { merge: true });
-    console.log("✓ Session reset, controller released");
+    const presenceDocs = await window.firestore.getDocs(collection(db, "sessions", sessionContext.sessionKey, "presence"));
+    for (const presenceDoc of presenceDocs.docs || []) {
+      try {
+        await window.firestore.deleteDoc(presenceDoc.ref);
+      } catch (presenceError) {
+        console.warn("Failed to remove presence entry during reset", presenceError);
+      }
+    }
+
+    await window.firestore.deleteDoc(sessionRef);
+    console.log("✓ Session reset, data cleared");
   } catch (e) {
     console.error("Failed to reset session:", e);
     // Still push the reset state even if Firebase update fails
