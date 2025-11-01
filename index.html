@@ -181,8 +181,142 @@
   .status-display{
     display:flex;
     gap:20px;
-    align-items:center;
+    align-items:stretch;
     font-size:13px;
+    flex-wrap:wrap;
+  }
+
+  .status-item {
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    gap:4px;
+    min-width:120px;
+  }
+
+  .status-item.host-status {
+    align-items:flex-start;
+    min-width:180px;
+  }
+
+  .status-item.viewers-status {
+    min-width:150px;
+  }
+
+  .status-actions {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding-left:4px;
+    margin-left:auto;
+  }
+
+  .status-actions button {
+    height:32px;
+  }
+
+  .status-item .status-meta {
+    font-size:11px;
+    color:var(--sap-muted);
+  }
+
+  .status-item .pending-request {
+    font-size:11px;
+    color:var(--sap-warning);
+    display:none;
+  }
+
+  .status-item .pending-request.show {
+    display:block;
+  }
+
+  .btn.subtle {
+    background:transparent;
+    border:1px solid var(--sap-border);
+    color:var(--sap-accent);
+    padding:4px 8px;
+    font-size:11px;
+    border-radius:999px;
+    transition:all 0.2s ease;
+  }
+
+  .btn.subtle:hover:not(:disabled) {
+    background:rgba(10,110,209,0.1);
+  }
+
+  .btn.subtle:disabled {
+    color:var(--sap-muted);
+    border-color:rgba(0,0,0,0.05);
+    cursor:not-allowed;
+    background:rgba(0,0,0,0.03);
+  }
+
+  .control-request-banner {
+    display:none;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    background:linear-gradient(135deg, rgba(10,110,209,0.12), rgba(8,84,160,0.12));
+    border:1px solid rgba(10,110,209,0.3);
+    padding:12px 16px;
+    border-radius:8px;
+    margin-bottom:16px;
+  }
+
+  .control-request-banner.show {
+    display:flex;
+  }
+
+  .control-request-banner strong {
+    color:var(--sap-accent-2);
+  }
+
+  .control-request-timestamp {
+    font-size:12px;
+    color:var(--sap-muted);
+  }
+
+  .context-switch-toast {
+    position:fixed;
+    top:90px;
+    right:24px;
+    background:var(--sap-panel);
+    color:var(--sap-text);
+    border:1px solid var(--sap-border);
+    border-radius:8px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.18);
+    padding:12px 16px;
+    z-index:2000;
+    display:none;
+    gap:12px;
+    align-items:center;
+  }
+
+  .context-switch-toast.show {
+    display:flex;
+  }
+
+  .context-switch-spinner {
+    width:16px;
+    height:16px;
+    border-radius:50%;
+    border:3px solid rgba(10,110,209,0.2);
+    border-top-color:var(--sap-accent);
+    animation:spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform:rotate(360deg); }
+  }
+
+  .flash-update {
+    animation:flashHighlight 1.4s ease;
+  }
+
+  @keyframes flashHighlight {
+    0% { box-shadow:0 0 0 rgba(10,110,209,0); }
+    20% { box-shadow:0 0 0 4px rgba(10,110,209,0.25); }
+    100% { box-shadow:0 0 0 rgba(10,110,209,0); }
   }
 
   .status-item.host-status {
@@ -433,6 +567,10 @@
   }
   
   /* Full Screen Mode Styles */
+  body.fullscreen-mode .app-header {
+    display: none;
+  }
+
   body.fullscreen-mode .customer-info-panel {
     display: none !important;
   }
@@ -447,7 +585,7 @@
 
   body.fullscreen-mode #progressPanel {
     margin-bottom: 0;
-    height: calc(100vh - 80px);
+    height: calc(100vh - 32px);
     display: flex;
     flex-direction: column;
   }
@@ -494,14 +632,10 @@
   }
 
   body.fullscreen-mode .content {
-    padding: 8px;
-    height: calc(100vh - 80px);
+    padding: 16px;
+    height: 100vh;
     display: flex;
     flex-direction: column;
-  }
-  
-  body.fullscreen-mode .app-header {
-    padding: 8px 16px;
   }
   
   body.fullscreen-mode h1 {
@@ -542,6 +676,49 @@
   .fullscreen-customer-info .info-value {
     font-size: 13px;
     font-weight: 600;
+  }
+
+  #focusExitControl {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 1001;
+    display: none;
+  }
+
+  #focusExitControl[hidden] {
+    display: none !important;
+  }
+
+  .focus-exit-button {
+    padding: 8px 14px;
+    border-radius: 20px;
+    border: 1px solid rgba(0,0,0,0.15);
+    background: rgba(255,255,255,0.92);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+
+  .focus-exit-button:hover {
+    background: rgba(240,240,240,0.95);
+    transform: translateY(-1px);
+  }
+
+  body.dark-mode .focus-exit-button {
+    background: rgba(20,30,40,0.9);
+    color: #f1f5f9;
+    border-color: rgba(255,255,255,0.12);
+  }
+
+  body.dark-mode .focus-exit-button:hover {
+    background: rgba(35,45,55,0.95);
+  }
+
+  body.fullscreen-mode #focusExitControl {
+    display: block;
   }
   
   /* Completion Progress */
@@ -1907,6 +2084,13 @@
       flex-direction: column;
       gap: 10px;
     }
+
+    .status-actions {
+      width: 100%;
+      justify-content: flex-start;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
   }
 
 /* --- Enhancements CSS --- */
@@ -2090,14 +2274,29 @@ body.dark-mode #messageToggleBtn:hover{
         <button class="btn subtle" id="requestControlBtn">Request control</button>
         <div class="pending-request" id="pendingRequestStatus">Request sent…</div>
       </div>
-      <button class="fullscreen-toggle" id="fullscreenToggle" title="Toggle full screen mode">
-        <span id="fullscreenIcon">⛶</span>
-        <span id="fullscreenText">Focus</span>
-      </button>
-      <button class="dark-mode-toggle" id="darkModeToggle" title="Toggle dark mode">
-        <span id="darkModeIcon">🌙</span>
-        <span id="darkModeText">Dark</span>
-      </button>
+      <div class="status-item viewers-status">
+        <span class="status-label">Viewers</span>
+        <span class="status-value" id="viewerCountHeader">0 viewers</span>
+        <span class="status-meta" id="viewerCountMeta">No active viewers</span>
+      </div>
+      <div class="status-actions">
+        <button class="fullscreen-toggle" id="fullscreenToggle" title="Toggle full screen mode">
+          <span id="fullscreenIcon">⛶</span>
+          <span id="fullscreenText">Focus</span>
+        </button>
+        <button class="dark-mode-toggle" id="darkModeToggle" title="Toggle dark mode">
+          <span id="darkModeIcon">🌙</span>
+          <span id="darkModeText">Dark</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="context-switch-toast" id="contextSwitchToast" role="status" aria-live="polite">
+    <div class="context-switch-spinner" aria-hidden="true"></div>
+    <div>
+      <div><strong>Loading session…</strong></div>
+      <div class="status-meta" id="contextSwitchDetails">Retrieving latest runbooks</div>
     </div>
   </div>
 
@@ -2154,6 +2353,9 @@ body.dark-mode #messageToggleBtn:hover{
     
     <!-- Progress Tracking Section -->
     <div id="progressPanel" class="panel">
+      <div id="focusExitControl" hidden>
+        <button type="button" class="focus-exit-button" id="focusExitButton" title="Exit focus mode">Exit Focus</button>
+      </div>
       <h2>Progress Tracking Window</h2>
       <div id="fullscreenKpiSummary" class="fullscreen-kpi" aria-live="polite">
         <div class="kpi-item">
@@ -2435,6 +2637,7 @@ function runAuthenticatedStartup() {
 
   bindMessageToggleButton();
   window.setMessagesEnabled(window.AppState && typeof window.AppState.messagesOn === 'boolean' ? window.AppState.messagesOn : false);
+  updateFocusExitControl(window.AppState.fullscreenMode);
 
   updateClock();
   if (!clockIntervalId) {
@@ -2446,6 +2649,166 @@ function runAuthenticatedStartup() {
     darkModeToggle.addEventListener('click', toggleDarkMode);
     darkModeToggle.__bound = true;
   }
+
+  var fullscreenToggle = document.getElementById('fullscreenToggle');
+  if (fullscreenToggle && !fullscreenToggle.__bound) {
+    fullscreenToggle.addEventListener('click', toggleFullscreenMode);
+    fullscreenToggle.__bound = true;
+  }
+
+  var focusExitBtn = document.getElementById('focusExitButton');
+  if (focusExitBtn && !focusExitBtn.__bound) {
+    focusExitBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      toggleFullscreenMode(false);
+    });
+    focusExitBtn.__bound = true;
+  }
+
+  var recentBtn = document.getElementById('recentCustomersBtn');
+  if (recentBtn && !recentBtn.__bound) {
+    recentBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      toggleRecentCustomersDropdown();
+    });
+    recentBtn.__bound = true;
+  }
+
+  var bookmarkBtn = document.getElementById('bookmarkSessionBtn');
+  if (bookmarkBtn && !bookmarkBtn.__bound) {
+    bookmarkBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      bookmarkCurrentSession();
+    });
+    bookmarkBtn.__bound = true;
+  }
+
+  var requestBtn = document.getElementById('requestControlBtn');
+  if (requestBtn && !requestBtn.__bound) {
+    requestBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      requestHostControl();
+    });
+    requestBtn.__bound = true;
+  }
+
+  var approveBtn = document.getElementById('approveControlBtn');
+  if (approveBtn && !approveBtn.__bound) {
+    approveBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      approveControlRequest();
+    });
+    approveBtn.__bound = true;
+  }
+
+  var dismissBtn = document.getElementById('dismissControlBtn');
+  if (dismissBtn && !dismissBtn.__bound) {
+    dismissBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      dismissControlRequest();
+    });
+    dismissBtn.__bound = true;
+  }
+
+  var operatorNameInput = document.getElementById('operatorName');
+  if (operatorNameInput && !operatorNameInput.__bound) {
+    operatorNameInput.addEventListener('change', function() {
+      persistOperatorProfile(this.value || '');
+      if (typeof updatePresence === 'function') {
+        setTimeout(updatePresence, 100);
+      }
+      if (typeof window.canWrite === 'function' && window.canWrite() && window.firestore && typeof window.firestore.setDoc === 'function') {
+        try {
+          window.firestore.setDoc(sessionRef, { controllerName: getOperatorName() }, { merge: true });
+        } catch (err) {
+          console.warn('Failed to persist controller name update', err);
+        }
+      }
+      renderHostStatus();
+    });
+    operatorNameInput.__bound = true;
+  }
+
+  var customerNameInput = document.getElementById('customerName');
+  if (customerNameInput && !customerNameInput.__bound) {
+    customerNameInput.addEventListener('change', function() {
+      if (this.value && this.value.trim().length > 0) {
+        var transformCycleInput = document.getElementById('transformCycle');
+        addRecentCustomer(this.value.trim(), transformCycleInput ? transformCycleInput.value : '');
+      }
+      if (window.AppState.fullscreenMode) {
+        updateFullscreenCustomerInfo();
+      }
+    });
+    customerNameInput.addEventListener('focus', function() {
+      window.AppState.inputLock = true;
+    });
+    customerNameInput.addEventListener('blur', function() {
+      setTimeout(function() {
+        window.AppState.inputLock = false;
+      }, 500);
+    });
+    customerNameInput.__bound = true;
+  }
+
+  var transformCycleInput = document.getElementById('transformCycle');
+  if (transformCycleInput && !transformCycleInput.__bound) {
+    transformCycleInput.addEventListener('change', function() {
+      var customerInput = document.getElementById('customerName');
+      if (customerInput && customerInput.value.trim()) {
+        addRecentCustomer(customerInput.value.trim(), this.value);
+      }
+      if (window.AppState.fullscreenMode) {
+        updateFullscreenCustomerInfo();
+      }
+    });
+    transformCycleInput.addEventListener('focus', function() {
+      window.AppState.inputLock = true;
+    });
+    transformCycleInput.addEventListener('blur', function() {
+      setTimeout(function() {
+        window.AppState.inputLock = false;
+      }, 500);
+    });
+    transformCycleInput.__bound = true;
+  }
+}
+
+function checkPassword() {
+  const input = document.getElementById('passwordInput');
+  const error = document.getElementById('passwordError');
+  const modal = document.getElementById('passwordModal');
+
+  if (input.value === APP_PASSWORD) {
+    isAuthenticated = true;
+    modal.classList.add('hidden');
+    localStorage.setItem('appAuthenticated', 'true');
+    runAuthenticatedStartup();
+  } else {
+    error.textContent = '❌ Incorrect password. Please try again.';
+    input.value = '';
+    input.focus();
+  }
+
+// Check authentication on load
+document.addEventListener('DOMContentLoaded', function() {
+  const passwordInput = document.getElementById('passwordInput');
+  if (localStorage.getItem('appAuthenticated') === 'true') {
+    isAuthenticated = true;
+    document.getElementById('passwordModal').classList.add('hidden');
+    runAuthenticatedStartup();
+  } else {
+    passwordInput.focus();
+  }
+
+  // Allow Enter key to submit password
+  passwordInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      checkPassword();
+    }
+  });
+});
 
   var fullscreenToggle = document.getElementById('fullscreenToggle');
   if (fullscreenToggle && !fullscreenToggle.__bound) {
@@ -2846,13 +3209,13 @@ window.loadTemplate = async function(templateId) {
         };
       });
 
-      if (typeof window.setMessagesEnabled === 'function') {
-        window.setMessagesEnabled(false);
-      }
-
       renderRunbookTable();
       updateTimeline();
       updateCompletionPercentage();
+
+      if (typeof window.setMessagesEnabled === 'function') {
+        window.setMessagesEnabled(false);
+      }
 
       alert('✅ Template loaded successfully!');
     }
@@ -2978,49 +3341,76 @@ document.addEventListener('keydown', function(e) {
 });
 
 // NEW: Full Screen Mode Functions
-function toggleFullscreenMode() {
-  var entering = !window.AppState.fullscreenMode;
-  window.AppState.fullscreenMode = entering;
+function updateFocusExitControl(isActive) {
+  var control = document.getElementById('focusExitControl');
+  if (!control) return;
+  control.hidden = !isActive;
+}
 
-  if (entering) {
-    window.AppState.fullscreenSince = new Date();
-    document.body.classList.add('fullscreen-mode');
-    updateFullscreenCustomerInfo();
+function applyFocusState(isActive, options = {}) {
+  var state = window.AppState;
+  var desired = !!isActive;
+  var wasActive = !!state.fullscreenMode;
+  var changed = wasActive !== desired;
+  var sinceValue = options.since instanceof Date ? options.since : (options.since ? new Date(options.since) : null);
 
-    var panel = document.getElementById('progressPanel');
-    var fullscreenTarget = panel && panel.requestFullscreen ? panel : document.documentElement;
-    if (fullscreenTarget && fullscreenTarget.requestFullscreen) {
-      fullscreenTarget.requestFullscreen().catch(function(err) {
-        console.warn('Fullscreen request failed:', err);
-      });
-    }
-    lazyLoadTimelineForFocus();
-    if (window.canWrite && window.canWrite()) {
-      recordStatusChange('focus-enter', { message: 'Focus mode enabled' });
-    }
+  state.fullscreenMode = desired;
+  if (state.fullscreenMode) {
+    state.fullscreenSince = sinceValue || state.fullscreenSince || new Date();
   } else {
-    document.body.classList.remove('fullscreen-mode');
-    window.AppState.fullscreenSince = null;
-    if (document.fullscreenElement && document.exitFullscreen) {
+    state.fullscreenSince = null;
+  }
+
+  document.body.classList.toggle('fullscreen-mode', state.fullscreenMode);
+
+  if (state.fullscreenMode) {
+    updateFullscreenCustomerInfo();
+    if (changed || options.forceRefresh) {
+      lazyLoadTimelineForFocus();
+    }
+  }
+
+  if (changed && options.attemptFullscreen) {
+    if (state.fullscreenMode) {
+      var panel = document.getElementById('progressPanel');
+      var fullscreenTarget = panel && panel.requestFullscreen ? panel : document.documentElement;
+      if (fullscreenTarget && fullscreenTarget.requestFullscreen) {
+        fullscreenTarget.requestFullscreen().catch(function(err) {
+          console.warn('Fullscreen request failed:', err);
+        });
+      }
+    } else if (document.fullscreenElement && document.exitFullscreen) {
       document.exitFullscreen().catch(function(err) {
         console.warn('Failed to exit fullscreen:', err);
       });
     }
-    if (window.canWrite && window.canWrite()) {
-      recordStatusChange('focus-exit', { message: 'Focus mode exited' });
-    }
   }
 
-  updateFullscreenButton(window.AppState.fullscreenMode);
+  updateFullscreenButton(state.fullscreenMode);
+  updateFocusExitControl(state.fullscreenMode);
 
-  // Trigger timeline update to adjust for new dimensions
-  setTimeout(function() {
-    if (typeof window.updateTimeline === 'function') {
-      window.updateTimeline();
-    }
-  }, 100);
+  if ((changed || options.forceRefresh) && !options.skipTimelineRefresh) {
+    setTimeout(function() {
+      if (typeof window.updateTimeline === 'function') {
+        window.updateTimeline();
+      }
+    }, 100);
+  }
 
-  if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
+  return changed;
+}
+
+function toggleFullscreenMode(forceState) {
+  var shouldEnable = typeof forceState === 'boolean' ? forceState : !window.AppState.fullscreenMode;
+  var changed = applyFocusState(shouldEnable, { attemptFullscreen: true });
+
+  if (changed && window.canWrite && window.canWrite()) {
+    recordStatusChange(shouldEnable ? 'focus-enter' : 'focus-exit', {
+      message: shouldEnable ? 'Focus mode enabled' : 'Focus mode exited'
+    });
+  }
+
+  if (changed && typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
     schedulePush();
   }
 }
@@ -3076,27 +3466,20 @@ window.toggleFullscreenMode = toggleFullscreenMode;
 document.addEventListener('fullscreenchange', function() {
   var isFullscreen = !!document.fullscreenElement;
   if (!isFullscreen && window.AppState.fullscreenMode) {
-    window.AppState.fullscreenMode = false;
-    window.AppState.fullscreenSince = null;
-    document.body.classList.remove('fullscreen-mode');
-    updateFullscreenButton(false);
-    if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
-      schedulePush();
-    }
-    if (window.canWrite && window.canWrite()) {
+    var exited = applyFocusState(false, { forceRefresh: true });
+    if (exited && window.canWrite && window.canWrite()) {
       recordStatusChange('focus-exit', { message: 'Focus mode exited' });
+      if (typeof schedulePush === 'function') {
+        schedulePush();
+      }
     }
   } else if (isFullscreen && !window.AppState.fullscreenMode) {
-    window.AppState.fullscreenMode = true;
-    window.AppState.fullscreenSince = new Date();
-    document.body.classList.add('fullscreen-mode');
-    updateFullscreenCustomerInfo();
-    updateFullscreenButton(true);
-    if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
-      schedulePush();
-    }
-    if (window.canWrite && window.canWrite()) {
+    var entered = applyFocusState(true, { forceRefresh: true, since: new Date() });
+    if (entered && window.canWrite && window.canWrite()) {
       recordStatusChange('focus-enter', { message: 'Focus mode enabled' });
+      if (typeof schedulePush === 'function') {
+        schedulePush();
+      }
     }
   }
 });
@@ -6004,6 +6387,9 @@ presenceRef = doc(db, "sessions", sessionContext.sessionKey, "presence", presenc
 async function updatePresence() {
   if (!presenceRef) return;
   try {
+    const currentUrl = new URL(window.location.href);
+    const forcedViewer = viewerForced || currentUrl.searchParams.get('viewer') === '1';
+    const canWriteNow = typeof window.canWrite === 'function' ? window.canWrite() : !forcedViewer;
     await window.firestore.setDoc(presenceRef, {
       displayName: getOperatorName(),
       name: getOperatorName(),
@@ -6011,7 +6397,8 @@ async function updatePresence() {
       transform: sessionContext.transformValue,
       uid,
       instanceId: sessionInstanceId,
-      lastActive: window.firestore.serverTimestamp()
+      lastActive: window.firestore.serverTimestamp(),
+      mode: canWriteNow ? 'host' : 'viewer'
     }, { merge: true });
   } catch(e) {
     console.error("Presence update failed:", e);
@@ -6031,6 +6418,8 @@ async function bindPresenceListeners() {
   presenceUnsubscribe = window.firestore.onSnapshot(presenceCollectionRef, (snap) => {
     const now = Date.now();
     let online = 0;
+    let viewerCount = 0;
+    let hostCount = 0;
     const roster = {};
     snap.forEach(d => {
       const data = d.data() || {};
@@ -6050,12 +6439,30 @@ async function bindPresenceListeners() {
         timestamp = data.updatedAt.seconds * 1000;
       }
       const isActive = timestamp ? (now - timestamp < 45000) : true;
-      if (isActive) online++;
+      if (isActive) {
+        online++;
+        if ((entry.mode || '').toLowerCase() === 'viewer') {
+          viewerCount++;
+        } else {
+          hostCount++;
+        }
+      }
     });
     presenceRoster = roster;
     controllerName = resolveControllerName();
     const el = document.getElementById("rt-online");
-    if (el) el.textContent = `${online} online`;
+    if (el) {
+      el.textContent = `${viewerCount} viewer${viewerCount === 1 ? '' : 's'} online`;
+      el.setAttribute('title', `${online} active participant${online === 1 ? '' : 's'} · ${hostCount} host${hostCount === 1 ? '' : 's'} on deck`);
+    }
+    const headerViewer = document.getElementById('viewerCountHeader');
+    if (headerViewer) {
+      headerViewer.textContent = viewerCount === 1 ? '1 viewer' : `${viewerCount} viewers`;
+    }
+    const headerMeta = document.getElementById('viewerCountMeta');
+    if (headerMeta) {
+      headerMeta.textContent = viewerCount ? 'Viewing live progress' : 'No active viewers';
+    }
     renderControlRequestBanner();
   }, (error) => {
     console.warn('Presence listener error', error);
@@ -6157,12 +6564,6 @@ function applyRemoteState(remoteState) {
   state.lastPauseReason = remoteState.lastPauseReason || '';
   state.lastResetAt = remoteState.lastResetAt ? new Date(remoteState.lastResetAt) : null;
 
-  if (remoteState.fullscreenSince) {
-    state.fullscreenSince = new Date(remoteState.fullscreenSince);
-  } else if (!remoteState.fullscreenMode) {
-    state.fullscreenSince = null;
-  }
-
   // Sync dark mode across clients
   if (remoteState.darkMode !== undefined) {
     state.darkMode = !!remoteState.darkMode;
@@ -6177,20 +6578,13 @@ function applyRemoteState(remoteState) {
 
   applyMessageToggleState();
 
-  // Sync fullscreen mode for viewers
-  if (!window.canWrite() && remoteState.fullscreenMode !== undefined && state.fullscreenMode !== remoteState.fullscreenMode) {
-    state.fullscreenMode = remoteState.fullscreenMode;
-    if (state.fullscreenMode) {
-      document.body.classList.add('fullscreen-mode');
-      window.updateFullscreenCustomerInfo();
-    } else {
-      document.body.classList.remove('fullscreen-mode');
-    }
-    window.updateFullscreenButton(state.fullscreenMode);
-  }
-
-  if (!window.canWrite() && state.fullscreenMode && !state.fullscreenSince && remoteState.fullscreenSince) {
-    state.fullscreenSince = new Date(remoteState.fullscreenSince);
+  if (remoteState.fullscreenMode !== undefined) {
+    const remoteFocusSince = remoteState.fullscreenSince ? new Date(remoteState.fullscreenSince) : null;
+    applyFocusState(!!remoteState.fullscreenMode, {
+      attemptFullscreen: false,
+      since: remoteFocusSince,
+      forceRefresh: !window.canWrite() && !!remoteState.fullscreenMode
+    });
   }
 
   // Only update UI fields if not currently being edited
