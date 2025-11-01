@@ -5190,6 +5190,16 @@ window.firestore.onSnapshot(sessionRef, async (snap) => {
     initialSync = false;
     lastSentState = JSON.stringify(serialize());
     console.log("Initial sync complete, mode:", window.canWrite() ? "HOST" : "VIEWER");
+    
+    // For viewers, force UI update immediately
+    if (!window.canWrite() && data.state) {
+      console.log("🔄 Forcing viewer UI update on initial load");
+      setTimeout(() => {
+        updateViewerPanel();
+        if (typeof window.updateDuration === 'function') window.updateDuration();
+        if (typeof window.updateTimeline === 'function') window.updateTimeline();
+      }, 500);
+    }
   }
 });
 
