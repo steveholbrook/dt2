@@ -4656,6 +4656,21 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+window.firestore = {
+  setDoc,
+  updateDoc,
+  onSnapshot,
+  serverTimestamp,
+  collection,
+  addDoc,
+  deleteDoc,
+  query,
+  orderBy,
+  getDocs,
+  doc,
+  getDoc
+};
+
 // Template Management Functions
 window.saveTemplateToFirebase = async function(template) {
   const templatesRef = collection(db, "templates");
@@ -4694,7 +4709,7 @@ window.loadTemplatesFromFirebase = async function() {
 
 // Get URL parameters
 const url = new URL(window.location.href);
-let customerParam = url.searchParams.get("customer") || "default";
+let customerParam = url.searchParams.get("customer") || "";
 let phaseParam = url.searchParams.get("phase") || url.searchParams.get("transformCycle") || "";
 let viewerParam = url.searchParams.get("viewer");
 
@@ -4707,14 +4722,48 @@ if (phaseParam && phaseInput) phaseInput.value = phaseParam;
 
 // Generate safe key for Firebase
 const toKey = s => (s||"default").toString().trim().toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"") || "default";
-const customerKey = toKey(customerParam);
+
+function deriveSessionContext({ customerValue, transformValue }) {
+  const normalizedCustomer = (customerValue || "").toString().trim() || "default";
+  const normalizedTransform = (transformValue || "").toString().trim() || "default";
+  const customerKey = toKey(normalizedCustomer);
+  const phaseKey = toKey(normalizedTransform);
+  return {
+    customerValue: normalizedCustomer,
+    transformValue: normalizedTransform,
+    customerKey,
+    phaseKey,
+    sessionKey: `${customerKey}__${phaseKey}`
+  };
+}
+
+let sessionContext = deriveSessionContext({
+  customerValue: nameInput?.value || customerParam,
+  transformValue: phaseInput?.value || phaseParam
+});
+
+customerParam = sessionContext.customerValue;
+phaseParam = sessionContext.transformValue;
 
 console.log("Session initialization:", {
   customerParam: customerParam,
-  customerKey: customerKey,
+  customerKey: sessionContext.customerKey,
+  phaseParam: phaseParam,
+  phaseKey: sessionContext.phaseKey,
+  sessionKey: sessionContext.sessionKey,
   domain: window.location.hostname,
   fullUrl: window.location.href
 });
+
+// Ensure URL reflects the active customer/transform cycle for easy sharing
+try {
+  url.searchParams.set("customer", sessionContext.customerValue);
+  url.searchParams.set("transformCycle", sessionContext.transformValue);
+  url.searchParams.set("phase", sessionContext.transformValue);
+  history.replaceState(null, "", url.toString());
+} catch (e) {
+  console.warn("Failed to update URL parameters", e);
+}
 
 // Determine mode (host vs viewer)
 let isFirstUser = false;
@@ -4722,12 +4771,12 @@ let viewerForced = false;
 
 // Auto-detect first user
 async function detectMode() {
-  const sessionRef = doc(db, "sessions", customerKey);
-  
-  console.log("Detecting mode for customer:", customerParam, "key:", customerKey);
+  const sessionRef = doc(db, "sessions", sessionContext.sessionKey);
+
+  console.log("Detecting mode for customer:", customerParam, "key:", sessionContext.customerKey, "transform:", phaseParam, "phaseKey:", sessionContext.phaseKey);
   console.log("Current domain:", window.location.hostname);
   console.log("Viewer param:", viewerParam);
-  
+
   if (viewerParam === null || viewerParam === undefined) {
     try {
       const sessionSnap = await getDoc(sessionRef);
@@ -4735,12 +4784,15 @@ async function detectMode() {
       if (sessionSnap.exists()) {
         console.log("Session data:", sessionSnap.data());
       }
-      
-      if (!sessionSnap.exists() || !sessionSnap.data()?.controllerUid) {
+
+      const sessionData = sessionSnap.data() || {};
+      const isDowntimeActive = !!sessionData.state?.downtimeStarted;
+
+      if (!sessionSnap.exists() || !sessionData.controllerUid || !isDowntimeActive) {
         isFirstUser = true;
         url.searchParams.set("viewer", "0");
         window.AppState.isFirstUser = true;
-        console.log("Mode: HOST (first user)");
+        console.log("Mode: HOST (available)");
       } else {
         url.searchParams.set("viewer", "1");
         viewerForced = true;
@@ -4764,9 +4816,10 @@ await detectMode();
   statusPanel.style.cssText = "position:fixed;right:10px;bottom:10px;background:#fff;border:1px solid #dcdcdc;border-radius:8px;padding:10px 12px;font:12px system-ui,-apple-system,sans-serif;box-shadow:0 2px 6px rgba(0,0,0,.08);z-index:100000;min-width:280px";
   statusPanel.innerHTML = `
     <div style="display:flex;gap:6px;align-items:center;justify-content:space-between;margin-bottom:6px;">
-      <div><strong>Customer:</strong> <span style="font-family:monospace">${customerParam}</span></div>
+      <div><strong>Customer:</strong> <span id="rt-customer" style="font-family:monospace">${customerParam}</span></div>
       <button id="rt-copy" style="padding:4px 8px;border:1px solid #ccc;border-radius:6px;cursor:pointer;background:#f9f9fb;">📋 Copy link</button>
     </div>
+    <div style="font-size:12px;margin-bottom:6px;"><strong>Transform:</strong> <span id="rt-transform" style="font-family:monospace">${phaseParam}</span></div>
     <div style="display:flex;gap:6px;align-items:center;justify-content:space-between;">
       <span id="rt-online" style="display:inline-block;padding:2px 8px;border:1px solid #dcdcdc;border-radius:999px;">0 online</span>
       <span id="rt-mode" style="font-weight:600;color:#444">mode: —</span>
@@ -4781,10 +4834,13 @@ await detectMode();
       <div id="rt-bar-label" style="font-size:11px;margin-top:4px;text-align:right">0%</div>
     </div>`;
   document.body.appendChild(statusPanel);
-  
+
   document.getElementById("rt-copy").onclick = async () => {
     const shareUrl = new URL(window.location.href);
     shareUrl.searchParams.set("viewer", "1");
+    shareUrl.searchParams.set("customer", sessionContext.customerValue);
+    shareUrl.searchParams.set("transformCycle", sessionContext.transformValue);
+    shareUrl.searchParams.set("phase", sessionContext.transformValue);
     await navigator.clipboard.writeText(shareUrl.toString());
     const btn = document.getElementById("rt-copy");
     const prev = btn.textContent;
@@ -4796,6 +4852,10 @@ await detectMode();
   resetBtn.style.cssText = "position:fixed;left:10px;bottom:10px;z-index:100001";
   resetBtn.innerHTML = `<button id="rt-reset" style="padding:10px 14px;border:none;border-radius:8px;cursor:pointer;background:#d32f2f;color:#fff;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,.15)">🔄 Reset</button>`;
   document.body.appendChild(resetBtn);
+
+  if (typeof updateViewerPanel === 'function') {
+    setTimeout(() => updateViewerPanel(), 0);
+  }
 })();
 
 // Authenticate
@@ -4803,7 +4863,7 @@ await signInAnonymously(auth);
 const uid = await new Promise((resolve) => onAuthStateChanged(auth, (u) => { if(u) resolve(u.uid); }));
 
 // Presence tracking
-const presenceRef = doc(db, "sessions", customerKey, "presence", uid);
+let presenceRef = doc(db, "sessions", sessionContext.sessionKey, "presence", uid);
 
 async function updatePresence() {
   try {
@@ -4816,40 +4876,70 @@ async function updatePresence() {
   }
 }
 
-await updatePresence();
-setInterval(updatePresence, 20000);
+let presenceIntervalId = null;
+let presenceUnsubscribe = null;
 
-// Track online users
-window.firestore.onSnapshot(collection(db, "sessions", customerKey, "presence"), (snap) => {
-  const now = Date.now();
-  let online = 0;
-  snap.forEach(d => {
-    const t = d.data().lastActive?.toMillis?.() || 0;
-    if (now - t < 45000) online++;
+async function bindPresenceListeners() {
+  if (presenceIntervalId) clearInterval(presenceIntervalId);
+  await updatePresence();
+  presenceIntervalId = setInterval(updatePresence, 20000);
+
+  if (presenceUnsubscribe) presenceUnsubscribe();
+  const presenceCollectionRef = collection(db, "sessions", sessionContext.sessionKey, "presence");
+  presenceUnsubscribe = window.firestore.onSnapshot(presenceCollectionRef, (snap) => {
+    const now = Date.now();
+    let online = 0;
+    snap.forEach(d => {
+      const t = d.data().lastActive?.toMillis?.() || 0;
+      if (now - t < 45000) online++;
+    });
+    const el = document.getElementById("rt-online");
+    if (el) el.textContent = `${online} online`;
   });
-  const el = document.getElementById("rt-online");
-  if (el) el.textContent = `${online} online`;
-});
+}
+
+await bindPresenceListeners();
 
 // Session management
-const sessionRef = doc(db, "sessions", customerKey);
+let sessionRef = doc(db, "sessions", sessionContext.sessionKey);
+let sessionUnsubscribe = null;
 let remoteController = null;
+let remoteDowntimeActive = false;
+let attemptedControllerClaim = false;
 let lastSentState = null;
 let writing = false;
 
 // Check if can write - PROPERLY OVERRIDE THE EARLY INIT
 window.canWrite = function() {
   // If viewer mode is forced via URL parameter, always return false
-  if (viewerForced) return false;
-  
+  const currentUrl = new URL(window.location.href);
+  if (viewerForced || currentUrl.searchParams.get("viewer") === "1") return false;
+
   // If no remote controller set, we can write (we are/can be the host)
   if (!remoteController) return true;
-  
+
   // If we are the remote controller, we can write
   if (remoteController === uid) return true;
-  
+
+  // If downtime is not active, allow takeover actions
+  if (!remoteDowntimeActive) return true;
+
   // Otherwise, we're a viewer
   return false;
+};
+
+if (typeof updateViewerPanel === 'function') {
+  updateViewerPanel();
+}
+
+window.getViewerState = function() {
+  const currentUrl = new URL(window.location.href);
+  return {
+    viewerParam,
+    viewerForced,
+    urlViewer: currentUrl.searchParams.get('viewer'),
+    canWrite: typeof window.canWrite === 'function' ? window.canWrite() : null
+  };
 };
 
 // Serialize state
@@ -5026,7 +5116,7 @@ function updateViewerPanel() {
   // If viewer and downtime started, ensure UI shows it
   if (isViewer && state.downtimeStarted) {
     console.log("📊 Viewer: Updating UI for active downtime");
-    
+
     // Show progress panel
     const progressPanel = document.getElementById('progressPanel');
     if (progressPanel) progressPanel.style.display = 'block';
@@ -5073,7 +5163,7 @@ function updateViewerPanel() {
   if (isViewer) {
     // Apply viewer mode class
     document.body.classList.add('viewer-mode');
-    
+
     // Update viewer status
     const statusEl = document.getElementById("rt-status");
     if (statusEl) {
@@ -5081,20 +5171,38 @@ function updateViewerPanel() {
       else if (state.downtimePaused) statusEl.textContent = "Paused";
       else statusEl.textContent = "Running";
     }
-    
+
+    const durationText = document.getElementById('durationText');
+    if (durationText) {
+      if (state.downtimeStarted && state.downtimeStartTime) {
+        const elapsedMs = Date.now() - new Date(state.downtimeStartTime).getTime() - (state.pausedDuration || 0);
+        const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        durationText.textContent = `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+      } else {
+        durationText.textContent = '00:00:00';
+      }
+    }
+
     // Update start time
     const startEl = document.getElementById("rt-start");
     if (startEl && state.downtimeStartTime) {
       startEl.textContent = new Date(state.downtimeStartTime).toLocaleString();
+    } else if (startEl) {
+      startEl.textContent = "—";
     }
-    
+
     // Update ETA
     const etaEl = document.getElementById("rt-eta");
     if (etaEl && state.downtimeStartTime) {
       const endTime = new Date(state.downtimeStartTime.getTime() + state.downtimeDuration * 3600000);
       etaEl.textContent = endTime.toLocaleString();
+    } else if (etaEl) {
+      etaEl.textContent = "—";
     }
-    
+
     // Update progress bar
     if (state.downtimeStarted && state.downtimeStartTime) {
       const now = Date.now();
@@ -5102,11 +5210,16 @@ function updateViewerPanel() {
       const duration = state.downtimeDuration * 3600000;
       const elapsed = now - start - state.pausedDuration;
       const percent = Math.min(100, Math.max(0, (elapsed / duration) * 100));
-      
+
       const bar = document.getElementById("rt-bar");
       const label = document.getElementById("rt-bar-label");
       if (bar) bar.style.width = `${percent}%`;
       if (label) label.textContent = `${Math.round(percent)}%`;
+    } else {
+      const bar = document.getElementById("rt-bar");
+      const label = document.getElementById("rt-bar-label");
+      if (bar) bar.style.width = '0%';
+      if (label) label.textContent = '0%';
     }
   } else {
     document.body.classList.remove('viewer-mode');
@@ -5156,11 +5269,16 @@ function schedulePush() {
 
 // Subscribe to session changes
 let initialSync = true;
-window.firestore.onSnapshot(sessionRef, async (snap) => {
+
+function subscribeToSession() {
+  if (sessionUnsubscribe) sessionUnsubscribe();
+  sessionUnsubscribe = window.firestore.onSnapshot(sessionRef, async (snap) => {
   const data = snap.data() || {};
   remoteController = data.controllerUid || null;
   const isDowntimeActive = data.state?.downtimeStarted || false;
-  
+  remoteDowntimeActive = isDowntimeActive;
+  if (!remoteController) attemptedControllerClaim = false;
+
   console.log("Session snapshot received:", {
     hasData: !!data,
     hasState: !!data.state,
@@ -5169,24 +5287,39 @@ window.firestore.onSnapshot(sessionRef, async (snap) => {
     downtimeStarted: isDowntimeActive,
     currentUid: uid
   });
-  
+
   // Apply state
   if (data.state) {
     applyRemoteState(data.state);
   }
-  
+
   // CRITICAL FIX: Only block host mode when downtime is ACTIVE with another controller
   if (!viewerForced && remoteController && remoteController !== uid && isDowntimeActive) {
     console.warn("⚠️ Cannot become host: Downtime is active with another controller");
     alert("⚠️ HOST MODE BLOCKED\n\nAnother user is currently controlling an active downtime session for this customer and transformation cycle.\n\nYou have been switched to VIEWER mode.\n\nWait for the current session to complete or contact the current host.");
     viewerForced = true;
-    
+
     // Update URL to reflect viewer mode
     const url = new URL(window.location.href);
     url.searchParams.set("viewer", "1");
     history.replaceState(null, "", url.toString());
   }
-  
+
+  // Allow takeover if downtime is not active
+  if (!viewerForced && remoteController && remoteController !== uid && !isDowntimeActive && !attemptedControllerClaim) {
+    attemptedControllerClaim = true;
+    try {
+      await window.firestore.setDoc(sessionRef, {
+        controllerUid: uid,
+        controllerSetAt: window.firestore.serverTimestamp()
+      }, { merge: true });
+      console.log("✓ Took control of inactive session:", uid);
+      remoteController = uid;
+    } catch (err) {
+      console.warn("Could not take control of inactive session", err);
+    }
+  }
+
   // Try to become controller if none exists, not forced as viewer, AND downtime is NOT active
   // This allows new hosts to take over when no active session is running
   if (!remoteController && !viewerForced && !isDowntimeActive && initialSync) {
@@ -5200,15 +5333,15 @@ window.firestore.onSnapshot(sessionRef, async (snap) => {
       console.error("Failed to set controller:", e);
     }
   }
-  
+
   // Update UI based on role
   updateViewerPanel();
-  
+
   if (initialSync) {
     initialSync = false;
     lastSentState = JSON.stringify(serialize());
     console.log("Initial sync complete, mode:", window.canWrite() ? "HOST" : "VIEWER");
-    
+
     // CRITICAL FIX: For viewers, force UI update and start duration counter
     if (!window.canWrite() && data.state) {
       console.log("🔄 Forcing viewer UI update on initial load");
@@ -5216,7 +5349,7 @@ window.firestore.onSnapshot(sessionRef, async (snap) => {
         updateViewerPanel();
         if (typeof window.updateDuration === 'function') window.updateDuration();
         if (typeof window.updateTimeline === 'function') window.updateTimeline();
-        
+
         // Start continuous updates for viewers when downtime is active
         if (window.AppState.downtimeStarted) {
           console.log("🔄 Starting viewer duration counter");
@@ -5225,7 +5358,117 @@ window.firestore.onSnapshot(sessionRef, async (snap) => {
       }, 500);
     }
   }
-});
+  });
+}
+
+subscribeToSession();
+
+async function switchSessionContext(newValues) {
+  const newContext = deriveSessionContext(newValues);
+  const previousContext = sessionContext;
+
+  if (newContext.sessionKey === previousContext.sessionKey) {
+    sessionContext = { ...previousContext, ...newContext };
+    customerParam = sessionContext.customerValue;
+    phaseParam = sessionContext.transformValue;
+    try {
+      url.searchParams.set("customer", sessionContext.customerValue);
+      url.searchParams.set("transformCycle", sessionContext.transformValue);
+      url.searchParams.set("phase", sessionContext.transformValue);
+      history.replaceState(null, "", url.toString());
+    } catch (err) {
+      console.warn("Failed to refresh URL on session switch", err);
+    }
+    const customerLabel = document.getElementById('rt-customer');
+    if (customerLabel) customerLabel.textContent = sessionContext.customerValue;
+    const transformLabel = document.getElementById('rt-transform');
+    if (transformLabel) transformLabel.textContent = sessionContext.transformValue;
+    return;
+  }
+
+  if (window.AppState.downtimeStarted) {
+    console.warn("Cannot change session while downtime is active");
+    if (nameInput) nameInput.value = customerParam;
+    if (phaseInput) phaseInput.value = phaseParam;
+    alert("Cannot change customer or transform cycle while downtime tracker is active.");
+    return;
+  }
+
+  console.log("Switching session context", previousContext.sessionKey, "->", newContext.sessionKey);
+
+  const previousPresenceRef = presenceRef;
+  const previousSessionRef = sessionRef;
+
+  try {
+    if (previousPresenceRef) {
+      await window.firestore.deleteDoc(previousPresenceRef);
+    }
+  } catch (err) {
+    console.warn("Failed to delete previous presence record", err);
+  }
+
+  try {
+    if (remoteController === uid) {
+      await window.firestore.setDoc(previousSessionRef, {
+        controllerUid: null,
+        updatedAt: window.firestore.serverTimestamp(),
+        reason: "context-switch"
+      }, { merge: true });
+    }
+  } catch (err) {
+    console.warn("Failed to release previous controller", err);
+  }
+
+  sessionContext = newContext;
+  customerParam = sessionContext.customerValue;
+  phaseParam = sessionContext.transformValue;
+  presenceRef = doc(db, "sessions", sessionContext.sessionKey, "presence", uid);
+  sessionRef = doc(db, "sessions", sessionContext.sessionKey);
+  attemptedControllerClaim = false;
+  remoteController = null;
+  remoteDowntimeActive = false;
+  initialSync = true;
+  viewerParam = url.searchParams.get("viewer");
+  viewerForced = viewerParam === "1";
+  window.AppState.isFirstUser = false;
+
+  try {
+    url.searchParams.set("customer", sessionContext.customerValue);
+    url.searchParams.set("transformCycle", sessionContext.transformValue);
+    url.searchParams.set("phase", sessionContext.transformValue);
+    history.replaceState(null, "", url.toString());
+  } catch (err) {
+    console.warn("Failed to refresh URL on session switch", err);
+  }
+
+  const customerLabel = document.getElementById('rt-customer');
+  if (customerLabel) customerLabel.textContent = sessionContext.customerValue;
+  const transformLabel = document.getElementById('rt-transform');
+  if (transformLabel) transformLabel.textContent = sessionContext.transformValue;
+
+  await bindPresenceListeners();
+  subscribeToSession();
+  await detectMode();
+  updateViewerPanel();
+}
+
+if (nameInput) {
+  nameInput.addEventListener('change', () => {
+    switchSessionContext({
+      customerValue: nameInput.value,
+      transformValue: phaseInput?.value || phaseParam
+    }).catch(err => console.error('Failed to switch session context (customer change)', err));
+  });
+}
+
+if (phaseInput) {
+  phaseInput.addEventListener('change', () => {
+    switchSessionContext({
+      customerValue: nameInput?.value || customerParam,
+      transformValue: phaseInput.value
+    }).catch(err => console.error('Failed to switch session context (transform change)', err));
+  });
+}
 
 // Hook into mutation functions (including fullscreen toggle)
 const mutationFunctions = [
@@ -5350,13 +5593,17 @@ document.getElementById("rt-reset").onclick = async function() {
   
   // CRITICAL FIX: Clear controller from Firebase to allow new hosts
   try {
-    await window.firestore.setDoc(sessionRef, {
-      controllerUid: null,
-      state: serialize(),
-      updatedAt: window.firestore.serverTimestamp(),
-      reason: "reset"
-    }, { merge: true });
-    console.log("✓ Session reset, controller released");
+    const presenceDocs = await window.firestore.getDocs(collection(db, "sessions", sessionContext.sessionKey, "presence"));
+    for (const presenceDoc of presenceDocs.docs || []) {
+      try {
+        await window.firestore.deleteDoc(presenceDoc.ref);
+      } catch (presenceError) {
+        console.warn("Failed to remove presence entry during reset", presenceError);
+      }
+    }
+
+    await window.firestore.deleteDoc(sessionRef);
+    console.log("✓ Session reset, data cleared");
   } catch (e) {
     console.error("Failed to reset session:", e);
     // Still push the reset state even if Firebase update fails
