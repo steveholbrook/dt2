@@ -5,6 +5,14 @@
 This package contains critical fixes for:
 1. **Multiple Host Prevention** - Only one host per active session
 2. **Viewer Blank Screen Fix** - Viewers see full real-time data
+3. **Session Quality Enhancements** - Persistent context, identity, and connectivity safeguards
+
+### 🔄 Latest Enhancements
+- **Remembered Sessions:** Customer + transform selections and operator display names persist locally so hosts rejoin the right context instantly.
+- **Live Handoff Workflow:** Viewers can issue "Request control" prompts and hosts can approve or dismiss them without leaving the app.
+- **Connection Awareness:** A richer sync indicator and loading toast expose Firebase connectivity and session reload progress.
+- **Context Feedback:** Runbook tables flash when a new customer/cycle loads so silent context switches are obvious.
+- **Automated Mock Tests:** `tests/host_viewer_mock.test.js` simulates Firebase host/viewer flows offline to guard key regressions.
 
 ---
 
@@ -29,9 +37,16 @@ cp index.html index.html.backup
 ```bash
 # Replace with new version
 cp /path/to/new/index.html index.html
+# (Optional) copy updated automated tests
+cp -r /path/to/new/tests ./
 ```
 
 ### Step 3: Test Immediately
+```bash
+# Offline regression: mocked Firebase host/viewer flow
+node tests/host_viewer_mock.test.js
+```
+
 1. Open in browser: `?customer=TestDeploy&viewer=0`
 2. Start downtime
 3. Open second browser: `?customer=TestDeploy&viewer=0`
@@ -64,6 +79,8 @@ cp /path/to/new/index.html index.html
 - ✅ Timeline (red line moving)
 - ✅ All runbook tasks
 - ✅ Real-time synchronization
+- ✅ Host name + control request badge for idle sessions
+- ✅ Connectivity badge clarifying live sync status
 
 ---
 
