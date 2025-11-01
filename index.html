@@ -287,6 +287,91 @@
     border-color: rgba(255,255,255,0.5);
   }
   
+  /* Mobile Focus Mode Button */
+  .focus-mode-toggle {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 20px;
+    padding: 6px 12px;
+    cursor: pointer;
+    display: none; /* Hidden by default, shown on mobile */
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    transition: all 0.3s ease;
+  }
+  
+  .focus-mode-toggle:hover {
+    background: rgba(255,255,255,0.3);
+  }
+  
+  .focus-mode-toggle.active {
+    background: rgba(255,255,255,0.4);
+    border-color: rgba(255,255,255,0.5);
+  }
+  
+  /* Show focus button on mobile devices */
+  @media (max-width: 768px) {
+    .focus-mode-toggle {
+      display: flex;
+    }
+  }
+  
+  /* Focus Mode - hide everything except timeline */
+  body.focus-mode .customer-info-panel,
+  body.focus-mode .model-parameters-panel,
+  body.focus-mode #progressPanel,
+  body.focus-mode .info-box,
+  body.focus-mode #rt-viewer-panel,
+  body.focus-mode .app-main > :not(#timelinePanel) {
+    display: none !important;
+  }
+  
+  body.focus-mode #timelinePanel {
+    margin: 0;
+    padding: 0;
+    max-width: 100%;
+  }
+  
+  body.focus-mode .app-main {
+    padding: 0;
+  }
+  
+  /* Warning Message */
+  .warning-message {
+    background: var(--sap-warning);
+    color: #fff;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  
+  .warning-message.show {
+    display: flex;
+    animation: slideDown 0.3s ease;
+  }
+  
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .warning-message svg {
+    flex-shrink: 0;
+  }
+  
   /* Full Screen Mode Styles */
   body.fullscreen-mode .customer-info-panel {
     display: none !important;
@@ -4940,6 +5025,12 @@ function updateViewerPanel() {
     // Apply viewer mode class
     document.body.classList.add('viewer-mode');
     
+    // Update customer name
+    const customerEl = document.getElementById("rt-customer");
+    if (customerEl) {
+      customerEl.textContent = state.customerName || 'Not Set';
+    }
+    
     // Update viewer status
     const statusEl = document.getElementById("rt-status");
     if (statusEl) {
@@ -5060,7 +5151,7 @@ const mutationFunctions = [
   "updateResponsibility", "updateCritical", "updateScheduleTime",
   "updateDurationTime", "toggleCompleted", "calculateEndTime", "updateTimeline",
   "updateStatus", "duplicateRunbook", "filterRunbooks", "clearFilters",
-  "toggleFullscreenMode"
+  "toggleFullscreenMode", "toggleFocusMode"
 ];
 
 mutationFunctions.forEach(fnName => {
@@ -5079,6 +5170,9 @@ mutationFunctions.forEach(fnName => {
   const el = document.getElementById(id);
   if (el) {
     el.addEventListener("change", () => {
+      if (id === "customerName") {
+        window.AppState.customerName = el.value;
+      }
       if (window.canWrite()) schedulePush();
     });
   }
@@ -5145,11 +5239,13 @@ document.getElementById("rt-reset").onclick = async function() {
     syncedTimelinePosition: 0,
     renderLock: false,
     messagesOn: false,
-    fullscreenMode: false
+    fullscreenMode: false,
+    focusMode: false,
+    customerName: 'Default Customer'
   };
   
   // Reset UI
-  document.getElementById('customerName').value = '';
+  document.getElementById('customerName').value = 'Default Customer';
   document.getElementById('transformCycle').value = 'Test Migration';
   document.getElementById('downtimeDuration').value = '24';
   
