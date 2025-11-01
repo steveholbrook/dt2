@@ -4979,6 +4979,21 @@ window.firestore = {
   getDoc
 };
 
+window.firestore = {
+  setDoc,
+  updateDoc,
+  onSnapshot,
+  serverTimestamp,
+  collection,
+  addDoc,
+  deleteDoc,
+  query,
+  orderBy,
+  getDocs,
+  doc,
+  getDoc
+};
+
 // Template Management Functions
 window.saveTemplateToFirebase = async function(template) {
   const templatesRef = collection(db, "templates");
@@ -5446,6 +5461,12 @@ async function bindPresenceListeners() {
   }, (error) => {
     console.warn('Presence listener error', error);
     updateConnectionIndicator('degraded', 'Presence updates delayed');
+    snap.forEach(d => {
+      const t = d.data().lastActive?.toMillis?.() || 0;
+      if (now - t < 45000) online++;
+    });
+    const el = document.getElementById("rt-online");
+    if (el) el.textContent = `${online} online`;
   });
 }
 
@@ -5457,6 +5478,9 @@ let sessionUnsubscribe = null;
 remoteController = null;
 remoteDowntimeActive = false;
 attemptedControllerClaim = false;
+let remoteController = null;
+let remoteDowntimeActive = false;
+let attemptedControllerClaim = false;
 let lastSentState = null;
 let writing = false;
 
@@ -5823,6 +5847,7 @@ function subscribeToSession() {
   sessionUnsubscribe = window.firestore.onSnapshot(
     sessionRef,
     async (snap) => {
+  sessionUnsubscribe = window.firestore.onSnapshot(sessionRef, async (snap) => {
   const data = snap.data() || {};
   remoteController = data.controllerUid || null;
   latestSessionData = data;
@@ -5903,7 +5928,7 @@ function subscribeToSession() {
     initialSync = false;
     lastSentState = JSON.stringify(serialize());
     console.log("Initial sync complete, mode:", window.canWrite() ? "HOST" : "VIEWER");
-    hideContextSwitchToast();
+     hideContextSwitchToast();
     contextSwitchInFlight = false;
     renderHostStatus();
 
