@@ -4631,6 +4631,13 @@ generateTimelineRows = function() {
 
 <!-- Firebase realtime sync -->
 <script type="module">
+// CRITICAL FIX: Initialize canWrite immediately to prevent errors
+window.canWrite = function() {
+  // Safe default: return true until Firebase sync is ready
+  // This will be properly overridden once Firebase initializes
+  return true;
+};
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp, collection, addDoc, deleteDoc, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -4830,9 +4837,19 @@ let remoteController = null;
 let lastSentState = null;
 let writing = false;
 
-// Check if can write
+// Check if can write - PROPERLY OVERRIDE THE EARLY INIT
 window.canWrite = function() {
-  return !viewerForced && remoteController === uid;
+  // If viewer mode is forced via URL parameter, always return false
+  if (viewerForced) return false;
+  
+  // If no remote controller set, we can write (we are/can be the host)
+  if (!remoteController) return true;
+  
+  // If we are the remote controller, we can write
+  if (remoteController === uid) return true;
+  
+  // Otherwise, we're a viewer
+  return false;
 };
 
 // Serialize state
@@ -5158,10 +5175,10 @@ window.firestore.onSnapshot(sessionRef, async (snap) => {
     applyRemoteState(data.state);
   }
   
-  // Check if trying to become host when downtime is active
+  // CRITICAL FIX: Only block host mode when downtime is ACTIVE with another controller
   if (!viewerForced && remoteController && remoteController !== uid && isDowntimeActive) {
     console.warn("⚠️ Cannot become host: Downtime is active with another controller");
-    alert("⚠️ HOST MODE BLOCKED\n\nAnother user is currently controlling an active downtime session for this customer.\n\nYou have been switched to VIEWER mode.\n\nWait for the current session to complete or contact the current host.");
+    alert("⚠️ HOST MODE BLOCKED\n\nAnother user is currently controlling an active downtime session for this customer and transformation cycle.\n\nYou have been switched to VIEWER mode.\n\nWait for the current session to complete or contact the current host.");
     viewerForced = true;
     
     // Update URL to reflect viewer mode
@@ -5170,8 +5187,9 @@ window.firestore.onSnapshot(sessionRef, async (snap) => {
     history.replaceState(null, "", url.toString());
   }
   
-  // Try to become controller if none exists and not forced as viewer
-  if (!remoteController && !viewerForced && initialSync) {
+  // Try to become controller if none exists, not forced as viewer, AND downtime is NOT active
+  // This allows new hosts to take over when no active session is running
+  if (!remoteController && !viewerForced && !isDowntimeActive && initialSync) {
     try {
       await window.firestore.setDoc(sessionRef, {
         controllerUid: uid,
@@ -5191,13 +5209,19 @@ window.firestore.onSnapshot(sessionRef, async (snap) => {
     lastSentState = JSON.stringify(serialize());
     console.log("Initial sync complete, mode:", window.canWrite() ? "HOST" : "VIEWER");
     
-    // For viewers, force UI update immediately
+    // CRITICAL FIX: For viewers, force UI update and start duration counter
     if (!window.canWrite() && data.state) {
       console.log("🔄 Forcing viewer UI update on initial load");
       setTimeout(() => {
         updateViewerPanel();
         if (typeof window.updateDuration === 'function') window.updateDuration();
         if (typeof window.updateTimeline === 'function') window.updateTimeline();
+        
+        // Start continuous updates for viewers when downtime is active
+        if (window.AppState.downtimeStarted) {
+          console.log("🔄 Starting viewer duration counter");
+          // Duration updates handled by interval below
+        }
       }, 500);
     }
   }
@@ -5298,7 +5322,7 @@ document.getElementById("rt-reset").onclick = async function() {
     return;
   }
   
-  if (!confirm("Reset the session for ALL viewers? This will clear all data.")) return;
+  if (!confirm("Reset the session for ALL viewers? This will clear all data and release host control.")) return;
   
   // Clear state
   window.AppState = {
@@ -5324,8 +5348,20 @@ document.getElementById("rt-reset").onclick = async function() {
   document.getElementById('transformCycle').value = 'Test Migration';
   document.getElementById('downtimeDuration').value = '24';
   
-  // Push reset
-  await pushState("reset");
+  // CRITICAL FIX: Clear controller from Firebase to allow new hosts
+  try {
+    await window.firestore.setDoc(sessionRef, {
+      controllerUid: null,
+      state: serialize(),
+      updatedAt: window.firestore.serverTimestamp(),
+      reason: "reset"
+    }, { merge: true });
+    console.log("✓ Session reset, controller released");
+  } catch (e) {
+    console.error("Failed to reset session:", e);
+    // Still push the reset state even if Firebase update fails
+    await pushState("reset");
+  }
   
   // Reload to ensure clean state
   window.location.reload();
