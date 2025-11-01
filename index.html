@@ -287,91 +287,6 @@
     border-color: rgba(255,255,255,0.5);
   }
   
-  /* Mobile Focus Mode Button */
-  .focus-mode-toggle {
-    background: rgba(255,255,255,0.2);
-    border: 1px solid rgba(255,255,255,0.3);
-    border-radius: 20px;
-    padding: 6px 12px;
-    cursor: pointer;
-    display: none; /* Hidden by default, shown on mobile */
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    transition: all 0.3s ease;
-  }
-  
-  .focus-mode-toggle:hover {
-    background: rgba(255,255,255,0.3);
-  }
-  
-  .focus-mode-toggle.active {
-    background: rgba(255,255,255,0.4);
-    border-color: rgba(255,255,255,0.5);
-  }
-  
-  /* Show focus button on mobile devices */
-  @media (max-width: 768px) {
-    .focus-mode-toggle {
-      display: flex;
-    }
-  }
-  
-  /* Focus Mode - hide everything except timeline */
-  body.focus-mode .customer-info-panel,
-  body.focus-mode .model-parameters-panel,
-  body.focus-mode #progressPanel,
-  body.focus-mode .info-box,
-  body.focus-mode #rt-viewer-panel,
-  body.focus-mode .app-main > :not(#timelinePanel) {
-    display: none !important;
-  }
-  
-  body.focus-mode #timelinePanel {
-    margin: 0;
-    padding: 0;
-    max-width: 100%;
-  }
-  
-  body.focus-mode .app-main {
-    padding: 0;
-  }
-  
-  /* Warning Message */
-  .warning-message {
-    background: var(--sap-warning);
-    color: #fff;
-    padding: 12px 16px;
-    border-radius: 6px;
-    margin: 12px 0;
-    font-size: 14px;
-    font-weight: 600;
-    display: none;
-    align-items: center;
-    gap: 10px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  }
-  
-  .warning-message.show {
-    display: flex;
-    animation: slideDown 0.3s ease;
-  }
-  
-  @keyframes slideDown {
-    from {
-      opacity: 0;
-      transform: translateY(-10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  
-  .warning-message svg {
-    flex-shrink: 0;
-  }
-  
   /* Full Screen Mode Styles */
   body.fullscreen-mode .customer-info-panel {
     display: none !important;
@@ -4077,6 +3992,12 @@ window.startDowntime = function() {
   var downtimeDuration = parseInt(document.getElementById('downtimeDuration').value) || 24;
   window.AppState.downtimeDuration = downtimeDuration;
   
+  // Lock customer name and transform cycle inputs
+  var customerNameInput = document.getElementById('customerName');
+  var transformCycleInput = document.getElementById('transformCycle');
+  if (customerNameInput) customerNameInput.disabled = true;
+  if (transformCycleInput) transformCycleInput.disabled = true;
+  
   // Update UI
   document.getElementById('startTimeInput').style.display = 'none';
   document.getElementById('startTimeDisplay').style.display = 'block';
@@ -4163,6 +4084,12 @@ window.stopDowntime = function() {
       r.completed = false;
     });
     window.AppState.completionTimes = {};
+    
+    // Unlock customer name and transform cycle inputs
+    var customerNameInput = document.getElementById('customerName');
+    var transformCycleInput = document.getElementById('transformCycle');
+    if (customerNameInput) customerNameInput.disabled = false;
+    if (transformCycleInput) transformCycleInput.disabled = false;
     
     setupStartTimeInputs();
     
@@ -4767,6 +4694,13 @@ if (phaseParam && phaseInput) phaseInput.value = phaseParam;
 const toKey = s => (s||"default").toString().trim().toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"") || "default";
 const customerKey = toKey(customerParam);
 
+console.log("Session initialization:", {
+  customerParam: customerParam,
+  customerKey: customerKey,
+  domain: window.location.hostname,
+  fullUrl: window.location.href
+});
+
 // Determine mode (host vs viewer)
 let isFirstUser = false;
 let viewerForced = false;
@@ -4775,16 +4709,27 @@ let viewerForced = false;
 async function detectMode() {
   const sessionRef = doc(db, "sessions", customerKey);
   
+  console.log("Detecting mode for customer:", customerParam, "key:", customerKey);
+  console.log("Current domain:", window.location.hostname);
+  console.log("Viewer param:", viewerParam);
+  
   if (viewerParam === null || viewerParam === undefined) {
     try {
       const sessionSnap = await getDoc(sessionRef);
+      console.log("Session exists:", sessionSnap.exists());
+      if (sessionSnap.exists()) {
+        console.log("Session data:", sessionSnap.data());
+      }
+      
       if (!sessionSnap.exists() || !sessionSnap.data()?.controllerUid) {
         isFirstUser = true;
         url.searchParams.set("viewer", "0");
         window.AppState.isFirstUser = true;
+        console.log("Mode: HOST (first user)");
       } else {
         url.searchParams.set("viewer", "1");
         viewerForced = true;
+        console.log("Mode: VIEWER (session exists)");
       }
       history.replaceState(null, "", url.toString());
     } catch (e) {
@@ -4792,6 +4737,7 @@ async function detectMode() {
     }
   } else {
     viewerForced = viewerParam === "1";
+    console.log("Mode: " + (viewerForced ? "VIEWER" : "HOST") + " (explicit)");
   }
 }
 
@@ -4938,6 +4884,16 @@ function applyRemoteState(remoteState) {
     if (phaseInput && remoteState.transformCycle) phaseInput.value = remoteState.transformCycle;
   }
   
+  // Lock/unlock customer name and transform cycle based on downtime status
+  var customerNameInput = document.getElementById('customerName');
+  var transformCycleInput = document.getElementById('transformCycle');
+  if (customerNameInput) {
+    customerNameInput.disabled = state.downtimeStarted;
+  }
+  if (transformCycleInput) {
+    transformCycleInput.disabled = state.downtimeStarted;
+  }
+  
   const durationInput = document.getElementById('downtimeDuration');
   if (durationInput) durationInput.value = state.downtimeDuration;
   
@@ -5007,6 +4963,12 @@ function updateViewerPanel() {
   const state = window.AppState;
   const isViewer = !window.canWrite();
   
+  console.log("Updating viewer panel:", {
+    isViewer: isViewer,
+    downtimeStarted: state.downtimeStarted,
+    hasStartTime: !!state.downtimeStartTime
+  });
+  
   // Update mode display
   const modeEl = document.getElementById("rt-mode");
   if (modeEl) modeEl.textContent = `mode: ${isViewer ? "VIEWER" : "HOST"}`;
@@ -5024,12 +4986,6 @@ function updateViewerPanel() {
   if (isViewer) {
     // Apply viewer mode class
     document.body.classList.add('viewer-mode');
-    
-    // Update customer name
-    const customerEl = document.getElementById("rt-customer");
-    if (customerEl) {
-      customerEl.textContent = state.customerName || 'Not Set';
-    }
     
     // Update viewer status
     const statusEl = document.getElementById("rt-status");
@@ -5117,6 +5073,14 @@ window.firestore.onSnapshot(sessionRef, async (snap) => {
   const data = snap.data() || {};
   remoteController = data.controllerUid || null;
   
+  console.log("Session snapshot received:", {
+    hasData: !!data,
+    hasState: !!data.state,
+    remoteController: remoteController,
+    isViewer: !window.canWrite(),
+    downtimeStarted: data.state?.downtimeStarted
+  });
+  
   // Apply state
   if (data.state) {
     applyRemoteState(data.state);
@@ -5129,6 +5093,7 @@ window.firestore.onSnapshot(sessionRef, async (snap) => {
         controllerUid: uid,
         controllerSetAt: window.firestore.serverTimestamp()
       }, { merge: true });
+      console.log("Became controller:", uid);
     } catch (e) {
       console.error("Failed to set controller:", e);
     }
@@ -5140,6 +5105,7 @@ window.firestore.onSnapshot(sessionRef, async (snap) => {
   if (initialSync) {
     initialSync = false;
     lastSentState = JSON.stringify(serialize());
+    console.log("Initial sync complete");
   }
 });
 
@@ -5151,7 +5117,7 @@ const mutationFunctions = [
   "updateResponsibility", "updateCritical", "updateScheduleTime",
   "updateDurationTime", "toggleCompleted", "calculateEndTime", "updateTimeline",
   "updateStatus", "duplicateRunbook", "filterRunbooks", "clearFilters",
-  "toggleFullscreenMode", "toggleFocusMode"
+  "toggleFullscreenMode"
 ];
 
 mutationFunctions.forEach(fnName => {
@@ -5170,17 +5136,14 @@ mutationFunctions.forEach(fnName => {
   const el = document.getElementById(id);
   if (el) {
     el.addEventListener("change", () => {
-      if (id === "customerName") {
-        window.AppState.customerName = el.value;
-      }
       if (window.canWrite()) schedulePush();
     });
   }
 });
 
-// Update timeline position for viewers
+// Update timeline position for viewers and hosts
 setInterval(() => {
-  if (!window.canWrite() && window.AppState.downtimeStarted && window.AppState.downtimeStartTime) {
+  if (window.AppState.downtimeStarted && window.AppState.downtimeStartTime) {
     // Calculate current position
     const now = new Date();
     const elapsed = (now - new Date(window.AppState.downtimeStartTime) - window.AppState.pausedDuration) / 3600000;
@@ -5211,6 +5174,11 @@ setInterval(() => {
     
     // Update viewer panel
     updateViewerPanel();
+    
+    // Force update of progress indicators for viewers
+    if (!window.canWrite()) {
+      updateProgressIndicators();
+    }
   }
 }, 1000);
 
@@ -5239,13 +5207,11 @@ document.getElementById("rt-reset").onclick = async function() {
     syncedTimelinePosition: 0,
     renderLock: false,
     messagesOn: false,
-    fullscreenMode: false,
-    focusMode: false,
-    customerName: 'Default Customer'
+    fullscreenMode: false
   };
   
   // Reset UI
-  document.getElementById('customerName').value = 'Default Customer';
+  document.getElementById('customerName').value = '';
   document.getElementById('transformCycle').value = 'Test Migration';
   document.getElementById('downtimeDuration').value = '24';
   
