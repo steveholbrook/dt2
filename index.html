@@ -401,24 +401,28 @@
   body.fullscreen-mode .customer-info-panel {
     display: none !important;
   }
-  
+
   body.fullscreen-mode .model-parameters-panel {
     display: none !important;
   }
-  
+
+  body.fullscreen-mode .content > *:not(#progressPanel) {
+    display: none !important;
+  }
+
   body.fullscreen-mode #progressPanel {
     margin-bottom: 0;
     height: calc(100vh - 80px);
     display: flex;
     flex-direction: column;
   }
-  
+
   body.fullscreen-mode .timeline-container {
     flex: 1;
     display: flex;
     min-height: 0;
   }
-  
+
   body.fullscreen-mode .content {
     padding: 8px;
     height: calc(100vh - 80px);
@@ -2599,17 +2603,31 @@ document.addEventListener('keydown', function(e) {
 
 // NEW: Full Screen Mode Functions
 function toggleFullscreenMode() {
-  window.AppState.fullscreenMode = !window.AppState.fullscreenMode;
-  
-  if (window.AppState.fullscreenMode) {
+  var entering = !window.AppState.fullscreenMode;
+  window.AppState.fullscreenMode = entering;
+
+  if (entering) {
     document.body.classList.add('fullscreen-mode');
     updateFullscreenCustomerInfo();
+
+    var panel = document.getElementById('progressPanel');
+    var fullscreenTarget = panel && panel.requestFullscreen ? panel : document.documentElement;
+    if (fullscreenTarget && fullscreenTarget.requestFullscreen) {
+      fullscreenTarget.requestFullscreen().catch(function(err) {
+        console.warn('Fullscreen request failed:', err);
+      });
+    }
   } else {
     document.body.classList.remove('fullscreen-mode');
+    if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(function(err) {
+        console.warn('Failed to exit fullscreen:', err);
+      });
+    }
   }
-  
+
   updateFullscreenButton(window.AppState.fullscreenMode);
-  
+
   // Trigger timeline update to adjust for new dimensions
   setTimeout(function() {
     if (typeof window.updateTimeline === 'function') {
@@ -2637,20 +2655,40 @@ function updateFullscreenButton(isFullscreen) {
 function updateFullscreenCustomerInfo() {
   var customerNameEl = document.getElementById('fullscreenCustomerName');
   var transformCycleEl = document.getElementById('fullscreenTransformCycle');
-  
+
   var customerName = document.getElementById('customerName');
   var transformCycle = document.getElementById('transformCycle');
-  
+
   if (customerNameEl && customerName) {
     customerNameEl.textContent = customerName.value || 'Not Set';
   }
-  
+
   if (transformCycleEl && transformCycle) {
     transformCycleEl.textContent = transformCycle.value || 'Not Set';
   }
 }
 
 window.toggleFullscreenMode = toggleFullscreenMode;
+
+document.addEventListener('fullscreenchange', function() {
+  var isFullscreen = !!document.fullscreenElement;
+  if (!isFullscreen && window.AppState.fullscreenMode) {
+    window.AppState.fullscreenMode = false;
+    document.body.classList.remove('fullscreen-mode');
+    updateFullscreenButton(false);
+    if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
+      schedulePush();
+    }
+  } else if (isFullscreen && !window.AppState.fullscreenMode) {
+    window.AppState.fullscreenMode = true;
+    document.body.classList.add('fullscreen-mode');
+    updateFullscreenCustomerInfo();
+    updateFullscreenButton(true);
+    if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
+      schedulePush();
+    }
+  }
+});
 
 // NEW: Keyboard Shortcuts Help Functions
 function showKeyboardShortcuts() {
@@ -2752,17 +2790,19 @@ window.duplicateRunbook = function(id) {
 // NEW: Update Elapsed Time for In-Progress Tasks
 function updateElapsedTimes() {
   if (!window.AppState.downtimeStarted || !window.AppState.downtimeStartTime) return;
-  
+
   var now = new Date();
-  var startTime = new Date(window.AppState.downtimeStartTime);
-  
+  var startTime = resolveDowntimeStartTime();
+  if (!startTime) return;
+  var pausedOffset = getEffectivePausedDuration(now);
+
   window.AppState.runbooks.forEach(function(runbook) {
     if (runbook.status === 'in-progress' && !runbook.completed) {
       var scheduledOffset = runbook.scheduleHours * 3600000 + runbook.scheduleMinutes * 60000;
       var taskStart = new Date(startTime.getTime() + scheduledOffset);
-      
+
       if (now >= taskStart) {
-        var elapsedMs = now - taskStart - window.AppState.pausedDuration;
+        var elapsedMs = now - taskStart - pausedOffset;
         var elapsedHours = Math.floor(elapsedMs / 3600000);
         var elapsedMinutes = Math.floor((elapsedMs % 3600000) / 60000);
         
@@ -3223,14 +3263,14 @@ function updateClock() {
   var now = new Date();
   var timeElement = document.getElementById('currentTime');
   if (timeElement) {
-    timeElement.textContent = now.toLocaleTimeString('en-US', { 
+    timeElement.textContent = now.toLocaleTimeString('en-US', {
       hour: '2-digit', 
       minute: '2-digit', 
       second: '2-digit', 
       hour12: false 
     });
   }
-  
+
   // Only update duration if downtime has actually started
   if (window.AppState.downtimeStarted && window.AppState.downtimeStartTime && !window.AppState.downtimePaused) {
     updateDuration();
@@ -3244,20 +3284,43 @@ function updateClock() {
   }
 }
 
+function resolveDowntimeStartTime() {
+  var start = window.AppState.downtimeStartTime;
+  if (!start) return null;
+  return start instanceof Date ? start : new Date(start);
+}
+
+function getEffectivePausedDuration(now) {
+  var pausedTotal = window.AppState.pausedDuration || 0;
+  var pauseStart = window.AppState.pauseStartTime;
+  if (window.AppState.downtimePaused && pauseStart) {
+    var pauseStartDate = pauseStart instanceof Date ? pauseStart : new Date(pauseStart);
+    if (!isNaN(pauseStartDate)) {
+      pausedTotal += Math.max(0, now - pauseStartDate);
+    }
+  }
+  return pausedTotal;
+}
+
 function updateDuration() {
-  if (!window.AppState.downtimeStartTime) return;
-  
+  var durationDisplay = document.getElementById('currentDurationDisplay');
+  if (!durationDisplay) return;
+
+  var startTime = resolveDowntimeStartTime();
+  if (!window.AppState.downtimeStarted || !startTime) {
+    durationDisplay.textContent = '00:00:00';
+    return;
+  }
+
   var now = new Date();
-  var elapsed = now - window.AppState.downtimeStartTime - window.AppState.pausedDuration;
+  var pausedOffset = getEffectivePausedDuration(now);
+  var elapsed = Math.max(0, now - startTime - pausedOffset);
   var hours = Math.floor(elapsed / 3600000);
   var minutes = Math.floor((elapsed % 3600000) / 60000);
   var seconds = Math.floor((elapsed % 60000) / 1000);
-  
-  var durationDisplay = document.getElementById('currentDurationDisplay');
-  if (durationDisplay) {
-    durationDisplay.textContent = 
-      String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
-  }
+
+  durationDisplay.textContent =
+    String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
 }
 
 // Data Validation Functions
@@ -3545,18 +3608,21 @@ window.updateStatus = function(id, value) {
     if (value === 'completed') {
       runbook.completed = true;
       // Calculate actual duration if downtime is running
-      if (window.AppState.downtimeStarted && window.AppState.downtimeStartTime && !runbook.actualDuration) {
-        var now = new Date();
-        var startTime = new Date(window.AppState.downtimeStartTime);
-        var scheduledOffset = runbook.scheduleHours * 3600000 + runbook.scheduleMinutes * 60000;
-        var taskStart = new Date(startTime.getTime() + scheduledOffset);
-        
-        var actualMs = now - taskStart - window.AppState.pausedDuration;
-        var actualHours = Math.floor(actualMs / 3600000);
-        var actualMinutes = Math.floor((actualMs % 3600000) / 60000);
-        
-        runbook.actualDuration = String(Math.max(0, actualHours)).padStart(2,'0') + ':' + String(Math.max(0, actualMinutes)).padStart(2,'0');
-      }
+        if (window.AppState.downtimeStarted && window.AppState.downtimeStartTime && !runbook.actualDuration) {
+          var now = new Date();
+          var startTime = resolveDowntimeStartTime();
+          if (startTime) {
+            var pausedOffset = getEffectivePausedDuration(now);
+            var scheduledOffset = runbook.scheduleHours * 3600000 + runbook.scheduleMinutes * 60000;
+            var taskStart = new Date(startTime.getTime() + scheduledOffset);
+
+            var actualMs = now - taskStart - pausedOffset;
+            var actualHours = Math.floor(actualMs / 3600000);
+            var actualMinutes = Math.floor((actualMs % 3600000) / 60000);
+
+            runbook.actualDuration = String(Math.max(0, actualHours)).padStart(2,'0') + ':' + String(Math.max(0, actualMinutes)).padStart(2,'0');
+          }
+        }
     } else {
       runbook.completed = false;
     }
@@ -4241,40 +4307,43 @@ window.toggleCompleted = function(id, checked) {
   if (runbook) {
     runbook.completed = checked;
     
-    if (checked && window.AppState.downtimeStartTime) {
-      var now = new Date();
-      var startTime = new Date(window.AppState.downtimeStartTime);
-      var scheduledOffset = runbook.scheduleHours * 3600000 + runbook.scheduleMinutes * 60000;
-      var taskStart = new Date(startTime.getTime() + scheduledOffset);
-      
-      var actualMs = now - taskStart - window.AppState.pausedDuration;
-      var actualHours = Math.floor(actualMs / 3600000);
-      var actualMinutes = Math.floor((actualMs % 3600000) / 60000);
-      
-      // Store the actual duration permanently
-      runbook.actualDuration = String(Math.max(0, actualHours)).padStart(2,'0') + ':' + String(Math.max(0, actualMinutes)).padStart(2,'0');
-      window.AppState.completionTimes[id] = now.toISOString();
-      
-      // Force immediate update to timeline to show actual duration
-      setTimeout(function() {
-        var controls = document.getElementById('timelineControlsRows');
-        var sorted = window.AppState.runbooks.slice().sort(function(a,b) { return a.sequence - b.sequence; });
-        var idx = sorted.findIndex(function(r) { return r.id === id; });
-        if (controls && idx > -1 && controls.children[idx]) {
-          var actualCell = controls.children[idx].querySelectorAll('.timeline-control-cell')[3];
-          if (actualCell) {
-            var actualSpan = actualCell.querySelector('span');
-            if (actualSpan) {
-              actualSpan.textContent = runbook.actualDuration;
-              actualSpan.style.color = '#107e3e';
+      if (checked && window.AppState.downtimeStartTime) {
+        var now = new Date();
+        var startTime = resolveDowntimeStartTime();
+        if (startTime) {
+          var pausedOffset = getEffectivePausedDuration(now);
+          var scheduledOffset = runbook.scheduleHours * 3600000 + runbook.scheduleMinutes * 60000;
+          var taskStart = new Date(startTime.getTime() + scheduledOffset);
+
+          var actualMs = now - taskStart - pausedOffset;
+          var actualHours = Math.floor(actualMs / 3600000);
+          var actualMinutes = Math.floor((actualMs % 3600000) / 60000);
+
+          // Store the actual duration permanently
+          runbook.actualDuration = String(Math.max(0, actualHours)).padStart(2,'0') + ':' + String(Math.max(0, actualMinutes)).padStart(2,'0');
+          window.AppState.completionTimes[id] = now.toISOString();
+
+          // Force immediate update to timeline to show actual duration
+          setTimeout(function() {
+            var controls = document.getElementById('timelineControlsRows');
+            var sorted = window.AppState.runbooks.slice().sort(function(a,b) { return a.sequence - b.sequence; });
+            var idx = sorted.findIndex(function(r) { return r.id === id; });
+            if (controls && idx > -1 && controls.children[idx]) {
+              var actualCell = controls.children[idx].querySelectorAll('.timeline-control-cell')[3];
+              if (actualCell) {
+                var actualSpan = actualCell.querySelector('span');
+                if (actualSpan) {
+                  actualSpan.textContent = runbook.actualDuration;
+                  actualSpan.style.color = '#107e3e';
+                }
+              }
             }
-          }
+          }, 50);
         }
-      }, 50);
-    } else if (!checked) {
-      runbook.actualDuration = null;
-      delete window.AppState.completionTimes[id];
-    }
+      } else if (!checked) {
+        runbook.actualDuration = null;
+        delete window.AppState.completionTimes[id];
+      }
     
     // Update completion percentage
     updateCompletionPercentage();
@@ -4364,11 +4433,13 @@ window.pauseDowntime = function() {
     window.AppState.pauseStartTime = new Date();
     document.getElementById('statusText').textContent = 'Paused';
     document.getElementById('statusText').style.color = 'var(--sap-warning)';
-    
-    document.getElementById('downtimeControls').innerHTML = 
+
+    document.getElementById('downtimeControls').innerHTML =
       '<button class="btn primary" onclick="resumeDowntime()">▶ Resume</button>' +
       '<button class="btn danger" onclick="stopDowntime()">⏹ Stop</button>';
 
+    updateDuration();
+    updateProgressIndicators();
     updateTimeline();
     renderRunbookTable();
   }
@@ -4380,17 +4451,19 @@ window.resumeDowntime = function() {
     window.AppState.pausedDuration += pauseDuration;
     window.AppState.downtimePaused = false;
     window.AppState.pauseStartTime = null;
-    
+
     document.getElementById('statusText').textContent = 'In Progress';
     document.getElementById('statusText').style.color = 'var(--sap-error)';
-    
-    document.getElementById('downtimeControls').innerHTML = 
+
+    document.getElementById('downtimeControls').innerHTML =
       '<button class="btn warning" onclick="pauseDowntime()">⏸ Pause</button>' +
       '<button class="btn danger" onclick="stopDowntime()">⏹ Stop</button>';
-    
+
     var currentLine = document.getElementById('currentTimeLine');
     if (currentLine) currentLine.style.display = 'block';
 
+    updateDuration();
+    updateProgressIndicators();
     updateTimeline();
     renderRunbookTable();
   }
@@ -4439,9 +4512,12 @@ window.stopDowntime = function() {
 
 window.updateProgressIndicators = function() {
   if (!window.AppState.downtimeStarted || !window.AppState.downtimeStartTime) return;
-  
+
   var now = new Date();
-  var elapsedMs = now - window.AppState.downtimeStartTime - window.AppState.pausedDuration;
+  var startTime = resolveDowntimeStartTime();
+  if (!startTime) return;
+  var pausedOffset = getEffectivePausedDuration(now);
+  var elapsedMs = now - startTime - pausedOffset;
   var elapsed = elapsedMs / 3600000;
   
   var pixelsPerHour = 60;
@@ -5519,6 +5595,7 @@ function serialize() {
     downtimeDuration: state.downtimeDuration || 24,
     downtimePaused: !!state.downtimePaused,
     pausedDuration: state.pausedDuration || 0,
+    pauseStartTime: state.pauseStartTime ? new Date(state.pauseStartTime).toISOString() : null,
     completionTimes: state.completionTimes || {},
     customerName: nameInput?.value || "",
     transformCycle: phaseInput?.value || "",
@@ -5544,6 +5621,7 @@ function applyRemoteState(remoteState) {
   state.downtimeDuration = remoteState.downtimeDuration || 24;
   state.downtimePaused = !!remoteState.downtimePaused;
   state.pausedDuration = remoteState.pausedDuration || 0;
+  state.pauseStartTime = remoteState.pauseStartTime ? new Date(remoteState.pauseStartTime) : null;
   state.downtimeStartTime = remoteState.downtimeStartTime ? new Date(remoteState.downtimeStartTime) : null;
   state.completionTimes = remoteState.completionTimes || {};
   state.syncedTimelinePosition = remoteState.syncedTimelinePosition || 0;
@@ -5736,7 +5814,15 @@ function updateViewerPanel() {
     const durationText = document.getElementById('durationText');
     if (durationText) {
       if (state.downtimeStarted && state.downtimeStartTime) {
-        const elapsedMs = Date.now() - new Date(state.downtimeStartTime).getTime() - (state.pausedDuration || 0);
+        const startTime = new Date(state.downtimeStartTime).getTime();
+        let pausedOffset = state.pausedDuration || 0;
+        if (state.downtimePaused && state.pauseStartTime) {
+          const pauseStart = new Date(state.pauseStartTime).getTime();
+          if (!isNaN(pauseStart)) {
+            pausedOffset += Math.max(0, Date.now() - pauseStart);
+          }
+        }
+        const elapsedMs = Date.now() - startTime - pausedOffset;
         const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
         const hours = Math.floor(totalSeconds / 3600);
         const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -5769,7 +5855,14 @@ function updateViewerPanel() {
       const now = Date.now();
       const start = new Date(state.downtimeStartTime).getTime();
       const duration = state.downtimeDuration * 3600000;
-      const elapsed = now - start - state.pausedDuration;
+      let pausedOffset = state.pausedDuration || 0;
+      if (state.downtimePaused && state.pauseStartTime) {
+        const pauseStart = new Date(state.pauseStartTime).getTime();
+        if (!isNaN(pauseStart)) {
+          pausedOffset += Math.max(0, now - pauseStart);
+        }
+      }
+      const elapsed = now - start - pausedOffset;
       const percent = Math.min(100, Math.max(0, (elapsed / duration) * 100));
 
       const bar = document.getElementById("rt-bar");
@@ -6173,42 +6266,45 @@ setInterval(() => {
   if (window.AppState.downtimeStarted && window.AppState.downtimeStartTime) {
     // Calculate current position
     const now = new Date();
-    const elapsed = (now - new Date(window.AppState.downtimeStartTime) - window.AppState.pausedDuration) / 3600000;
+    const startTime = resolveDowntimeStartTime();
+    if (!startTime) return;
+    const pausedOffset = getEffectivePausedDuration(now);
+    const elapsed = (now - startTime - pausedOffset) / 3600000;
     const pixelsPerHour = 60;
     const linePosition = Math.min(elapsed * pixelsPerHour, window.AppState.downtimeDuration * pixelsPerHour);
     
     // Update timeline
-    const currentLine = document.getElementById('currentTimeLine');
-    if (currentLine) {
-      currentLine.style.left = `${linePosition}px`;
-      currentLine.style.display = 'block';
-      
-      // Update label
-      const elapsedMs = now - new Date(window.AppState.downtimeStartTime) - window.AppState.pausedDuration;
-      const totalSeconds = Math.floor(elapsedMs / 1000);
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
-      
-      const label = document.getElementById('currentTimeLabel');
-      if (label) {
-        label.textContent = `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+      const currentLine = document.getElementById('currentTimeLine');
+      if (currentLine) {
+        currentLine.style.left = `${linePosition}px`;
+        currentLine.style.display = 'block';
+
+        // Update label
+        const elapsedMs = now - startTime - pausedOffset;
+        const totalSeconds = Math.floor(elapsedMs / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        const label = document.getElementById('currentTimeLabel');
+        if (label) {
+          label.textContent = `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+        }
       }
-    }
-    
-    // Update duration display
-    if (typeof window.updateDuration === 'function') window.updateDuration();
-    
-    // Update main duration text in header
-    const durationText = document.getElementById('durationText');
-    if (durationText) {
-      const elapsedMs = now - new Date(window.AppState.downtimeStartTime) - window.AppState.pausedDuration;
-      const totalSeconds = Math.floor(elapsedMs / 1000);
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
-      durationText.textContent = `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
-    }
+
+      // Update duration display
+      if (typeof window.updateDuration === 'function') window.updateDuration();
+
+      // Update main duration text in header
+      const durationText = document.getElementById('durationText');
+      if (durationText) {
+        const elapsedMs = now - startTime - pausedOffset;
+        const totalSeconds = Math.floor(elapsedMs / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        durationText.textContent = `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+      }
     
     // Update viewer panel
     updateViewerPanel();
