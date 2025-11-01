@@ -3981,6 +3981,12 @@ window.toggleCompleted = function(id, checked) {
 
 // Downtime Control Functions
 window.startDowntime = function() {
+  // Check if user can actually control (is host)
+  if (!window.canWrite()) {
+    alert("⚠️ You are in VIEWER mode and cannot start downtime.\n\nOnly the HOST can control the session.");
+    return;
+  }
+  
   // Always use current system time when starting
   window.AppState.downtimeStartTime = new Date();
   
@@ -3997,6 +4003,8 @@ window.startDowntime = function() {
   var transformCycleInput = document.getElementById('transformCycle');
   if (customerNameInput) customerNameInput.disabled = true;
   if (transformCycleInput) transformCycleInput.disabled = true;
+  
+  console.log("✓ Downtime started by host:", uid);
   
   // Update UI
   document.getElementById('startTimeInput').style.display = 'none';
@@ -4954,6 +4962,26 @@ function applyRemoteState(remoteState) {
   if (typeof window.calculateEndTime === 'function') window.calculateEndTime();
   if (typeof window.updateCompletionPercentage === 'function') window.updateCompletionPercentage();
   
+  // Force update duration display for viewers
+  if (!window.canWrite() && state.downtimeStarted) {
+    const statusText = document.getElementById('statusText');
+    if (statusText) {
+      statusText.textContent = state.downtimePaused ? 'Paused' : 'In Progress';
+      statusText.style.color = state.downtimePaused ? 'var(--sap-warning)' : 'var(--sap-error)';
+    }
+    
+    // Ensure progress panel is visible
+    const progressPanel = document.getElementById('progressPanel');
+    if (progressPanel) {
+      progressPanel.style.display = 'block';
+    }
+    
+    // Force update of current duration
+    if (typeof window.updateDuration === 'function') {
+      window.updateDuration();
+    }
+  }
+  
   // Update viewer panel
   updateViewerPanel();
 }
@@ -4966,7 +4994,8 @@ function updateViewerPanel() {
   console.log("Updating viewer panel:", {
     isViewer: isViewer,
     downtimeStarted: state.downtimeStarted,
-    hasStartTime: !!state.downtimeStartTime
+    hasStartTime: !!state.downtimeStartTime,
+    startTime: state.downtimeStartTime
   });
   
   // Update mode display
@@ -4976,6 +5005,47 @@ function updateViewerPanel() {
   // Show/hide viewer panel
   const panel = document.getElementById("rt-viewer-panel");
   if (panel) panel.style.display = isViewer ? "block" : "none";
+  
+  // If viewer and downtime started, ensure UI shows it
+  if (isViewer && state.downtimeStarted) {
+    console.log("📊 Viewer: Updating UI for active downtime");
+    
+    // Show progress panel
+    const progressPanel = document.getElementById('progressPanel');
+    if (progressPanel) progressPanel.style.display = 'block';
+    
+    // Update status text
+    const statusText = document.getElementById('statusText');
+    if (statusText) {
+      statusText.textContent = state.downtimePaused ? 'Paused' : 'In Progress';
+      statusText.style.color = state.downtimePaused ? 'var(--sap-warning)' : 'var(--sap-error)';
+    }
+    
+    // Show downtime info
+    const downtimeInfo = document.getElementById('downtimeInfo');
+    if (downtimeInfo) downtimeInfo.style.display = 'block';
+    
+    // Update start time display
+    if (state.downtimeStartTime) {
+      const startTimeDisplay = document.getElementById('startTimeDisplay');
+      if (startTimeDisplay) {
+        const startTime = new Date(state.downtimeStartTime);
+        startTimeDisplay.textContent = startTime.toLocaleTimeString('en-US', 
+          { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+        startTimeDisplay.style.display = 'block';
+      }
+      
+      const startTimeInput = document.getElementById('startTimeInput');
+      if (startTimeInput) startTimeInput.style.display = 'none';
+    }
+    
+    // Show current duration display
+    const currentDurationDisplay = document.getElementById('currentDurationDisplay');
+    if (currentDurationDisplay) currentDurationDisplay.style.display = 'block';
+    
+    const currentDurationInput = document.getElementById('currentDurationInput');
+    if (currentDurationInput) currentDurationInput.style.display = 'none';
+  }
   
   // Update sync indicator
   const syncIndicator = document.getElementById("syncIndicator");
@@ -5072,13 +5142,15 @@ let initialSync = true;
 window.firestore.onSnapshot(sessionRef, async (snap) => {
   const data = snap.data() || {};
   remoteController = data.controllerUid || null;
+  const isDowntimeActive = data.state?.downtimeStarted || false;
   
   console.log("Session snapshot received:", {
     hasData: !!data,
     hasState: !!data.state,
     remoteController: remoteController,
     isViewer: !window.canWrite(),
-    downtimeStarted: data.state?.downtimeStarted
+    downtimeStarted: isDowntimeActive,
+    currentUid: uid
   });
   
   // Apply state
@@ -5086,14 +5158,26 @@ window.firestore.onSnapshot(sessionRef, async (snap) => {
     applyRemoteState(data.state);
   }
   
-  // Try to become controller if none exists
+  // Check if trying to become host when downtime is active
+  if (!viewerForced && remoteController && remoteController !== uid && isDowntimeActive) {
+    console.warn("⚠️ Cannot become host: Downtime is active with another controller");
+    alert("⚠️ HOST MODE BLOCKED\n\nAnother user is currently controlling an active downtime session for this customer.\n\nYou have been switched to VIEWER mode.\n\nWait for the current session to complete or contact the current host.");
+    viewerForced = true;
+    
+    // Update URL to reflect viewer mode
+    const url = new URL(window.location.href);
+    url.searchParams.set("viewer", "1");
+    history.replaceState(null, "", url.toString());
+  }
+  
+  // Try to become controller if none exists and not forced as viewer
   if (!remoteController && !viewerForced && initialSync) {
     try {
       await window.firestore.setDoc(sessionRef, {
         controllerUid: uid,
         controllerSetAt: window.firestore.serverTimestamp()
       }, { merge: true });
-      console.log("Became controller:", uid);
+      console.log("✓ Became controller:", uid);
     } catch (e) {
       console.error("Failed to set controller:", e);
     }
@@ -5105,7 +5189,7 @@ window.firestore.onSnapshot(sessionRef, async (snap) => {
   if (initialSync) {
     initialSync = false;
     lastSentState = JSON.stringify(serialize());
-    console.log("Initial sync complete");
+    console.log("Initial sync complete, mode:", window.canWrite() ? "HOST" : "VIEWER");
   }
 });
 
@@ -5172,12 +5256,27 @@ setInterval(() => {
     // Update duration display
     if (typeof window.updateDuration === 'function') window.updateDuration();
     
+    // Update main duration text in header
+    const durationText = document.getElementById('durationText');
+    if (durationText) {
+      const elapsedMs = now - new Date(window.AppState.downtimeStartTime) - window.AppState.pausedDuration;
+      const totalSeconds = Math.floor(elapsedMs / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      durationText.textContent = `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+    }
+    
     // Update viewer panel
     updateViewerPanel();
     
     // Force update of progress indicators for viewers
     if (!window.canWrite()) {
       updateProgressIndicators();
+      
+      // Ensure viewer sees the active session UI
+      const progressPanel = document.getElementById('progressPanel');
+      if (progressPanel) progressPanel.style.display = 'block';
     }
   }
 }, 1000);
