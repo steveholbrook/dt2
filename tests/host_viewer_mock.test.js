@@ -62,6 +62,43 @@ class MockSession {
   }
 }
 
+class DowntimeTimer {
+  constructor() {
+    this.startAt = null;
+    this.pausedDuration = 0;
+    this.pauseStartedAt = null;
+    this.lastPauseReason = '';
+  }
+
+  start(now) {
+    this.startAt = now;
+    this.pausedDuration = 0;
+    this.pauseStartedAt = null;
+    this.lastPauseReason = '';
+  }
+
+  pause(now, reason) {
+    if (this.pauseStartedAt !== null) return;
+    this.pauseStartedAt = now;
+    this.lastPauseReason = (reason || '').trim();
+  }
+
+  resume(now) {
+    if (this.pauseStartedAt === null) return;
+    this.pausedDuration += Math.max(0, now - this.pauseStartedAt);
+    this.pauseStartedAt = null;
+  }
+
+  elapsed(now) {
+    if (this.startAt === null) return 0;
+    let paused = this.pausedDuration;
+    if (this.pauseStartedAt !== null) {
+      paused += Math.max(0, now - this.pauseStartedAt);
+    }
+    return Math.max(0, now - this.startAt - paused);
+  }
+}
+
 (function testInitialHostClaim() {
   const session = new MockSession();
   assert.strictEqual(session.claimHost('host-1', 'Alice'), true, 'first host should claim control');
@@ -90,6 +127,17 @@ class MockSession {
   assert.strictEqual(session.controllerUid, null);
   assert.strictEqual(session.controlRequest, null);
   assert.strictEqual(session.resetCount, 1);
+})();
+
+(function testDowntimeTimerPauseResume() {
+  const timer = new DowntimeTimer();
+  timer.start(0);
+  assert.strictEqual(timer.elapsed(5000), 5000, 'elapsed should grow while running');
+  timer.pause(5000, 'Break');
+  assert.strictEqual(timer.lastPauseReason, 'Break');
+  assert.strictEqual(timer.elapsed(8000), 5000, 'elapsed should freeze while paused');
+  timer.resume(10000);
+  assert.strictEqual(timer.elapsed(12000), 7000, 'elapsed should resume from frozen position');
 })();
 
 console.log('✅ Mock host/viewer tests passed');

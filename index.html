@@ -96,6 +96,41 @@
     border-color:#2d4f7f;
     color:#3d9bff;
   }
+
+  .toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 100002;
+  }
+
+  .toast-message {
+    min-width: 220px;
+    max-width: 320px;
+    background: var(--sap-panel);
+    border: 1px solid var(--sap-border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.15);
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+
+  .toast-message.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  body.dark-mode .toast-message {
+    background: rgba(30, 37, 43, 0.95);
+    border-color: rgba(255,255,255,0.08);
+    color: #f5f7fa;
+  }
   
   *{
     box-sizing: border-box;
@@ -417,6 +452,41 @@
     flex-direction: column;
   }
 
+  .fullscreen-kpi {
+    display: none;
+    gap: 16px;
+    margin-bottom: 12px;
+    background: rgba(16, 126, 62, 0.08);
+    border: 1px solid rgba(16, 126, 62, 0.2);
+    border-radius: 10px;
+    padding: 12px 16px;
+  }
+
+  body.fullscreen-mode .fullscreen-kpi {
+    display: flex;
+  }
+
+  .fullscreen-kpi .kpi-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 100px;
+  }
+
+  .fullscreen-kpi .kpi-label {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sap-muted);
+  }
+
+  .fullscreen-kpi .kpi-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--sap-primary);
+  }
+
   body.fullscreen-mode .timeline-container {
     flex: 1;
     display: flex;
@@ -510,10 +580,6 @@
   }
   
   .recent-customers-btn {
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
     background: transparent;
     border: none;
     cursor: pointer;
@@ -522,9 +588,35 @@
     font-size: 12px;
     transition: color 0.2s;
   }
-  
+
   .recent-customers-btn:hover {
     color: var(--sap-accent-2);
+  }
+
+  .customer-input-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .customer-input-group input {
+    flex: 1;
+    padding-right: 80px;
+  }
+
+  .customer-input-actions {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    gap: 4px;
+  }
+
+  .customer-input-actions .recent-customers-btn {
+    position: static;
+    padding: 4px 10px;
+    font-size: 14px;
   }
   
   .recent-customers-dropdown {
@@ -552,8 +644,11 @@
     transition: background-color 0.2s;
     border-bottom: 1px solid var(--sap-border);
     font-size: 14px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
   }
-  
+
   .recent-customer-item:last-child {
     border-bottom: none;
   }
@@ -567,6 +662,32 @@
     text-align: center;
     color: var(--sap-muted);
     font-size: 13px;
+  }
+
+  .recent-section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--sap-muted);
+    padding: 8px 12px 4px;
+  }
+
+  .recent-customer-item.bookmarked {
+    font-weight: 600;
+  }
+
+  .recent-customer-item .recent-remove {
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    color: var(--sap-muted);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 2px 4px;
+  }
+
+  .recent-customer-item .recent-remove:hover {
+    color: var(--sap-error);
   }
   
   /* Enhanced Tooltip */
@@ -2005,8 +2126,13 @@ body.dark-mode #messageToggleBtn:hover{
       <div class="field-row">
         <div class="field customer-input-wrapper">
           <label>Customer Name *</label>
-          <input type="text" id="customerName" placeholder="Enter customer name" value="">
-          <button class="recent-customers-btn" id="recentCustomersBtn" title="Recent customers">▼</button>
+          <div class="customer-input-group">
+            <input type="text" id="customerName" placeholder="Enter customer name" value="">
+            <div class="customer-input-actions">
+              <button class="recent-customers-btn" id="bookmarkSessionBtn" title="Bookmark customer &amp; transform">★</button>
+              <button class="recent-customers-btn" id="recentCustomersBtn" title="Recent customers">▼</button>
+            </div>
+          </div>
           <div class="recent-customers-dropdown" id="recentCustomersDropdown">
             <!-- Recent customers will be populated here -->
           </div>
@@ -2029,7 +2155,21 @@ body.dark-mode #messageToggleBtn:hover{
     <!-- Progress Tracking Section -->
     <div id="progressPanel" class="panel">
       <h2>Progress Tracking Window</h2>
-      
+      <div id="fullscreenKpiSummary" class="fullscreen-kpi" aria-live="polite">
+        <div class="kpi-item">
+          <div class="kpi-label">Planned</div>
+          <div class="kpi-value" id="kpiPlanned">0h</div>
+        </div>
+        <div class="kpi-item">
+          <div class="kpi-label">Actual</div>
+          <div class="kpi-value" id="kpiActual">0h</div>
+        </div>
+        <div class="kpi-item">
+          <div class="kpi-label">Variance</div>
+          <div class="kpi-value" id="kpiVariance">0h</div>
+        </div>
+      </div>
+
       <div class="timeline-header">
         <div class="timeline-info">
           <div class="timeline-field">
@@ -2322,6 +2462,16 @@ function runAuthenticatedStartup() {
     recentBtn.__bound = true;
   }
 
+  var bookmarkBtn = document.getElementById('bookmarkSessionBtn');
+  if (bookmarkBtn && !bookmarkBtn.__bound) {
+    bookmarkBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      bookmarkCurrentSession();
+    });
+    bookmarkBtn.__bound = true;
+  }
+
   var requestBtn = document.getElementById('requestControlBtn');
   if (requestBtn && !requestBtn.__bound) {
     requestBtn.addEventListener('click', function(e) {
@@ -2482,7 +2632,13 @@ window.AppState = {
   searchQuery: '',
   filterStrategy: '',
   filterStatus: '',
-  fullscreenMode: false
+  fullscreenMode: false,
+  fullscreenSince: null,
+  darkMode: false,
+  lastPauseReason: '',
+  lastResetAt: null,
+  lastStatusChange: null,
+  lastStatusSeenAt: null
 };
 
 document.body.classList.add('messages-off');
@@ -2540,6 +2696,87 @@ function hideEnhancedTooltip() {
   clearTimeout(tooltipTimeout);
   const tooltip = document.getElementById('enhancedTooltip');
   if (tooltip) tooltip.classList.remove('show');
+}
+
+let toastContainer = null;
+let sharedAudioContext = null;
+
+function ensureToastContainer() {
+  if (!toastContainer) {
+    toastContainer = document.createElement('div');
+    toastContainer.className = 'toast-container';
+    document.body.appendChild(toastContainer);
+  }
+  return toastContainer;
+}
+
+function showToast(message) {
+  if (!message) return;
+  const container = ensureToastContainer();
+  const toast = document.createElement('div');
+  toast.className = 'toast-message';
+  toast.textContent = message;
+  container.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('show'));
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 300);
+  }, 4000);
+}
+
+function playStatusTone(type) {
+  try {
+    const AudioCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtor) return;
+    if (!sharedAudioContext) {
+      sharedAudioContext = new AudioCtor();
+    }
+    const ctx = sharedAudioContext;
+    const now = ctx.currentTime;
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const baseFrequency = type === 'pause' ? 440 : type === 'resume' ? 660 : 520;
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(baseFrequency, now);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.4);
+  } catch (err) {
+    console.warn('Audio notification failed', err);
+  }
+}
+
+function recordStatusChange(type, options) {
+  options = options || {};
+  const message = options.message || (type === 'pause' ? 'Downtime paused' : type === 'resume' ? 'Downtime resumed' : 'Status updated');
+  const payload = {
+    type,
+    message,
+    reason: options.reason || '',
+    at: new Date().toISOString()
+  };
+  window.AppState.lastStatusChange = payload;
+  window.AppState.lastStatusSeenAt = payload.at;
+  showToast(message);
+  playStatusTone(type);
+  if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
+    schedulePush();
+  }
+
+  if (typeof updateFullscreenKpis === 'function') {
+    updateFullscreenKpis();
+  }
+}
+
+function handleRemoteStatusChange(change) {
+  if (!change) return;
+  showToast(change.message);
+  playStatusTone(change.type);
 }
 
 // Template Management Functions
@@ -2746,6 +2983,7 @@ function toggleFullscreenMode() {
   window.AppState.fullscreenMode = entering;
 
   if (entering) {
+    window.AppState.fullscreenSince = new Date();
     document.body.classList.add('fullscreen-mode');
     updateFullscreenCustomerInfo();
 
@@ -2756,12 +2994,20 @@ function toggleFullscreenMode() {
         console.warn('Fullscreen request failed:', err);
       });
     }
+    lazyLoadTimelineForFocus();
+    if (window.canWrite && window.canWrite()) {
+      recordStatusChange('focus-enter', { message: 'Focus mode enabled' });
+    }
   } else {
     document.body.classList.remove('fullscreen-mode');
+    window.AppState.fullscreenSince = null;
     if (document.fullscreenElement && document.exitFullscreen) {
       document.exitFullscreen().catch(function(err) {
         console.warn('Failed to exit fullscreen:', err);
       });
+    }
+    if (window.canWrite && window.canWrite()) {
+      recordStatusChange('focus-exit', { message: 'Focus mode exited' });
     }
   }
 
@@ -2773,6 +3019,24 @@ function toggleFullscreenMode() {
       window.updateTimeline();
     }
   }, 100);
+
+  if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
+    schedulePush();
+  }
+}
+
+function lazyLoadTimelineForFocus() {
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(function() {
+      if (typeof window.updateTimeline === 'function') window.updateTimeline();
+      if (typeof window.renderRunbookTable === 'function') window.renderRunbookTable();
+    }, { timeout: 500 });
+  } else {
+    setTimeout(function() {
+      if (typeof window.updateTimeline === 'function') window.updateTimeline();
+      if (typeof window.renderRunbookTable === 'function') window.renderRunbookTable();
+    }, 0);
+  }
 }
 
 function updateFullscreenButton(isFullscreen) {
@@ -2813,18 +3077,26 @@ document.addEventListener('fullscreenchange', function() {
   var isFullscreen = !!document.fullscreenElement;
   if (!isFullscreen && window.AppState.fullscreenMode) {
     window.AppState.fullscreenMode = false;
+    window.AppState.fullscreenSince = null;
     document.body.classList.remove('fullscreen-mode');
     updateFullscreenButton(false);
     if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
       schedulePush();
     }
+    if (window.canWrite && window.canWrite()) {
+      recordStatusChange('focus-exit', { message: 'Focus mode exited' });
+    }
   } else if (isFullscreen && !window.AppState.fullscreenMode) {
     window.AppState.fullscreenMode = true;
+    window.AppState.fullscreenSince = new Date();
     document.body.classList.add('fullscreen-mode');
     updateFullscreenCustomerInfo();
     updateFullscreenButton(true);
     if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
       schedulePush();
+    }
+    if (window.canWrite && window.canWrite()) {
+      recordStatusChange('focus-enter', { message: 'Focus mode enabled' });
     }
   }
 });
@@ -2971,17 +3243,22 @@ setInterval(function() {
 
 // NEW: Dark Mode Functions
 function initDarkMode() {
-  var darkMode = localStorage.getItem('darkMode') === 'true';
-  if (darkMode) {
-    document.body.classList.add('dark-mode');
-    updateDarkModeButton(true);
-  }
+  var stored = localStorage.getItem('darkMode');
+  var darkMode = stored === 'true';
+  window.AppState.darkMode = darkMode;
+  document.body.classList.toggle('dark-mode', darkMode);
+  updateDarkModeButton(darkMode);
 }
 
 function toggleDarkMode() {
-  var isDark = document.body.classList.toggle('dark-mode');
+  var isDark = !window.AppState.darkMode;
+  window.AppState.darkMode = isDark;
+  document.body.classList.toggle('dark-mode', isDark);
   localStorage.setItem('darkMode', isDark);
   updateDarkModeButton(isDark);
+  if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
+    schedulePush();
+  }
 }
 
 function updateDarkModeButton(isDark) {
@@ -2989,6 +3266,8 @@ function updateDarkModeButton(isDark) {
   var text = document.getElementById('darkModeText');
   if (icon) icon.textContent = isDark ? '☀️' : '🌙';
   if (text) text.textContent = isDark ? 'Light' : 'Dark';
+  var toggle = document.getElementById('darkModeToggle');
+  if (toggle) toggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
 }
 
 // NEW: Completion Percentage Functions
@@ -2996,12 +3275,58 @@ function updateCompletionPercentage() {
   var totalTasks = window.AppState.runbooks.length;
   var completedTasks = window.AppState.runbooks.filter(function(r) { return r.completed; }).length;
   var percentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-  
+
   var percentageEl = document.getElementById('completionPercentage');
   var progressBar = document.getElementById('progressBarFill');
-  
+
   if (percentageEl) percentageEl.textContent = percentage + '%';
   if (progressBar) progressBar.style.width = percentage + '%';
+
+  if (typeof updateFullscreenKpis === 'function') {
+    updateFullscreenKpis();
+  }
+}
+
+function updateFullscreenKpis() {
+  var plannedMinutes = 0;
+  var actualMinutes = 0;
+  (window.AppState.runbooks || []).forEach(function(runbook) {
+    plannedMinutes += ((runbook.durationHours || 0) * 60) + (runbook.durationMinutes || 0);
+    if (runbook.actualDuration) {
+      var parts = runbook.actualDuration.split(':').map(function(part) { return parseInt(part, 10) || 0; });
+      actualMinutes += (parts[0] || 0) * 60 + (parts[1] || 0);
+    }
+  });
+
+  var plannedLabel = document.getElementById('kpiPlanned');
+  var actualLabel = document.getElementById('kpiActual');
+  var varianceLabel = document.getElementById('kpiVariance');
+
+  if (plannedLabel) plannedLabel.textContent = formatHoursShort(plannedMinutes);
+  if (actualLabel) actualLabel.textContent = formatHoursShort(actualMinutes);
+  if (varianceLabel) {
+    var varianceMinutes = actualMinutes - plannedMinutes;
+    var varianceText = formatHoursShort(Math.abs(varianceMinutes));
+    if (varianceMinutes === 0) {
+      varianceLabel.textContent = 'On plan';
+      varianceLabel.style.color = 'var(--sap-primary)';
+    } else if (varianceMinutes > 0) {
+      varianceLabel.textContent = '+' + varianceText;
+      varianceLabel.style.color = 'var(--sap-error)';
+    } else {
+      varianceLabel.textContent = '-' + varianceText;
+      varianceLabel.style.color = 'var(--sap-success)';
+    }
+  }
+}
+
+function formatHoursShort(totalMinutes) {
+  if (!totalMinutes) return '0h';
+  var hours = totalMinutes / 60;
+  if (hours >= 10 || hours % 1 === 0) {
+    return Math.round(hours) + 'h';
+  }
+  return hours.toFixed(1) + 'h';
 }
 
 // NEW: Recent Customers Functions
@@ -3023,6 +3348,24 @@ function normalizeRecentSessions(rawList) {
       return null;
     })
     .filter(function(entry) { return entry && entry.customer; });
+}
+
+function getBookmarkedSessions() {
+  try {
+    var stored = JSON.parse(localStorage.getItem('bookmarkedSessions') || '[]');
+    return normalizeRecentSessions(stored);
+  } catch (err) {
+    console.warn('Failed to parse bookmarked sessions', err);
+    return [];
+  }
+}
+
+function persistBookmarkedSessions(list) {
+  try {
+    localStorage.setItem('bookmarkedSessions', JSON.stringify(list));
+  } catch (err) {
+    console.warn('Unable to persist bookmarked sessions', err);
+  }
 }
 
 function getRecentCustomers() {
@@ -3048,6 +3391,49 @@ function persistRecentSessions(recent) {
   } catch (err) {
     console.warn('Unable to persist recent sessions', err);
   }
+}
+
+function bookmarkCurrentSession() {
+  var customerInput = document.getElementById('customerName');
+  var transformInput = document.getElementById('transformCycle');
+  if (!customerInput) return;
+
+  var customer = (customerInput.value || '').trim();
+  if (!customer) {
+    alert('Enter a customer name before bookmarking.');
+    return;
+  }
+
+  var transform = (transformInput && transformInput.value ? transformInput.value : 'Test Migration');
+  var bookmarks = getBookmarkedSessions();
+  var exists = bookmarks.some(function(entry) {
+    return entry.customer === customer && entry.transform === transform;
+  });
+
+  if (exists) {
+    alert('This customer & transform is already bookmarked.');
+    return;
+  }
+
+  bookmarks.unshift({
+    customer: customer,
+    transform: transform,
+    savedAt: Date.now()
+  });
+
+  bookmarks = bookmarks.slice(0, 15);
+  persistBookmarkedSessions(bookmarks);
+  updateRecentCustomersDropdown();
+  alert('⭐ Bookmark saved');
+}
+
+function removeBookmarkedSession(customer, transform) {
+  var bookmarks = getBookmarkedSessions();
+  bookmarks = bookmarks.filter(function(entry) {
+    return !(entry.customer === customer && entry.transform === transform);
+  });
+  persistBookmarkedSessions(bookmarks);
+  updateRecentCustomersDropdown();
 }
 
 function rememberSessionContext(customer, transform) {
@@ -3106,26 +3492,57 @@ function updateRecentCustomersDropdown() {
   if (!dropdown) return;
 
   var recent = getRecentCustomers();
+  var bookmarks = getBookmarkedSessions();
+  var sections = [];
 
-  if (recent.length === 0) {
-    dropdown.innerHTML = '<div class="recent-customer-item-empty">No recent sessions</div>';
-    return;
+  if (bookmarks.length) {
+    sections.push('<div class="recent-section-title">Bookmarked</div>');
+    sections.push(bookmarks.map(function(session) {
+      var encodedCustomer = encodeURIComponent(session.customer || '');
+      var encodedTransform = encodeURIComponent(session.transform || '');
+      var customerLabel = escapeHtml(session.customer || '');
+      var transformLabel = escapeHtml(session.transform || '');
+      return '<div class="recent-customer-item bookmarked" data-customer="' + encodedCustomer + '" data-transform="' + encodedTransform + '">' +
+        '<span class="recent-customer-label">' + customerLabel + '</span>' +
+        ' — <span style="color:var(--sap-muted);font-size:12px;">' + transformLabel + '</span>' +
+        '<button class="recent-remove" data-remove="' + encodedCustomer + '|' + encodedTransform + '">✕</button>' +
+      '</div>';
+    }).join(''));
   }
 
-  dropdown.innerHTML = recent.map(function(session) {
-    var encodedCustomer = encodeURIComponent(session.customer || '');
-    var encodedTransform = encodeURIComponent(session.transform || '');
-    var customerLabel = escapeHtml(session.customer || '');
-    var transformLabel = escapeHtml(session.transform || '');
-    return '<div class="recent-customer-item" data-customer="' + encodedCustomer + '" data-transform="' + encodedTransform + '">' +
-      customerLabel + ' — <span style="color:var(--sap-muted);font-size:12px;">' + transformLabel + '</span></div>';
-  }).join('');
+  if (recent.length) {
+    sections.push('<div class="recent-section-title">Recent</div>');
+    sections.push(recent.map(function(session) {
+      var encodedCustomer = encodeURIComponent(session.customer || '');
+      var encodedTransform = encodeURIComponent(session.transform || '');
+      var customerLabel = escapeHtml(session.customer || '');
+      var transformLabel = escapeHtml(session.transform || '');
+      return '<div class="recent-customer-item" data-customer="' + encodedCustomer + '" data-transform="' + encodedTransform + '">' +
+        customerLabel + ' — <span style="color:var(--sap-muted);font-size:12px;">' + transformLabel + '</span></div>';
+    }).join(''));
+  }
+
+  if (sections.length === 0) {
+    dropdown.innerHTML = '<div class="recent-customer-item-empty">No saved sessions yet</div>';
+  } else {
+    dropdown.innerHTML = sections.join('');
+  }
 
   dropdown.querySelectorAll('.recent-customer-item').forEach(function(item) {
-    item.addEventListener('click', function() {
+    item.addEventListener('click', function(event) {
+      if (event.target && event.target.matches('.recent-remove')) return;
       var customer = decodeURIComponent(this.getAttribute('data-customer') || '');
       var transform = decodeURIComponent(this.getAttribute('data-transform') || '');
       window.selectRecentCustomer(customer, transform);
+    });
+  });
+
+  dropdown.querySelectorAll('.recent-remove').forEach(function(btn) {
+    btn.addEventListener('click', function(event) {
+      event.stopPropagation();
+      var payload = this.getAttribute('data-remove') || '';
+      var parts = payload.split('|');
+      removeBookmarkedSession(decodeURIComponent(parts[0] || ''), decodeURIComponent(parts[1] || ''));
     });
   });
 }
@@ -3171,6 +3588,11 @@ function setMessagesEnabled(enabled) {
   window.AppState = window.AppState || {};
   window.AppState.messagesOn = !!enabled;
   applyMessageToggleState();
+  if (typeof renderRunbookTable === 'function') renderRunbookTable();
+  if (typeof updateTimeline === 'function') updateTimeline();
+  if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
+    schedulePush();
+  }
 }
 
 window.setMessagesEnabled = setMessagesEnabled;
@@ -4463,6 +4885,11 @@ window.startDowntime = function() {
 
 window.pauseDowntime = function() {
   if (!window.AppState.downtimePaused) {
+    var reasonInput = prompt('Pause reason (optional):', window.AppState.lastPauseReason || '');
+    if (reasonInput === null) {
+      reasonInput = '';
+    }
+    window.AppState.lastPauseReason = (reasonInput || '').trim();
     window.AppState.downtimePaused = true;
     window.AppState.pauseStartTime = new Date();
     document.getElementById('statusText').textContent = 'Paused';
@@ -4479,6 +4906,11 @@ window.pauseDowntime = function() {
     if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
       schedulePush();
     }
+    recordStatusChange('pause', {
+      reason: window.AppState.lastPauseReason,
+      message: window.AppState.lastPauseReason ? 'Downtime paused: ' + window.AppState.lastPauseReason : 'Downtime paused'
+    });
+    updateViewerPanel();
   }
 };
 
@@ -4506,6 +4938,10 @@ window.resumeDowntime = function() {
     if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
       schedulePush();
     }
+    recordStatusChange('resume', {
+      message: 'Downtime resumed'
+    });
+    updateViewerPanel();
   }
 };
 
@@ -4516,7 +4952,9 @@ window.stopDowntime = function() {
     window.AppState.downtimePaused = false;
     window.AppState.pausedDuration = 0;
     window.AppState.pauseStartTime = null;
-    
+    window.AppState.lastPauseReason = '';
+    window.AppState.lastResetAt = new Date();
+
     // Reset actual durations
     window.AppState.runbooks.forEach(function(r) {
       r.actualDuration = null;
@@ -4538,15 +4976,20 @@ window.stopDowntime = function() {
     document.getElementById('statusText').textContent = 'Not Started';
     document.getElementById('statusText').style.color = 'var(--sap-warning)';
     
-    document.getElementById('downtimeControls').innerHTML = 
+    document.getElementById('downtimeControls').innerHTML =
       '<button class="btn primary" id="startDowntimeBtn" onclick="startDowntime()">Start Downtime</button>';
-    
+
     var currentLine = document.getElementById('currentTimeLine');
     if (currentLine) currentLine.style.display = 'none';
-    
+
     updateTimeline();
     renderRunbookTable();
     updateCompletionPercentage();
+    if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
+      schedulePush();
+    }
+    recordStatusChange('reset', { message: 'Downtime stopped and reset' });
+    updateViewerPanel();
   }
 };
 
@@ -5516,6 +5959,13 @@ await detectMode();
         <div id="rt-bar" style="position:absolute;left:0;top:0;bottom:0;width:0%;background:linear-gradient(90deg,#4CAF50,#2196F3)"></div>
       </div>
       <div id="rt-bar-label" style="font-size:11px;margin-top:4px;text-align:right">0%</div>
+      <div id="rt-pause-reason-row" style="font-size:12px;margin-top:6px;display:none;"><b>Pause reason:</b> <span id="rt-pause-reason">—</span></div>
+      <div id="rt-last-reset-row" style="font-size:11px;margin-top:6px;color:#666;">Last reset: <span id="rt-last-reset">—</span></div>
+      <div id="rt-focus-row" style="font-size:11px;margin-top:4px;color:#666;display:none;">Focus mode since <span id="rt-focus-time">—</span></div>
+      <div id="rt-timeline-preview" style="margin-top:8px;display:none;">
+        <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Upcoming tasks</div>
+        <ul id="rt-timeline-list" style="list-style:none;padding:0;margin:0;font-size:11px;max-height:120px;overflow-y:auto;"></ul>
+      </div>
     </div>`;
   document.body.appendChild(statusPanel);
 
@@ -5589,8 +6039,18 @@ async function bindPresenceListeners() {
       if (entry.uid) {
         roster[entry.uid] = entry;
       }
-      const t = entry.lastActive?.toMillis?.() || (entry.lastActive?.seconds ? entry.lastActive.seconds * 1000 : 0);
-      if (now - t < 45000) online++;
+      let timestamp = 0;
+      if (entry.lastActive && typeof entry.lastActive.toMillis === 'function') {
+        timestamp = entry.lastActive.toMillis();
+      } else if (entry.lastActive && typeof entry.lastActive.seconds === 'number') {
+        timestamp = entry.lastActive.seconds * 1000;
+      } else if (d.updateTime && typeof d.updateTime.toMillis === 'function') {
+        timestamp = d.updateTime.toMillis();
+      } else if (data.updatedAt && typeof data.updatedAt.seconds === 'number') {
+        timestamp = data.updatedAt.seconds * 1000;
+      }
+      const isActive = timestamp ? (now - timestamp < 45000) : true;
+      if (isActive) online++;
     });
     presenceRoster = roster;
     controllerName = resolveControllerName();
@@ -5662,7 +6122,13 @@ function serialize() {
     customerName: nameInput?.value || "",
     transformCycle: phaseInput?.value || "",
     syncedTimelinePosition: state.syncedTimelinePosition || 0,
-    fullscreenMode: state.fullscreenMode || false
+    fullscreenMode: state.fullscreenMode || false,
+    fullscreenSince: state.fullscreenSince ? new Date(state.fullscreenSince).toISOString() : null,
+    messagesOn: !!state.messagesOn,
+    darkMode: !!state.darkMode,
+    lastPauseReason: state.lastPauseReason || '',
+    lastResetAt: state.lastResetAt ? new Date(state.lastResetAt).toISOString() : null,
+    lastStatusChange: state.lastStatusChange || null
   };
 }
 
@@ -5687,7 +6153,30 @@ function applyRemoteState(remoteState) {
   state.downtimeStartTime = remoteState.downtimeStartTime ? new Date(remoteState.downtimeStartTime) : null;
   state.completionTimes = remoteState.completionTimes || {};
   state.syncedTimelinePosition = remoteState.syncedTimelinePosition || 0;
-  
+  state.messagesOn = !!remoteState.messagesOn;
+  state.lastPauseReason = remoteState.lastPauseReason || '';
+  state.lastResetAt = remoteState.lastResetAt ? new Date(remoteState.lastResetAt) : null;
+
+  if (remoteState.fullscreenSince) {
+    state.fullscreenSince = new Date(remoteState.fullscreenSince);
+  } else if (!remoteState.fullscreenMode) {
+    state.fullscreenSince = null;
+  }
+
+  // Sync dark mode across clients
+  if (remoteState.darkMode !== undefined) {
+    state.darkMode = !!remoteState.darkMode;
+    document.body.classList.toggle('dark-mode', state.darkMode);
+    updateDarkModeButton(state.darkMode);
+    try {
+      localStorage.setItem('darkMode', state.darkMode);
+    } catch (err) {
+      console.warn('Unable to persist dark mode preference', err);
+    }
+  }
+
+  applyMessageToggleState();
+
   // Sync fullscreen mode for viewers
   if (!window.canWrite() && remoteState.fullscreenMode !== undefined && state.fullscreenMode !== remoteState.fullscreenMode) {
     state.fullscreenMode = remoteState.fullscreenMode;
@@ -5699,7 +6188,11 @@ function applyRemoteState(remoteState) {
     }
     window.updateFullscreenButton(state.fullscreenMode);
   }
-  
+
+  if (!window.canWrite() && state.fullscreenMode && !state.fullscreenSince && remoteState.fullscreenSince) {
+    state.fullscreenSince = new Date(remoteState.fullscreenSince);
+  }
+
   // Only update UI fields if not currently being edited
   if (!state.inputLock) {
     if (nameInput && remoteState.customerName) nameInput.value = remoteState.customerName;
@@ -5775,7 +6268,8 @@ function applyRemoteState(remoteState) {
   if (typeof window.updateTimeline === 'function') window.updateTimeline();
   if (typeof window.calculateEndTime === 'function') window.calculateEndTime();
   if (typeof window.updateCompletionPercentage === 'function') window.updateCompletionPercentage();
-  
+  if (typeof updateFullscreenKpis === 'function') updateFullscreenKpis();
+
   // Force update duration display for viewers
   if (!window.canWrite() && state.downtimeStarted) {
     const statusText = document.getElementById('statusText');
@@ -5783,21 +6277,37 @@ function applyRemoteState(remoteState) {
       statusText.textContent = state.downtimePaused ? 'Paused' : 'In Progress';
       statusText.style.color = state.downtimePaused ? 'var(--sap-warning)' : 'var(--sap-error)';
     }
-    
+
     // Ensure progress panel is visible
     const progressPanel = document.getElementById('progressPanel');
     if (progressPanel) {
       progressPanel.style.display = 'block';
     }
-    
+
     // Force update of current duration
     if (typeof window.updateDuration === 'function') {
       window.updateDuration();
     }
   }
-  
+
   // Update viewer panel
   updateViewerPanel();
+
+  if (remoteState.lastStatusChange) {
+    const remoteChange = {
+      type: remoteState.lastStatusChange.type || 'update',
+      message: remoteState.lastStatusChange.message || 'Status updated',
+      reason: remoteState.lastStatusChange.reason || '',
+      at: remoteState.lastStatusChange.at || null
+    };
+    state.lastStatusChange = remoteChange;
+    if (!state.lastStatusSeenAt && remoteChange.at) {
+      state.lastStatusSeenAt = remoteChange.at;
+    } else if (remoteChange.at && state.lastStatusSeenAt !== remoteChange.at) {
+      handleRemoteStatusChange(remoteChange);
+      state.lastStatusSeenAt = remoteChange.at;
+    }
+  }
 }
 
 // Update viewer panel
@@ -5819,7 +6329,17 @@ function updateViewerPanel() {
   // Show/hide viewer panel
   const panel = document.getElementById("rt-viewer-panel");
   if (panel) panel.style.display = isViewer ? "block" : "none";
-  
+
+  const resetLabel = document.getElementById('rt-last-reset');
+  if (resetLabel) {
+    if (state.lastResetAt) {
+      const resetDate = new Date(state.lastResetAt);
+      resetLabel.textContent = resetDate.toLocaleString();
+    } else {
+      resetLabel.textContent = '—';
+    }
+  }
+
   // If viewer and downtime started, ensure UI shows it
   if (isViewer && state.downtimeStarted) {
     console.log("📊 Viewer: Updating UI for active downtime");
@@ -5895,6 +6415,29 @@ function updateViewerPanel() {
       }
     }
 
+    const pauseRow = document.getElementById('rt-pause-reason-row');
+    const pauseLabel = document.getElementById('rt-pause-reason');
+    if (pauseRow && pauseLabel) {
+      if (state.downtimePaused) {
+        pauseRow.style.display = 'block';
+        pauseLabel.textContent = state.lastPauseReason || 'No reason provided';
+      } else {
+        pauseRow.style.display = 'none';
+      }
+    }
+
+    const focusRow = document.getElementById('rt-focus-row');
+    const focusTime = document.getElementById('rt-focus-time');
+    if (focusRow && focusTime) {
+      if (state.fullscreenMode && state.fullscreenSince) {
+        focusRow.style.display = 'block';
+        const since = new Date(state.fullscreenSince);
+        focusTime.textContent = since.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      } else {
+        focusRow.style.display = 'none';
+      }
+    }
+
     // Update start time
     const startEl = document.getElementById("rt-start");
     if (startEl && state.downtimeStartTime) {
@@ -5941,7 +6484,57 @@ function updateViewerPanel() {
     document.body.classList.remove('viewer-mode');
   }
 
+  updateTimelinePreview();
   renderHostStatus();
+}
+
+function updateTimelinePreview() {
+  const previewContainer = document.getElementById('rt-timeline-preview');
+  const list = document.getElementById('rt-timeline-list');
+  if (!previewContainer || !list) return;
+
+  const state = window.AppState || {};
+  const runbooks = Array.isArray(state.runbooks) ? state.runbooks.slice() : [];
+  if (runbooks.length === 0) {
+    previewContainer.style.display = 'none';
+    list.innerHTML = '';
+    return;
+  }
+
+  runbooks.sort(function(a, b) {
+    const aStart = (a.scheduleHours || 0) * 60 + (a.scheduleMinutes || 0);
+    const bStart = (b.scheduleHours || 0) * 60 + (b.scheduleMinutes || 0);
+    return aStart - bStart;
+  });
+
+  const activeItems = runbooks.filter(function(runbook) {
+    return !runbook.completed && (runbook.status !== 'completed');
+  }).slice(0, 5);
+
+  if (activeItems.length === 0) {
+    previewContainer.style.display = 'none';
+    list.innerHTML = '';
+    return;
+  }
+
+  const downtimeStart = state.downtimeStartTime ? new Date(state.downtimeStartTime).getTime() : null;
+
+  list.innerHTML = activeItems.map(function(runbook) {
+    const offsetMinutes = (runbook.scheduleHours || 0) * 60 + (runbook.scheduleMinutes || 0);
+    let timeLabel = `${String(runbook.scheduleHours || 0).padStart(2,'0')}:${String(runbook.scheduleMinutes || 0).padStart(2,'0')}`;
+    if (downtimeStart) {
+      const scheduledMs = downtimeStart + offsetMinutes * 60000;
+      timeLabel = new Date(scheduledMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    const status = (runbook.status || 'not-started').replace(/-/g, ' ');
+    const name = escapeHtml(runbook.runblock || 'Unnamed task');
+    return `<li style="display:flex;gap:8px;justify-content:space-between;margin-bottom:4px;">` +
+      `<span style="font-family:monospace;color:#555;">${timeLabel}</span>` +
+      `<span style="flex:1;text-align:right;">${name}<span style="display:block;font-size:10px;color:#666;">${status}</span></span>` +
+    `</li>`;
+  }).join('');
+
+  previewContainer.style.display = 'block';
 }
 
 // Push state to Firebase (host only)
