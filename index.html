@@ -318,6 +318,116 @@
     20% { box-shadow:0 0 0 4px rgba(10,110,209,0.25); }
     100% { box-shadow:0 0 0 rgba(10,110,209,0); }
   }
+
+  .status-item.host-status {
+    align-items:flex-start;
+    min-width:160px;
+    gap:4px;
+  }
+
+  .status-item .status-meta {
+    font-size:11px;
+    color:var(--sap-muted);
+  }
+
+  .status-item .pending-request {
+    font-size:11px;
+    color:var(--sap-warning);
+    display:none;
+  }
+
+  .status-item .pending-request.show {
+    display:block;
+  }
+
+  .btn.subtle {
+    background:transparent;
+    border:1px solid var(--sap-border);
+    color:var(--sap-accent);
+    padding:4px 8px;
+    font-size:11px;
+    border-radius:999px;
+    transition:all 0.2s ease;
+  }
+
+  .btn.subtle:hover:not(:disabled) {
+    background:rgba(10,110,209,0.1);
+  }
+
+  .btn.subtle:disabled {
+    color:var(--sap-muted);
+    border-color:rgba(0,0,0,0.05);
+    cursor:not-allowed;
+    background:rgba(0,0,0,0.03);
+  }
+
+  .control-request-banner {
+    display:none;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    background:linear-gradient(135deg, rgba(10,110,209,0.12), rgba(8,84,160,0.12));
+    border:1px solid rgba(10,110,209,0.3);
+    padding:12px 16px;
+    border-radius:8px;
+    margin-bottom:16px;
+  }
+
+  .control-request-banner.show {
+    display:flex;
+  }
+
+  .control-request-banner strong {
+    color:var(--sap-accent-2);
+  }
+
+  .control-request-timestamp {
+    font-size:12px;
+    color:var(--sap-muted);
+  }
+
+  .context-switch-toast {
+    position:fixed;
+    top:90px;
+    right:24px;
+    background:var(--sap-panel);
+    color:var(--sap-text);
+    border:1px solid var(--sap-border);
+    border-radius:8px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.18);
+    padding:12px 16px;
+    z-index:2000;
+    display:none;
+    gap:12px;
+    align-items:center;
+  }
+
+  .context-switch-toast.show {
+    display:flex;
+  }
+
+  .context-switch-spinner {
+    width:16px;
+    height:16px;
+    border-radius:50%;
+    border:3px solid rgba(10,110,209,0.2);
+    border-top-color:var(--sap-accent);
+    animation:spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform:rotate(360deg); }
+  }
+
+  .flash-update {
+    animation:flashHighlight 1.4s ease;
+  }
+
+  @keyframes flashHighlight {
+    0% { box-shadow:0 0 0 rgba(10,110,209,0); }
+    20% { box-shadow:0 0 0 4px rgba(10,110,209,0.25); }
+    100% { box-shadow:0 0 0 rgba(10,110,209,0); }
+  }
   
   .status-item{
     display:flex;
@@ -2190,6 +2300,14 @@ body.dark-mode #messageToggleBtn:hover{
     </div>
   </div>
 
+  <div class="context-switch-toast" id="contextSwitchToast" role="status" aria-live="polite">
+    <div class="context-switch-spinner" aria-hidden="true"></div>
+    <div>
+      <div><strong>Loading session…</strong></div>
+      <div class="status-meta" id="contextSwitchDetails">Retrieving latest runbooks</div>
+    </div>
+  </div>
+
   <div class="content">
     <div class="control-request-banner" id="controlRequestBanner" role="alert">
       <div>
@@ -2545,6 +2663,157 @@ function runAuthenticatedStartup() {
       toggleFullscreenMode(false);
     });
     focusExitBtn.__bound = true;
+  }
+
+  var recentBtn = document.getElementById('recentCustomersBtn');
+  if (recentBtn && !recentBtn.__bound) {
+    recentBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      toggleRecentCustomersDropdown();
+    });
+    recentBtn.__bound = true;
+  }
+
+  var bookmarkBtn = document.getElementById('bookmarkSessionBtn');
+  if (bookmarkBtn && !bookmarkBtn.__bound) {
+    bookmarkBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      bookmarkCurrentSession();
+    });
+    bookmarkBtn.__bound = true;
+  }
+
+  var requestBtn = document.getElementById('requestControlBtn');
+  if (requestBtn && !requestBtn.__bound) {
+    requestBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      requestHostControl();
+    });
+    requestBtn.__bound = true;
+  }
+
+  var approveBtn = document.getElementById('approveControlBtn');
+  if (approveBtn && !approveBtn.__bound) {
+    approveBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      approveControlRequest();
+    });
+    approveBtn.__bound = true;
+  }
+
+  var dismissBtn = document.getElementById('dismissControlBtn');
+  if (dismissBtn && !dismissBtn.__bound) {
+    dismissBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      dismissControlRequest();
+    });
+    dismissBtn.__bound = true;
+  }
+
+  var operatorNameInput = document.getElementById('operatorName');
+  if (operatorNameInput && !operatorNameInput.__bound) {
+    operatorNameInput.addEventListener('change', function() {
+      persistOperatorProfile(this.value || '');
+      if (typeof updatePresence === 'function') {
+        setTimeout(updatePresence, 100);
+      }
+      if (typeof window.canWrite === 'function' && window.canWrite() && window.firestore && typeof window.firestore.setDoc === 'function') {
+        try {
+          window.firestore.setDoc(sessionRef, { controllerName: getOperatorName() }, { merge: true });
+        } catch (err) {
+          console.warn('Failed to persist controller name update', err);
+        }
+      }
+      renderHostStatus();
+    });
+    operatorNameInput.__bound = true;
+  }
+
+  var customerNameInput = document.getElementById('customerName');
+  if (customerNameInput && !customerNameInput.__bound) {
+    customerNameInput.addEventListener('change', function() {
+      if (this.value && this.value.trim().length > 0) {
+        var transformCycleInput = document.getElementById('transformCycle');
+        addRecentCustomer(this.value.trim(), transformCycleInput ? transformCycleInput.value : '');
+      }
+      if (window.AppState.fullscreenMode) {
+        updateFullscreenCustomerInfo();
+      }
+    });
+    customerNameInput.addEventListener('focus', function() {
+      window.AppState.inputLock = true;
+    });
+    customerNameInput.addEventListener('blur', function() {
+      setTimeout(function() {
+        window.AppState.inputLock = false;
+      }, 500);
+    });
+    customerNameInput.__bound = true;
+  }
+
+  var transformCycleInput = document.getElementById('transformCycle');
+  if (transformCycleInput && !transformCycleInput.__bound) {
+    transformCycleInput.addEventListener('change', function() {
+      var customerInput = document.getElementById('customerName');
+      if (customerInput && customerInput.value.trim()) {
+        addRecentCustomer(customerInput.value.trim(), this.value);
+      }
+      if (window.AppState.fullscreenMode) {
+        updateFullscreenCustomerInfo();
+      }
+    });
+    transformCycleInput.addEventListener('focus', function() {
+      window.AppState.inputLock = true;
+    });
+    transformCycleInput.addEventListener('blur', function() {
+      setTimeout(function() {
+        window.AppState.inputLock = false;
+      }, 500);
+    });
+    transformCycleInput.__bound = true;
+  }
+}
+
+function checkPassword() {
+  const input = document.getElementById('passwordInput');
+  const error = document.getElementById('passwordError');
+  const modal = document.getElementById('passwordModal');
+
+  if (input.value === APP_PASSWORD) {
+    isAuthenticated = true;
+    modal.classList.add('hidden');
+    localStorage.setItem('appAuthenticated', 'true');
+    runAuthenticatedStartup();
+  } else {
+    error.textContent = '❌ Incorrect password. Please try again.';
+    input.value = '';
+    input.focus();
+  }
+
+// Check authentication on load
+document.addEventListener('DOMContentLoaded', function() {
+  const passwordInput = document.getElementById('passwordInput');
+  if (localStorage.getItem('appAuthenticated') === 'true') {
+    isAuthenticated = true;
+    document.getElementById('passwordModal').classList.add('hidden');
+    runAuthenticatedStartup();
+  } else {
+    passwordInput.focus();
+  }
+
+  // Allow Enter key to submit password
+  passwordInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      checkPassword();
+    }
+  });
+});
+
+  var fullscreenToggle = document.getElementById('fullscreenToggle');
+  if (fullscreenToggle && !fullscreenToggle.__bound) {
+    fullscreenToggle.addEventListener('click', toggleFullscreenMode);
+    fullscreenToggle.__bound = true;
   }
 
   var recentBtn = document.getElementById('recentCustomersBtn');
