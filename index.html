@@ -202,8 +202,8 @@
   
   .status-display{
     display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
-    gap:24px;
+    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:var(--gap);
     align-items:stretch;
     font-size:13px;
     width:100%;
@@ -2549,6 +2549,7 @@ function isValidPasswordInput(input) {
 let isAuthenticated = false;
 let authUiInitialized = false;
 let clockIntervalId = null;
+let realtimeInitPromise = null;
 
 function runAuthenticatedStartup() {
   if (!isAuthenticated || authUiInitialized) return;
@@ -2559,10 +2560,19 @@ function runAuthenticatedStartup() {
   updateRecentCustomersDropdown();
   renderHostStatus();
   renderControlRequestBanner();
+  initializeRealtime().catch(function(err) {
+    console.error('Realtime initialization failed', err);
+    try {
+      updateConnectionIndicator('offline', 'Realtime init failed');
+    } catch (indicatorErr) {
+      console.warn('Unable to update connection indicator', indicatorErr);
+    }
+  });
 
   bindMessageToggleButton();
   window.setMessagesEnabled(window.AppState && typeof window.AppState.messagesOn === 'boolean' ? window.AppState.messagesOn : false);
   updateFocusExitControl(window.AppState.fullscreenMode);
+  applyFocusState(window.AppState.fullscreenMode, { forceRefresh: true, skipTimelineRefresh: true });
 
   updateClock();
   if (!clockIntervalId) {
@@ -3515,6 +3525,7 @@ function getBookmarkedSessions() {
     console.warn('Failed to parse bookmarked sessions', err);
     return [];
   }
+  return hours.toFixed(1) + 'h';
 }
 
 function persistBookmarkedSessions(list) {
@@ -3788,16 +3799,24 @@ document.addEventListener('click', function(e) {
   if (dropdown && !dropdown.contains(e.target) && e.target !== btn && e.target !== input) {
     dropdown.classList.remove('show');
   }
-});
+}
 
-// Browser close confirmation
-window.addEventListener('beforeunload', function (e) {
-  if (window.canWrite && window.canWrite() && window.AppState.downtimeStarted) {
-    var confirmationMessage = 'You have an active downtime session. Are you sure you want to leave?';
-    e.returnValue = confirmationMessage;
-    return confirmationMessage;
+function getRecentCustomers() {
+  try {
+    var stored = JSON.parse(localStorage.getItem('recentSessions') || 'null');
+    if (stored) {
+      return normalizeRecentSessions(stored);
+    }
+  } catch (err) {
+    console.warn('Failed to parse recent sessions', err);
   }
-});
+  try {
+    var legacy = JSON.parse(localStorage.getItem('recentCustomers') || 'null');
+    return normalizeRecentSessions(legacy);
+  } catch (err) {
+    return [];
+  }
+}
 
 // Initialize application after authentication when needed
 document.addEventListener('DOMContentLoaded', function() {
@@ -5812,16 +5831,9 @@ if (operatorInput && storedOperatorName) {
   operatorInput.value = storedOperatorName;
 }
 
-const lastSessionContext = loadLastSessionContext();
-if (!customerParam && lastSessionContext.customer) customerParam = lastSessionContext.customer;
-if (!phaseParam && lastSessionContext.transform) phaseParam = lastSessionContext.transform;
-
-const storedOperatorName = readStoredOperatorName();
-if (operatorInput && storedOperatorName) {
-  operatorInput.value = storedOperatorName;
-}
-
-updateConnectionIndicator('pending', 'Connecting to Firebase…');
+// Set initial values
+if (customerParam && nameInput) nameInput.value = customerParam;
+if (phaseParam && phaseInput) phaseInput.value = phaseParam;
 
 // Generate safe key for Firebase
 const toKey = s => (s||"default").toString().trim().toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"") || "default";
@@ -6118,10 +6130,9 @@ async function detectMode() {
   }
 }
 
-await detectMode();
+function createRealtimeOverlay() {
+  if (document.getElementById('realtimeStatusPanel')) return;
 
-// Create status overlay
-(function createOverlay() {
   const statusPanel = document.createElement("div");
   statusPanel.id = 'realtimeStatusPanel';
   statusPanel.style.cssText = "position:fixed;right:10px;bottom:10px;background:#fff;border:1px solid #dcdcdc;border-radius:8px;padding:10px 12px;font:12px system-ui,-apple-system,sans-serif;box-shadow:0 2px 6px rgba(0,0,0,.08);z-index:100000;min-width:280px";
@@ -6165,7 +6176,7 @@ await detectMode();
     btn.textContent = "✓ Copied";
     setTimeout(() => btn.textContent = prev, 1500);
   };
-  
+
   const resetBtn = document.createElement("div");
   resetBtn.id = 'realtimeResetWrapper';
   resetBtn.style.cssText = "position:fixed;left:10px;bottom:10px;z-index:100001";
@@ -6175,16 +6186,77 @@ await detectMode();
   if (typeof updateViewerPanel === 'function') {
     setTimeout(() => updateViewerPanel(), 0);
   }
-})();
+}
 
-// Authenticate
-await signInAnonymously(auth);
-uid = await new Promise((resolve) => onAuthStateChanged(auth, (u) => { if(u) resolve(u.uid); }));
-window.currentUid = uid;
-presenceDocId = `${uid}-${sessionInstanceId}`;
+createRealtimeOverlay();
+
+function initializeRealtime() {
+  if (realtimeInitPromise) {
+    return realtimeInitPromise;
+  }
+
+  realtimeInitPromise = (async function() {
+    try {
+      await detectMode();
+    } catch (err) {
+      console.error('Failed to detect mode', err);
+    }
+
+    if (hostBlockReason && !hostBlockAlerted) {
+      hostBlockAlerted = true;
+      setTimeout(() => alert(hostBlockReason), 100);
+    }
+
+    let credential = null;
+    try {
+      credential = await signInAnonymously(auth);
+    } catch (err) {
+      console.error('Anonymous sign-in failed', err);
+      updateConnectionIndicator('offline', 'Authentication failed');
+      throw err;
+    }
+
+    uid = (credential && credential.user && credential.user.uid) || (auth.currentUser && auth.currentUser.uid) || uid;
+
+    if (!uid) {
+      uid = await new Promise((resolve, reject) => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+          if (user) {
+            unsubscribe();
+            resolve(user.uid);
+          }
+        }, reject);
+        setTimeout(() => {
+          unsubscribe();
+          reject(new Error('Authentication timeout'));
+        }, 15000);
+      });
+    }
+
+    window.currentUid = uid;
+    presenceDocId = `${uid}-${sessionInstanceId}`;
+    presenceRef = doc(db, "sessions", sessionContext.sessionKey, "presence", presenceDocId);
+    sessionRef = doc(db, "sessions", sessionContext.sessionKey);
+
+    try {
+      await bindPresenceListeners();
+    } catch (err) {
+      console.warn('Presence listeners failed to bind', err);
+    }
+
+    subscribeToSession();
+  })();
+
+  realtimeInitPromise = realtimeInitPromise.catch(function(err) {
+    console.error('Realtime initialization error', err);
+    realtimeInitPromise = null;
+    throw err;
+  });
+
+  return realtimeInitPromise;
+}
 
 // Presence tracking
-presenceRef = doc(db, "sessions", sessionContext.sessionKey, "presence", presenceDocId);
 
 async function updatePresence() {
   if (!presenceRef) return;
