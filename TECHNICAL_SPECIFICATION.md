@@ -107,3 +107,15 @@ This document enumerates the functional features that currently ship with the do
 9. **P9 – Incident Postmortem Export:** Generate a one-click postmortem document summarizing downtime timeline, reasons, and KPI deltas.  
 10. **P10 – Role-Based Access Controls:** Integrate optional identity providers so organizations can assign granular permissions beyond the current host/viewer split.
 
+## 6. Additional Improvement Opportunities
+1. **N1 – Resilient Offline Queueing:** Cache host actions while offline and replay them when the connection restores so focus, dark mode, and downtime updates survive transient drops.
+2. **N2 – Dependency-Aware Timeline Planning:** Allow tasks to reference predecessors and automatically adjust schedules when upstream work shifts.
+3. **N3 – Viewer Engagement Metrics:** Track viewer session lengths and peak attendance, surfacing insights in the realtime overlay for staffing analysis.
+4. **N4 – Guided Onboarding Tours:** Provide an interactive walkthrough that highlights each toolbar control and session action for first-time hosts.
+5. **N5 – Template Version Governance:** Introduce semantic versioning for templates with change logs so teams can audit updates before loading them.
+6. **N6 – External Notification Hooks:** Offer webhooks or native integrations (e.g., Slack, Teams) to broadcast downtime state changes outside the app.
+7. **N7 – KPI Threshold Automation:** Let admins configure automated escalation rules when planned vs. actual variance exceeds a percentage or duration.
+8. **N8 – Mobile Offline Snapshot:** Generate a static, read-only snapshot of the timeline for mobile viewers when bandwidth is constrained.
+9. **N9 – Command Palette Shortcuts:** Implement a searchable command palette (`Ctrl+K`) to quickly navigate actions like toggling focus or saving templates.
+10. **N10 – Health Diagnostics Panel:** Surface Firebase latency, auth status, and presence heartbeat timings in a diagnostic drawer to speed up incident triage.
+

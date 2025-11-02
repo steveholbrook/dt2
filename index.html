@@ -2450,14 +2450,39 @@ function runAuthenticatedStartup() {
   updateRecentCustomersDropdown();
   renderHostStatus();
   renderControlRequestBanner();
-  initializeRealtime().catch(function(err) {
+  function handleRealtimeInitError(err) {
     console.error('Realtime initialization failed', err);
     try {
       updateConnectionIndicator('offline', 'Realtime init failed');
     } catch (indicatorErr) {
       console.warn('Unable to update connection indicator', indicatorErr);
     }
-  });
+  }
+
+  function startRealtimeInitialization() {
+    if (realtimeInitPromise || typeof window.initializeRealtime !== 'function') {
+      return realtimeInitPromise;
+    }
+
+    var promise = window.initializeRealtime();
+    if (promise && typeof promise.catch === 'function') {
+      promise.catch(handleRealtimeInitError);
+    }
+    realtimeInitPromise = promise || Promise.resolve();
+    return realtimeInitPromise;
+  }
+
+  if (typeof window.initializeRealtime === 'function') {
+    startRealtimeInitialization();
+  } else {
+    document.addEventListener('dt2-realtime-ready', function handleRealtimeReady() {
+      document.removeEventListener('dt2-realtime-ready', handleRealtimeReady);
+      var initialized = startRealtimeInitialization();
+      if (!initialized) {
+        handleRealtimeInitError(new Error('Realtime module signaled ready without initializer'));
+      }
+    });
+  }
 
   bindMessageToggleButton();
   window.setMessagesEnabled(window.AppState && typeof window.AppState.messagesOn === 'boolean' ? window.AppState.messagesOn : false);
@@ -3648,24 +3673,27 @@ window.selectRecentCustomer = function(name, transform) {
   }
 }
 
-function persistRecentSessions(recent) {
-  try {
-    localStorage.setItem('recentSessions', JSON.stringify(recent));
-  } catch (err) {
-    console.warn('Unable to persist recent sessions', err);
-  }
+function bindMessageToggleButton() {
+  if (messageToggleBound) return;
+  var toggleBtn = document.getElementById('messageToggleBtn');
+  if (!toggleBtn) return;
+  messageToggleBound = true;
+  toggleBtn.addEventListener('click', function() {
+    window.setMessagesEnabled(!window.AppState.messagesOn);
+  });
+  applyMessageToggleState();
 }
 
-function bookmarkCurrentSession() {
-  var customerInput = document.getElementById('customerName');
-  var transformInput = document.getElementById('transformCycle');
-  if (!customerInput) return;
-
-  var customer = (customerInput.value || '').trim();
-  if (!customer) {
-    alert('Enter a customer name before bookmarking.');
-    return;
+function setMessagesEnabled(enabled) {
+  window.AppState = window.AppState || {};
+  window.AppState.messagesOn = !!enabled;
+  applyMessageToggleState();
+  if (typeof renderRunbookTable === 'function') renderRunbookTable();
+  if (typeof updateTimeline === 'function') updateTimeline();
+  if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
+    schedulePush();
   }
+}
 
 // Initialize application after authentication when needed
 document.addEventListener('DOMContentLoaded', function() {
@@ -5593,21 +5621,6 @@ window.firestore = {
   getDoc
 };
 
-window.firestore = {
-  setDoc,
-  updateDoc,
-  onSnapshot,
-  serverTimestamp,
-  collection,
-  addDoc,
-  deleteDoc,
-  query,
-  orderBy,
-  getDocs,
-  doc,
-  getDoc
-};
-
 // Template Management Functions
 window.saveTemplateToFirebase = async function(template) {
   const templatesRef = collection(db, "templates");
@@ -7115,6 +7128,11 @@ setInterval(() => {
     }
   }
 }, 1000);
+
+window.initializeRealtime = initializeRealtime;
+window.schedulePush = schedulePush;
+window.pushRealtimeState = pushState;
+document.dispatchEvent(new CustomEvent('dt2-realtime-ready'));
 
 // Reset function
 document.getElementById("rt-reset").onclick = async function() {
