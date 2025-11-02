@@ -2544,7 +2544,8 @@ function normalizePassword(input) {
 }
 
 function isValidPasswordInput(input) {
-  return normalizePassword(input) === APP_PASSWORD;
+  // Fix: normalize both sides for consistent comparison
+  return normalizePassword(input) === normalizePassword(APP_PASSWORD);
 }
 let isAuthenticated = false;
 let authUiInitialized = false;
