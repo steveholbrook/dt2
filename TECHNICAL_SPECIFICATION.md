@@ -16,9 +16,9 @@ This document enumerates the functional features that currently ship with the do
    *Description:* Only one host can control a session at a time. Additional tabs that attempt to enter host mode see an alert, are switched into viewer mode, and their Firestore permissions are scoped to read-only.  
    *Key Implementation:* `claimHostController()`, `handleControllerConflict()`, and `hostBlockReason` logic inside `initializeRealtime()`.
 
-4. **F4 – Presence Tracking & Viewer Count**  
-   *Description:* Each tab writes a presence document containing its role. Active entries (45-second heartbeat) are tallied to surface the number of viewers and total participants in the header and share overlay.  
-   *Key Implementation:* `bindPresenceListeners()`, `updatePresence()`, and DOM nodes `viewerCountHeader`, `viewerCountMeta`, and `rt-online`.
+4. **F4 – Presence Tracking & Viewer Count**
+   *Description:* Each tab writes a presence document containing its role. Active entries (45-second heartbeat) are tallied to surface the number of viewers and total participants in the header and share overlay. A local `LocalRealtimeBridge` fallback mirrors presence updates across browser tabs when Firestore is slow or unreachable, so the viewer count never drops to zero during transient outages.
+   *Key Implementation:* `bindPresenceListeners()`, `updatePresence()`, `LocalRealtimeBridge.emitPresenceEntry()`, and DOM nodes `viewerCountHeader`, `viewerCountMeta`, and `rt-online`.
 
 5. **F5 – Host Authentication Bootstrap**  
    *Description:* The application auto-initializes authenticated flows on load—no password prompt—while waiting for Firebase anonymous sign-in to complete before binding realtime listeners.  
@@ -53,12 +53,12 @@ This document enumerates the functional features that currently ship with the do
     *Key Implementation:* `setMessagesEnabled()`, `bindMessageToggleButton()`, and control `#messageToggleBtn`.
 
 13. **F13 – Focus Mode & Fullscreen Sync**
-   *Description:* The focus button triggers the Fullscreen API, hides non-tracker panels, and shares focus status with viewers, including start timestamps and exit controls. Offline queueing ensures focus transitions initiated while disconnected replay as soon as connectivity returns.
+   *Description:* The focus button triggers the Fullscreen API, hides non-tracker panels, and shares focus status with viewers, including start timestamps and exit controls. Offline queueing and the realtime bridge ensure focus transitions initiated while disconnected replay locally and propagate once connectivity returns.
    *Key Implementation:* `toggleFullscreenMode()`, `applyFocusState()`, `updateFocusExitControl()`, `schedulePush('focus-toggle')`, and viewer field `rt-focus-time`.
 
 14. **F14 – Dark Mode Synchronization**
-   *Description:* Dark mode is a shared session preference—toggling it updates Firestore, re-applies palette tokens locally, and informs viewers so the UI stays consistent. The resilient offline queue records toggles made without a network connection and replays them.
-   *Key Implementation:* `toggleDarkMode()`, shared state serialization, Firestore field `darkMode`, and DOM class `body.dark-mode`.
+   *Description:* Dark mode is a shared session preference—toggling it updates Firestore, re-applies palette tokens locally, and informs viewers so the UI stays consistent. The resilient offline queue plus `LocalRealtimeBridge.emitState()` record toggles made without a network connection and replay them instantly across tabs.
+   *Key Implementation:* `toggleDarkMode()`, shared state serialization, Firestore field `darkMode`, DOM class `body.dark-mode`, and the realtime bridge state channel.
 
 15. **F15 – Audio & Toast Notifications**  
     *Description:* Pause/resume events trigger toast notifications and optional audio cues to alert distributed teams. Viewers receive mirrored alerts.  
@@ -72,13 +72,13 @@ This document enumerates the functional features that currently ship with the do
     *Description:* Frequently used customer/transform combinations can be bookmarked for quick selection. Recent session dropdowns accelerate setup and populate the share sheet.  
     *Key Implementation:* `bookmarkCurrentSession()`, `updateRecentCustomersDropdown()`, and storage helpers `persistRecentCustomers()`.
 
-18. **F18 – Operator Identity & Control Requests**  
-    *Description:* Hosts specify their operator name, which propagates through presence data. Viewers can request control, and the host sees takeover prompts before claims execute.  
-    *Key Implementation:* `setOperatorName()`, `renderControlRequestBanner()`, and Firestore field `requestedController`.
+18. **F18 – Operator Identity & Control Requests**
+    *Description:* Hosts specify their operator name, which propagates through presence data. Viewers can request control, and the host sees takeover prompts before claims execute. Local presence mirroring keeps the host display name visible to viewers even if Firestore briefly drops offline.
+    *Key Implementation:* `setOperatorName()`, `renderControlRequestBanner()`, Firestore field `requestedController`, and `LocalRealtimeBridge` presence snapshots.
 
 19. **F19 – Messaging & Announcement Framework**
-    *Description:* Hosts can craft structured messages that appear in the timeline with validation, scheduling, and default muted states until explicitly enabled. Use the Messages toggle beside the runbook grid to enable announcements only after validation. The diagnostics drawer (`Diagnostics` button in the realtime overlay) surfaces step-by-step guidance and the command palette (`Ctrl+K`) exposes “Messaging framework instructions” for quick reference.
-    *Key Implementation:* `createMessageRow()`, message validation helpers, timeline rendering in `renderTimelineMessages()`, messaging controls `setMessagesEnabled()`, and support content wired through `showMessagingInstructions()`.
+    *Description:* Hosts can craft structured messages that appear in the timeline with validation, scheduling, and default muted states until explicitly enabled. Use the Messages toggle beside the runbook grid to enable announcements only after validation. The diagnostics drawer (`Diagnostics` button in the realtime overlay) surfaces step-by-step guidance and the command palette (`Ctrl+K`) exposes “Messaging framework instructions” for quick reference. Local realtime mirroring keeps message visibility synchronized even when offline.
+    *Key Implementation:* `createMessageRow()`, message validation helpers, timeline rendering in `renderTimelineMessages()`, messaging controls `setMessagesEnabled()`, support content wired through `showMessagingInstructions()`, and `LocalRealtimeBridge.emitState()`.
 
 20. **F20 – Testing & Mocking Harness**  
     *Description:* A Node-based mock harness (`tests/host_viewer_mock.test.js`) simulates Firebase interactions, verifying pause/resume math, host enforcement, and template toggles without live services.  
@@ -108,7 +108,7 @@ This document enumerates the functional features that currently ship with the do
 10. **P10 – Role-Based Access Controls:** Integrate optional identity providers so organizations can assign granular permissions beyond the current host/viewer split.
 
 ## 6. Production Hardening Enhancements
-1. **N1 – Resilient Offline Queueing:** Host mutations are queued via `OfflineQueue` whenever `navigator.onLine` is false. Once connectivity returns, `flushOfflineQueue()` replays serialized session snapshots and refreshes the diagnostics drawer queue view.
+1. **N1 – Resilient Offline Queueing:** Host mutations are queued via `OfflineQueue` whenever `navigator.onLine` is false. Once connectivity returns, `flushOfflineQueue()` replays serialized session snapshots, while `LocalRealtimeBridge.emitState()` keeps co-located viewers updated immediately and the diagnostics drawer queue view shows pending replays.
 2. **N2 – Dependency-Aware Timeline Planning:** The existing predecessor column now drives `calculateBlockPositions()` so downstream tasks automatically shift when upstream sequences move.
 3. **N3 – Viewer Engagement Metrics:** Presence snapshots hydrate `ViewerEngagement`, updating peak counts, active durations, and overlay fields `rt-peak-viewers`, `rt-avg-session`, and `rt-current-viewers` for real-time staffing visibility.
 4. **N4 – Guided Onboarding Tours:** `OnboardingTour` highlights key controls for first-time hosts, triggered automatically when a user becomes the controlling host and available on demand from the diagnostics drawer.
