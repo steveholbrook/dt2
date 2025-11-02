@@ -2672,9 +2672,9 @@ function runAuthenticatedStartup() {
   }
 
   bindMessageToggleButton();
-  window.setMessagesEnabled(window.AppState && typeof window.AppState.messagesOn === 'boolean' ? window.AppState.messagesOn : false);
+  window.setMessagesEnabled(window.AppState && typeof window.AppState.messagesOn === 'boolean' ? window.AppState.messagesOn : false, { source: 'init', skipSync: true });
   updateFocusExitControl(window.AppState.fullscreenMode);
-  applyFocusState(window.AppState.fullscreenMode, { forceRefresh: true, skipTimelineRefresh: true });
+  setFocusMode(window.AppState.fullscreenMode, { forceRefresh: true, skipTimelineRefresh: true });
 
   updateClock();
   if (!clockIntervalId) {
@@ -3346,19 +3346,53 @@ function applyFocusState(isActive, options = {}) {
   return changed;
 }
 
-function toggleFullscreenMode(forceState) {
-  var shouldEnable = typeof forceState === 'boolean' ? forceState : !window.AppState.fullscreenMode;
-  var changed = applyFocusState(shouldEnable, { attemptFullscreen: true });
+function renderFocusIndicators() {
+  if (!window.AppState) return;
+  var focusRow = document.getElementById('rt-focus-row');
+  var focusTime = document.getElementById('rt-focus-time');
+  if (!focusRow || !focusTime) return;
 
-  if (changed && window.canWrite && window.canWrite()) {
+  if (window.AppState.fullscreenMode && window.AppState.fullscreenSince) {
+    var since = window.AppState.fullscreenSince instanceof Date ? window.AppState.fullscreenSince : new Date(window.AppState.fullscreenSince);
+    focusRow.style.display = 'block';
+    focusTime.textContent = since.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  } else {
+    focusRow.style.display = 'none';
+  }
+}
+
+function setFocusMode(active, options) {
+  var opts = options || {};
+  var changed = applyFocusState(active, opts);
+  if (changed || opts.forceRefresh) {
+    renderFocusIndicators();
+  }
+  return changed;
+}
+
+function toggleFullscreenMode(forceState) {
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    showToast('Focus mode is controlled by the host in viewer mode.');
+    return false;
+  }
+
+  var shouldEnable = typeof forceState === 'boolean' ? forceState : !window.AppState.fullscreenMode;
+  var changed = setFocusMode(shouldEnable, { attemptFullscreen: true });
+
+  if (!changed) {
+    return false;
+  }
+
+  if (window.canWrite && window.canWrite()) {
     recordStatusChange(shouldEnable ? 'focus-enter' : 'focus-exit', {
       message: shouldEnable ? 'Focus mode enabled' : 'Focus mode exited'
     });
+    if (typeof schedulePush === 'function') {
+      schedulePush('focus-toggle');
+    }
   }
 
-  if (changed && typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
-    schedulePush('focus-toggle');
-  }
+  return true;
 }
 
 function lazyLoadTimelineForFocus() {
@@ -3412,19 +3446,19 @@ window.toggleFullscreenMode = toggleFullscreenMode;
 document.addEventListener('fullscreenchange', function() {
   var isFullscreen = !!document.fullscreenElement;
   if (!isFullscreen && window.AppState.fullscreenMode) {
-    var exited = applyFocusState(false, { forceRefresh: true });
+    var exited = setFocusMode(false, { forceRefresh: true });
     if (exited && window.canWrite && window.canWrite()) {
       recordStatusChange('focus-exit', { message: 'Focus mode exited' });
       if (typeof schedulePush === 'function') {
-        schedulePush();
+        schedulePush('focus-toggle');
       }
     }
   } else if (isFullscreen && !window.AppState.fullscreenMode) {
-    var entered = applyFocusState(true, { forceRefresh: true, since: new Date() });
+    var entered = setFocusMode(true, { forceRefresh: true, since: new Date() });
     if (entered && window.canWrite && window.canWrite()) {
       recordStatusChange('focus-enter', { message: 'Focus mode enabled' });
       if (typeof schedulePush === 'function') {
-        schedulePush();
+        schedulePush('focus-toggle');
       }
     }
   }
@@ -3572,23 +3606,57 @@ setInterval(function() {
 
 // NEW: Dark Mode Functions
 function initDarkMode() {
-  var stored = localStorage.getItem('darkMode');
+  var stored = null;
+  try {
+    stored = localStorage.getItem('darkMode');
+  } catch (err) {
+    console.warn('Unable to read stored dark mode preference', err);
+  }
   var darkMode = stored === 'true';
-  window.AppState.darkMode = darkMode;
-  document.body.classList.toggle('dark-mode', darkMode);
-  updateDarkModeButton(darkMode);
+  setDarkMode(darkMode, { source: 'init', skipSync: true, skipStorage: true, force: true });
 }
 
-function toggleDarkMode() {
-  var isDark = !window.AppState.darkMode;
-  window.AppState.darkMode = isDark;
-  document.body.classList.toggle('dark-mode', isDark);
-  localStorage.setItem('darkMode', isDark);
-  updateDarkModeButton(isDark);
-  NotificationHooks.notify('dark-mode', { enabled: isDark, at: new Date().toISOString() });
+function setDarkMode(enabled, options) {
+  var opts = options || {};
+  var desired = !!enabled;
+  window.AppState = window.AppState || {};
+  var previous = !!window.AppState.darkMode;
+  if (!opts.force && desired === previous) {
+    return false;
+  }
+
+  window.AppState.darkMode = desired;
+  document.body.classList.toggle('dark-mode', desired);
+  updateDarkModeButton(desired);
+
+  if (!opts.skipStorage) {
+    try {
+      localStorage.setItem('darkMode', desired);
+    } catch (err) {
+      console.warn('Unable to persist dark mode preference', err);
+    }
+  }
+
+  return true;
+}
+
+function toggleDarkMode(forceState) {
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    showToast('Dark mode is controlled by the host in viewer mode.');
+    return false;
+  }
+
+  var desired = typeof forceState === 'boolean' ? forceState : !window.AppState.darkMode;
+  var changed = setDarkMode(desired, { source: 'host' });
+  if (!changed) {
+    return false;
+  }
+
+  NotificationHooks.notify('dark-mode', { enabled: desired, at: new Date().toISOString() });
   if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
     schedulePush('dark-mode');
   }
+  return true;
 }
 
 function updateDarkModeButton(isDark) {
@@ -3910,20 +3978,43 @@ function bindMessageToggleButton() {
   if (!toggleBtn) return;
   messageToggleBound = true;
   toggleBtn.addEventListener('click', function() {
-    window.setMessagesEnabled(!window.AppState.messagesOn);
+    if (typeof window.canWrite === 'function' && !window.canWrite()) {
+      showToast('Messaging visibility is controlled by the host in viewer mode.');
+      return;
+    }
+    window.setMessagesEnabled(!window.AppState.messagesOn, { source: 'host' });
   });
   applyMessageToggleState();
 }
 
-function setMessagesEnabled(enabled) {
+function setMessagesEnabled(enabled, options) {
   window.AppState = window.AppState || {};
-  window.AppState.messagesOn = !!enabled;
-  applyMessageToggleState();
-  if (typeof renderRunbookTable === 'function') renderRunbookTable();
-  if (typeof updateTimeline === 'function') updateTimeline();
-  if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
-    schedulePush();
+  var opts = options || {};
+  var desired = !!enabled;
+  var previous = !!window.AppState.messagesOn;
+
+  if (!opts.force && desired === previous) {
+    applyMessageToggleState();
+    return desired;
   }
+
+  window.AppState.messagesOn = desired;
+  applyMessageToggleState();
+
+  if (!opts.skipRender) {
+    if (typeof renderRunbookTable === 'function') renderRunbookTable();
+    if (typeof updateTimeline === 'function') updateTimeline();
+  }
+
+  if (opts.source === 'remote' || opts.skipSync) {
+    return desired;
+  }
+
+  if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
+    schedulePush('messages-toggle');
+  }
+
+  return desired;
 }
 
 window.setMessagesEnabled = setMessagesEnabled;
@@ -3950,28 +4041,6 @@ window.selectRecentCustomer = function(name, transform) {
   // Update fullscreen info if in fullscreen mode
   if (window.AppState.fullscreenMode) {
     updateFullscreenCustomerInfo();
-  }
-}
-
-function bindMessageToggleButton() {
-  if (messageToggleBound) return;
-  var toggleBtn = document.getElementById('messageToggleBtn');
-  if (!toggleBtn) return;
-  messageToggleBound = true;
-  toggleBtn.addEventListener('click', function() {
-    window.setMessagesEnabled(!window.AppState.messagesOn);
-  });
-  applyMessageToggleState();
-}
-
-function setMessagesEnabled(enabled) {
-  window.AppState = window.AppState || {};
-  window.AppState.messagesOn = !!enabled;
-  applyMessageToggleState();
-  if (typeof renderRunbookTable === 'function') renderRunbookTable();
-  if (typeof updateTimeline === 'function') updateTimeline();
-  if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
-    schedulePush();
   }
 }
 
@@ -6371,6 +6440,327 @@ let remoteController = null;
 let remoteDowntimeActive = false;
 let attemptedControllerClaim = false;
 
+  let stateCache = hasStorage ? safeParse(localStorage.getItem(stateKey), null) : null;
+  let presenceCache = hasStorage ? safeParse(localStorage.getItem(presenceKey), {}) : {};
+  if (!presenceCache || typeof presenceCache !== 'object') presenceCache = {};
+
+  const stateListeners = new Set();
+  const presenceListeners = new Set();
+
+  const stateChannel = supportsBroadcast ? new BroadcastChannel(`${stateKey}-channel`) : null;
+  const presenceChannel = supportsBroadcast ? new BroadcastChannel(`${presenceKey}-channel`) : null;
+
+function resolveControllerName() {
+  if (remoteController) {
+    if (latestSessionData && latestSessionData.controllerName) {
+      return latestSessionData.controllerName;
+    }
+    const presence = presenceRoster[remoteController];
+    if (presence) {
+      return presence.displayName || presence.name || null;
+    }
+    if (remoteController && typeof remoteController === 'string') {
+      return 'User ' + remoteController.slice(-6);
+    }
+    return null;
+  }
+
+  const rosterEntries = Object.values(presenceRoster || {});
+  const fallbackHost = rosterEntries.find(function(entry) {
+    return entry && (entry.mode || '').toLowerCase() !== 'viewer';
+  });
+  if (fallbackHost) {
+    return fallbackHost.displayName || fallbackHost.name || 'Host';
+  }
+
+  return null;
+}
+
+  function notifyStateListeners(payload) {
+    stateListeners.forEach(function(listener) {
+      try {
+        listener(payload.state, payload);
+      } catch (err) {
+        console.error('Local realtime state listener error', err);
+      }
+    });
+  }
+
+  function currentPresenceEntries() {
+    return Object.keys(presenceCache).map(function(id) {
+      return { presenceDocId: id, ...presenceCache[id] };
+    });
+  }
+
+  function notifyPresenceListeners() {
+    const entries = currentPresenceEntries();
+    presenceListeners.forEach(function(listener) {
+      try {
+        listener(entries);
+      } catch (err) {
+        console.error('Local realtime presence listener error', err);
+      }
+    });
+  }
+
+  function setStatePayload(payload, options) {
+    if (!payload || typeof payload !== 'object') return;
+    const opts = options || {};
+    stateCache = payload;
+    persistState();
+    if (opts.broadcast && stateChannel) {
+      try {
+        stateChannel.postMessage(payload);
+      } catch (err) {
+        console.warn('Local realtime state broadcast failed', err);
+      }
+    }
+    notifyStateListeners(payload);
+  }
+
+  function setPresenceMap(map, options) {
+    const opts = options || {};
+    presenceCache = map && typeof map === 'object' ? { ...map } : {};
+    persistPresence();
+    if (opts.broadcast && presenceChannel) {
+      try {
+        presenceChannel.postMessage({ type: 'presence', map: presenceCache });
+      } catch (err) {
+        console.warn('Local realtime presence broadcast failed', err);
+      }
+    }
+    notifyPresenceListeners();
+  }
+
+  if (stateChannel) {
+    stateChannel.addEventListener('message', function(event) {
+      const payload = event && event.data;
+      if (payload && payload.type === 'state' && payload.state) {
+        setStatePayload(payload, { broadcast: false });
+      }
+    });
+  }
+
+  const storageStateHandler = function(event) {
+    if (event.key === stateKey && event.newValue) {
+      const payload = safeParse(event.newValue, null);
+      if (payload && payload.state) {
+        setStatePayload(payload, { broadcast: false });
+      }
+    }
+  };
+
+  const storagePresenceHandler = function(event) {
+    if (event.key === presenceKey) {
+      const map = safeParse(event.newValue, {});
+      setPresenceMap(map, { broadcast: false });
+    }
+  };
+
+  if (hasStorage) {
+    window.addEventListener('storage', storageStateHandler);
+    window.addEventListener('storage', storagePresenceHandler);
+  }
+
+  if (presenceChannel) {
+    presenceChannel.addEventListener('message', function(event) {
+      const payload = event && event.data;
+      if (payload && payload.type === 'presence' && payload.map) {
+        setPresenceMap(payload.map, { broadcast: false });
+      }
+    });
+  }
+
+  function emitState(state, reason, meta) {
+    if (!state) return;
+    const payload = {
+      type: 'state',
+      state,
+      reason: reason || 'update',
+      uid: (meta && meta.uid) || uid || null,
+      ts: Date.now(),
+      origin: (meta && meta.origin) || 'local'
+    };
+    setStatePayload(payload, { broadcast: true });
+  }
+
+  function ingestState(state, meta) {
+    if (!state) return;
+    const payload = {
+      type: 'state',
+      state,
+      reason: (meta && meta.reason) || 'ingest',
+      uid: (meta && meta.uid) || null,
+      ts: Date.now(),
+      origin: (meta && meta.origin) || 'remote'
+    };
+    const broadcast = !meta || meta.broadcast !== false;
+    setStatePayload(payload, { broadcast });
+  }
+
+  function normalizePresenceEntry(entry) {
+    if (!entry) return null;
+    const id = entry.presenceDocId || entry.id || entry.uid || entry.instanceId;
+    if (!id) return null;
+    let lastActiveMs = Date.now();
+    if (typeof entry.lastActive === 'number') {
+      lastActiveMs = entry.lastActive;
+    } else if (entry.lastActive && typeof entry.lastActive.toMillis === 'function') {
+      lastActiveMs = entry.lastActive.toMillis();
+    } else if (entry.lastActive && typeof entry.lastActive.seconds === 'number') {
+      lastActiveMs = entry.lastActive.seconds * 1000;
+    } else if (typeof entry.lastActiveMillis === 'number') {
+      lastActiveMs = entry.lastActiveMillis;
+    }
+    return {
+      id,
+      payload: {
+        uid: entry.uid || id,
+        displayName: entry.displayName || entry.name || null,
+        name: entry.name || entry.displayName || null,
+        mode: entry.mode || 'viewer',
+        lastActive: lastActiveMs,
+        instanceId: entry.instanceId || sessionInstanceId
+      }
+    };
+  }
+
+  function emitPresenceEntry(entry) {
+    const normalized = normalizePresenceEntry(entry);
+    if (!normalized) return;
+    const next = { ...presenceCache };
+    next[normalized.id] = normalized.payload;
+    setPresenceMap(next, { broadcast: true });
+  }
+
+  function ingestPresence(entries, meta) {
+    const next = {};
+    (entries || []).forEach(function(entry) {
+      const normalized = normalizePresenceEntry(entry);
+      if (normalized) {
+        next[normalized.id] = normalized.payload;
+      }
+    });
+    const broadcast = !meta || meta.broadcast !== false;
+    setPresenceMap(next, { broadcast });
+  }
+
+  function removePresence(id) {
+    if (!id) return;
+    if (!presenceCache[id]) return;
+    const next = { ...presenceCache };
+    delete next[id];
+    setPresenceMap(next, { broadcast: true });
+  }
+
+  function subscribeState(callback) {
+    if (typeof callback !== 'function') return function() {};
+    stateListeners.add(callback);
+    if (stateCache && stateCache.state) {
+      try {
+        callback(stateCache.state, stateCache);
+      } catch (err) {
+        console.error('Local realtime state listener error', err);
+      }
+    }
+    return function() {
+      stateListeners.delete(callback);
+    };
+  }
+
+  function subscribePresence(callback) {
+    if (typeof callback !== 'function') return function() {};
+    presenceListeners.add(callback);
+    try {
+      callback(currentPresenceEntries());
+    } catch (err) {
+      console.error('Local realtime presence listener error', err);
+    }
+    return function() {
+      presenceListeners.delete(callback);
+    };
+  }
+
+  function getCachedState() {
+    return stateCache;
+  }
+
+  function getPresenceSnapshot() {
+    return currentPresenceEntries();
+  }
+
+  function dispose() {
+    stateListeners.clear();
+    presenceListeners.clear();
+    if (stateChannel) {
+      try { stateChannel.close(); } catch (err) {}
+    }
+    if (presenceChannel) {
+      try { presenceChannel.close(); } catch (err) {}
+    }
+    if (hasStorage) {
+      window.removeEventListener('storage', storageStateHandler);
+      window.removeEventListener('storage', storagePresenceHandler);
+    }
+  }
+
+  return {
+    emitState,
+    ingestState,
+    subscribeState,
+    emitPresenceEntry,
+    ingestPresence,
+    subscribePresence,
+    removePresence,
+    getCachedState,
+    getPresenceSnapshot,
+    dispose
+  };
+}
+
+let LocalRealtime = createLocalRealtimeBridge(sessionContext.sessionKey);
+let localStateUnsubscribe = null;
+let localPresenceUnsubscribe = null;
+
+window.LocalRealtimeBridge = LocalRealtime;
+
+bindLocalRealtimeBridges();
+
+function getOperatorName() {
+  const raw = (operatorInput && operatorInput.value) ? operatorInput.value.trim() : "";
+  if (raw) return raw;
+  const stored = readStoredOperatorName();
+  return stored || "Guest";
+}
+
+function persistOperatorProfile(name) {
+  const normalized = (name || "").trim();
+  try {
+    localStorage.setItem('operatorProfile', JSON.stringify({
+      name: normalized,
+      updatedAt: Date.now()
+    }));
+  } catch (err) {
+    console.warn('Failed to persist operator profile', err);
+  }
+  if (operatorInput && operatorInput.value !== normalized) {
+    operatorInput.value = normalized;
+  }
+}
+
+let presenceRoster = {};
+let controllerName = null;
+let controlRequest = null;
+let latestSessionData = {};
+let lastControlRequestUid = null;
+let connectionStatus = 'pending';
+let connectionDetail = 'Awaiting Firebase handshake';
+let lastSnapshotAt = Date.now();
+let contextSwitchInFlight = false;
+let remoteController = null;
+let remoteDowntimeActive = false;
+let attemptedControllerClaim = false;
+
 function updateConnectionIndicator(status, detail) {
   connectionStatus = status;
   connectionDetail = detail || connectionDetail;
@@ -6700,6 +7090,8 @@ function createRealtimeOverlay() {
   if (typeof updateViewerPanel === 'function') {
     setTimeout(() => updateViewerPanel(), 0);
   }
+
+  renderFocusIndicators();
 }
 
 createRealtimeOverlay();
@@ -6984,6 +7376,12 @@ function handlePresenceEntries(entries) {
 
   renderControlRequestBanner();
   renderDiagnosticsPanel();
+  if (typeof renderHostStatus === 'function') {
+    try { renderHostStatus(); } catch (err) { console.warn('Host status render failed', err); }
+  }
+  if (typeof updateViewerPanel === 'function') {
+    try { updateViewerPanel(); } catch (err) { console.warn('Viewer panel update failed', err); }
+  }
 }
 
 async function bindPresenceListeners() {
@@ -7125,27 +7523,20 @@ function applyRemoteState(remoteState) {
   state.downtimeStartTime = remoteState.downtimeStartTime ? new Date(remoteState.downtimeStartTime) : null;
   state.completionTimes = remoteState.completionTimes || {};
   state.syncedTimelinePosition = remoteState.syncedTimelinePosition || 0;
-  state.messagesOn = !!remoteState.messagesOn;
+  if (remoteState.messagesOn !== undefined) {
+    setMessagesEnabled(!!remoteState.messagesOn, { source: 'remote', skipSync: true });
+  }
   state.lastPauseReason = remoteState.lastPauseReason || '';
   state.lastResetAt = remoteState.lastResetAt ? new Date(remoteState.lastResetAt) : null;
 
   // Sync dark mode across clients
   if (remoteState.darkMode !== undefined) {
-    state.darkMode = !!remoteState.darkMode;
-    document.body.classList.toggle('dark-mode', state.darkMode);
-    updateDarkModeButton(state.darkMode);
-    try {
-      localStorage.setItem('darkMode', state.darkMode);
-    } catch (err) {
-      console.warn('Unable to persist dark mode preference', err);
-    }
+    setDarkMode(!!remoteState.darkMode, { source: 'remote', force: true });
   }
-
-  applyMessageToggleState();
 
   if (remoteState.fullscreenMode !== undefined) {
     const remoteFocusSince = remoteState.fullscreenSince ? new Date(remoteState.fullscreenSince) : null;
-    applyFocusState(!!remoteState.fullscreenMode, {
+    setFocusMode(!!remoteState.fullscreenMode, {
       attemptFullscreen: false,
       since: remoteFocusSince,
       forceRefresh: !window.canWrite() && !!remoteState.fullscreenMode
@@ -7390,17 +7781,7 @@ function updateViewerPanel() {
       }
     }
 
-    const focusRow = document.getElementById('rt-focus-row');
-    const focusTime = document.getElementById('rt-focus-time');
-    if (focusRow && focusTime) {
-      if (state.fullscreenMode && state.fullscreenSince) {
-        focusRow.style.display = 'block';
-        const since = new Date(state.fullscreenSince);
-        focusTime.textContent = since.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      } else {
-        focusRow.style.display = 'none';
-      }
-    }
+    renderFocusIndicators();
 
     // Update start time
     const startEl = document.getElementById("rt-start");
@@ -7551,6 +7932,20 @@ async function pushState(reason = "update", forcedState) {
     OfflineQueue.enqueue(currentState, reason, e && e.message ? e.message : 'push failed');
   } finally {
     writing = false;
+  }
+}
+
+async function flushOfflineQueue() {
+  if (!navigator.onLine) return;
+  writing = true;
+  try {
+    await OfflineQueue.flush(async function(queuedState, queuedReason) {
+      await transmitState(queuedState, queuedReason);
+      lastSentState = JSON.stringify(queuedState);
+    });
+  } finally {
+    writing = false;
+    renderOfflineQueueState();
   }
 }
 
