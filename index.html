@@ -2707,6 +2707,290 @@ function checkPassword() {
     input.value = '';
     input.focus();
   }
+
+// Check authentication on load
+document.addEventListener('DOMContentLoaded', function() {
+  const passwordInput = document.getElementById('passwordInput');
+  if (localStorage.getItem('appAuthenticated') === 'true') {
+    isAuthenticated = true;
+    document.getElementById('passwordModal').classList.add('hidden');
+    runAuthenticatedStartup();
+  } else {
+    passwordInput.focus();
+  }
+
+  // Allow Enter key to submit password
+  passwordInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      checkPassword();
+    }
+  });
+});
+
+  var fullscreenToggle = document.getElementById('fullscreenToggle');
+  if (fullscreenToggle && !fullscreenToggle.__bound) {
+    fullscreenToggle.addEventListener('click', toggleFullscreenMode);
+    fullscreenToggle.__bound = true;
+  }
+
+  var recentBtn = document.getElementById('recentCustomersBtn');
+  if (recentBtn && !recentBtn.__bound) {
+    recentBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      toggleRecentCustomersDropdown();
+    });
+    recentBtn.__bound = true;
+  }
+
+  var bookmarkBtn = document.getElementById('bookmarkSessionBtn');
+  if (bookmarkBtn && !bookmarkBtn.__bound) {
+    bookmarkBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      bookmarkCurrentSession();
+    });
+    bookmarkBtn.__bound = true;
+  }
+
+  var requestBtn = document.getElementById('requestControlBtn');
+  if (requestBtn && !requestBtn.__bound) {
+    requestBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      requestHostControl();
+    });
+    requestBtn.__bound = true;
+  }
+
+  var approveBtn = document.getElementById('approveControlBtn');
+  if (approveBtn && !approveBtn.__bound) {
+    approveBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      approveControlRequest();
+    });
+    approveBtn.__bound = true;
+  }
+
+  var dismissBtn = document.getElementById('dismissControlBtn');
+  if (dismissBtn && !dismissBtn.__bound) {
+    dismissBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      dismissControlRequest();
+    });
+    dismissBtn.__bound = true;
+  }
+
+  var operatorNameInput = document.getElementById('operatorName');
+  if (operatorNameInput && !operatorNameInput.__bound) {
+    operatorNameInput.addEventListener('change', function() {
+      persistOperatorProfile(this.value || '');
+      if (typeof updatePresence === 'function') {
+        setTimeout(updatePresence, 100);
+      }
+      if (typeof window.canWrite === 'function' && window.canWrite() && window.firestore && typeof window.firestore.setDoc === 'function') {
+        try {
+          window.firestore.setDoc(sessionRef, { controllerName: getOperatorName() }, { merge: true });
+        } catch (err) {
+          console.warn('Failed to persist controller name update', err);
+        }
+      }
+      renderHostStatus();
+    });
+    operatorNameInput.__bound = true;
+  }
+
+  var customerNameInput = document.getElementById('customerName');
+  if (customerNameInput && !customerNameInput.__bound) {
+    customerNameInput.addEventListener('change', function() {
+      if (this.value && this.value.trim().length > 0) {
+        var transformCycleInput = document.getElementById('transformCycle');
+        addRecentCustomer(this.value.trim(), transformCycleInput ? transformCycleInput.value : '');
+      }
+      if (window.AppState.fullscreenMode) {
+        updateFullscreenCustomerInfo();
+      }
+    });
+    customerNameInput.addEventListener('focus', function() {
+      window.AppState.inputLock = true;
+    });
+    customerNameInput.addEventListener('blur', function() {
+      setTimeout(function() {
+        window.AppState.inputLock = false;
+      }, 500);
+    });
+    customerNameInput.__bound = true;
+  }
+
+// Password Protection
+const APP_PASSWORD = 'downtime2025';
+let isAuthenticated = false;
+let authUiInitialized = false;
+let clockIntervalId = null;
+
+function runAuthenticatedStartup() {
+  if (!isAuthenticated || authUiInitialized) return;
+  authUiInitialized = true;
+
+  initializeApp();
+  initDarkMode();
+  updateRecentCustomersDropdown();
+  renderHostStatus();
+  renderControlRequestBanner();
+
+  bindMessageToggleButton();
+  window.setMessagesEnabled(window.AppState && typeof window.AppState.messagesOn === 'boolean' ? window.AppState.messagesOn : false);
+  updateFocusExitControl(window.AppState.fullscreenMode);
+
+  updateClock();
+  if (!clockIntervalId) {
+    clockIntervalId = setInterval(updateClock, 1000);
+  }
+
+  var darkModeToggle = document.getElementById('darkModeToggle');
+  if (darkModeToggle && !darkModeToggle.__bound) {
+    darkModeToggle.addEventListener('click', toggleDarkMode);
+    darkModeToggle.__bound = true;
+  }
+
+  var fullscreenToggle = document.getElementById('fullscreenToggle');
+  if (fullscreenToggle && !fullscreenToggle.__bound) {
+    fullscreenToggle.addEventListener('click', toggleFullscreenMode);
+    fullscreenToggle.__bound = true;
+  }
+
+  var focusExitBtn = document.getElementById('focusExitButton');
+  if (focusExitBtn && !focusExitBtn.__bound) {
+    focusExitBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      toggleFullscreenMode(false);
+    });
+    focusExitBtn.__bound = true;
+  }
+
+  var recentBtn = document.getElementById('recentCustomersBtn');
+  if (recentBtn && !recentBtn.__bound) {
+    recentBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      toggleRecentCustomersDropdown();
+    });
+    recentBtn.__bound = true;
+  }
+
+  var bookmarkBtn = document.getElementById('bookmarkSessionBtn');
+  if (bookmarkBtn && !bookmarkBtn.__bound) {
+    bookmarkBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      bookmarkCurrentSession();
+    });
+    bookmarkBtn.__bound = true;
+  }
+
+  var requestBtn = document.getElementById('requestControlBtn');
+  if (requestBtn && !requestBtn.__bound) {
+    requestBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      requestHostControl();
+    });
+    requestBtn.__bound = true;
+  }
+
+  var approveBtn = document.getElementById('approveControlBtn');
+  if (approveBtn && !approveBtn.__bound) {
+    approveBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      approveControlRequest();
+    });
+    approveBtn.__bound = true;
+  }
+
+  var dismissBtn = document.getElementById('dismissControlBtn');
+  if (dismissBtn && !dismissBtn.__bound) {
+    dismissBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      dismissControlRequest();
+    });
+    dismissBtn.__bound = true;
+  }
+
+  var operatorNameInput = document.getElementById('operatorName');
+  if (operatorNameInput && !operatorNameInput.__bound) {
+    operatorNameInput.addEventListener('change', function() {
+      persistOperatorProfile(this.value || '');
+      if (typeof updatePresence === 'function') {
+        setTimeout(updatePresence, 100);
+      }
+      if (typeof window.canWrite === 'function' && window.canWrite() && window.firestore && typeof window.firestore.setDoc === 'function') {
+        try {
+          window.firestore.setDoc(sessionRef, { controllerName: getOperatorName() }, { merge: true });
+        } catch (err) {
+          console.warn('Failed to persist controller name update', err);
+        }
+      }
+      renderHostStatus();
+    });
+    operatorNameInput.__bound = true;
+  }
+
+  var customerNameInput = document.getElementById('customerName');
+  if (customerNameInput && !customerNameInput.__bound) {
+    customerNameInput.addEventListener('change', function() {
+      if (this.value && this.value.trim().length > 0) {
+        var transformCycleInput = document.getElementById('transformCycle');
+        addRecentCustomer(this.value.trim(), transformCycleInput ? transformCycleInput.value : '');
+      }
+      if (window.AppState.fullscreenMode) {
+        updateFullscreenCustomerInfo();
+      }
+    });
+    customerNameInput.addEventListener('focus', function() {
+      window.AppState.inputLock = true;
+    });
+    customerNameInput.addEventListener('blur', function() {
+      setTimeout(function() {
+        window.AppState.inputLock = false;
+      }, 500);
+    });
+    customerNameInput.__bound = true;
+  }
+
+  var transformCycleInput = document.getElementById('transformCycle');
+  if (transformCycleInput && !transformCycleInput.__bound) {
+    transformCycleInput.addEventListener('change', function() {
+      var customerInput = document.getElementById('customerName');
+      if (customerInput && customerInput.value.trim()) {
+        addRecentCustomer(customerInput.value.trim(), this.value);
+      }
+      if (window.AppState.fullscreenMode) {
+        updateFullscreenCustomerInfo();
+      }
+    });
+    transformCycleInput.addEventListener('focus', function() {
+      window.AppState.inputLock = true;
+    });
+    transformCycleInput.addEventListener('blur', function() {
+      setTimeout(function() {
+        window.AppState.inputLock = false;
+      }, 500);
+    });
+    transformCycleInput.__bound = true;
+  }
+}
+
+function checkPassword() {
+  const input = document.getElementById('passwordInput');
+  const error = document.getElementById('passwordError');
+  const modal = document.getElementById('passwordModal');
+
+  if (input.value === APP_PASSWORD) {
+    isAuthenticated = true;
+    modal.classList.add('hidden');
+    localStorage.setItem('appAuthenticated', 'true');
+    runAuthenticatedStartup();
+  } else {
+    error.textContent = '❌ Incorrect password. Please try again.';
+    input.value = '';
+    input.focus();
+  }
 }
 
 // Check authentication on load
@@ -3515,6 +3799,24 @@ function persistBookmarkedSessions(list) {
   } catch (err) {
     console.warn('Unable to persist bookmarked sessions', err);
   }
+
+  dropdown.querySelectorAll('.recent-customer-item').forEach(function(item) {
+    item.addEventListener('click', function(event) {
+      if (event.target && event.target.matches('.recent-remove')) return;
+      var customer = decodeURIComponent(this.getAttribute('data-customer') || '');
+      var transform = decodeURIComponent(this.getAttribute('data-transform') || '');
+      window.selectRecentCustomer(customer, transform);
+    });
+  });
+
+  dropdown.querySelectorAll('.recent-remove').forEach(function(btn) {
+    btn.addEventListener('click', function(event) {
+      event.stopPropagation();
+      var payload = this.getAttribute('data-remove') || '';
+      var parts = payload.split('|');
+      removeBookmarkedSession(decodeURIComponent(parts[0] || ''), decodeURIComponent(parts[1] || ''));
+    });
+  });
 }
 
 function getRecentCustomers() {
@@ -5804,9 +6106,7 @@ if (operatorInput && storedOperatorName) {
   operatorInput.value = storedOperatorName;
 }
 
-// Set initial values
-if (customerParam && nameInput) nameInput.value = customerParam;
-if (phaseParam && phaseInput) phaseInput.value = phaseParam;
+updateConnectionIndicator('pending', 'Connecting to Firebase…');
 
 // Generate safe key for Firebase
 const toKey = s => (s||"default").toString().trim().toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"") || "default";
@@ -6279,6 +6579,20 @@ window.canWrite = function() {
 
   // We can only write if we are the registered controller
   return remoteController === uid;
+};
+
+if (typeof updateViewerPanel === 'function') {
+  updateViewerPanel();
+}
+
+window.getViewerState = function() {
+  const currentUrl = new URL(window.location.href);
+  return {
+    viewerParam,
+    viewerForced,
+    urlViewer: currentUrl.searchParams.get('viewer'),
+    canWrite: typeof window.canWrite === 'function' ? window.canWrite() : null
+  };
 };
 
 if (typeof updateViewerPanel === 'function') {
