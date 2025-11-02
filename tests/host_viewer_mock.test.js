@@ -11,7 +11,7 @@ class MockSession {
 
   claimHost(uid, name) {
     if (!uid) throw new Error('uid required');
-    if (this.controllerUid && this.downtimeActive && this.controllerUid !== uid) {
+    if (this.controllerUid && this.controllerUid !== uid) {
       return false;
     }
     this.controllerUid = uid;
@@ -102,8 +102,9 @@ class DowntimeTimer {
 (function testInitialHostClaim() {
   const session = new MockSession();
   assert.strictEqual(session.claimHost('host-1', 'Alice'), true, 'first host should claim control');
+  assert.strictEqual(session.claimHost('host-2', 'Bob'), false, 'second host should be blocked even before downtime starts');
   session.startDowntime('host-1');
-  assert.strictEqual(session.claimHost('host-2', 'Bob'), false, 'second host cannot claim during active downtime');
+  assert.strictEqual(session.claimHost('host-3', 'Cara'), false, 'second host cannot claim during active downtime');
   assert.strictEqual(session.controllerUid, 'host-1');
 })();
 

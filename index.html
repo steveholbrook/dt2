@@ -84,6 +84,28 @@
   body.dark-mode .btn:hover:not(:disabled) {
     background:#4a4a4a;
   }
+
+  body.dark-mode .panel {
+    background:#242b33;
+    border-color:rgba(255,255,255,0.08);
+  }
+
+  body.dark-mode .status-item .status-label {
+    color:var(--sap-muted);
+  }
+
+  body.dark-mode .status-item .status-value {
+    color:var(--sap-text);
+  }
+
+  body.dark-mode .status-actions button {
+    background:rgba(255,255,255,0.1);
+    border-color:rgba(255,255,255,0.2);
+  }
+
+  body.dark-mode .status-actions button:hover {
+    background:rgba(255,255,255,0.18);
+  }
   
   body.dark-mode .time-display {
     background:#1e3a5f;
@@ -179,11 +201,12 @@
   }
   
   .status-display{
-    display:flex;
-    gap:20px;
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+    gap:24px;
     align-items:stretch;
     font-size:13px;
-    flex-wrap:wrap;
+    width:100%;
   }
 
   .status-item {
@@ -191,28 +214,31 @@
     flex-direction:column;
     justify-content:center;
     gap:4px;
-    min-width:120px;
+    min-width:0;
+    padding:6px 0;
   }
 
   .status-item.host-status {
     align-items:flex-start;
-    min-width:180px;
+    min-width:200px;
   }
 
   .status-item.viewers-status {
-    min-width:150px;
+    min-width:0;
   }
 
   .status-actions {
     display:flex;
     align-items:center;
-    gap:10px;
-    padding-left:4px;
-    margin-left:auto;
+    justify-content:flex-end;
+    gap:12px;
+    align-self:stretch;
+    padding:6px 0;
+    min-width:180px;
   }
 
   .status-actions button {
-    height:32px;
+    height:36px;
   }
 
   .status-item .status-meta {
@@ -220,114 +246,8 @@
     color:var(--sap-muted);
   }
 
-  .status-item .pending-request {
-    font-size:11px;
-    color:var(--sap-warning);
-    display:none;
-  }
-
-  .status-item .pending-request.show {
-    display:block;
-  }
-
-  .btn.subtle {
-    background:transparent;
-    border:1px solid var(--sap-border);
-    color:var(--sap-accent);
-    padding:4px 8px;
-    font-size:11px;
-    border-radius:999px;
-    transition:all 0.2s ease;
-  }
-
-  .btn.subtle:hover:not(:disabled) {
-    background:rgba(10,110,209,0.1);
-  }
-
-  .btn.subtle:disabled {
-    color:var(--sap-muted);
-    border-color:rgba(0,0,0,0.05);
-    cursor:not-allowed;
-    background:rgba(0,0,0,0.03);
-  }
-
-  .control-request-banner {
-    display:none;
-    align-items:center;
-    justify-content:space-between;
-    gap:16px;
-    background:linear-gradient(135deg, rgba(10,110,209,0.12), rgba(8,84,160,0.12));
-    border:1px solid rgba(10,110,209,0.3);
-    padding:12px 16px;
-    border-radius:8px;
-    margin-bottom:16px;
-  }
-
-  .control-request-banner.show {
-    display:flex;
-  }
-
-  .control-request-banner strong {
-    color:var(--sap-accent-2);
-  }
-
-  .control-request-timestamp {
-    font-size:12px;
-    color:var(--sap-muted);
-  }
-
-  .context-switch-toast {
-    position:fixed;
-    top:90px;
-    right:24px;
-    background:var(--sap-panel);
-    color:var(--sap-text);
-    border:1px solid var(--sap-border);
-    border-radius:8px;
-    box-shadow:0 8px 24px rgba(0,0,0,0.18);
-    padding:12px 16px;
-    z-index:2000;
-    display:none;
-    gap:12px;
-    align-items:center;
-  }
-
-  .context-switch-toast.show {
-    display:flex;
-  }
-
-  .context-switch-spinner {
-    width:16px;
-    height:16px;
-    border-radius:50%;
-    border:3px solid rgba(10,110,209,0.2);
-    border-top-color:var(--sap-accent);
-    animation:spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    to { transform:rotate(360deg); }
-  }
-
-  .flash-update {
-    animation:flashHighlight 1.4s ease;
-  }
-
-  @keyframes flashHighlight {
-    0% { box-shadow:0 0 0 rgba(10,110,209,0); }
-    20% { box-shadow:0 0 0 4px rgba(10,110,209,0.25); }
-    100% { box-shadow:0 0 0 rgba(10,110,209,0); }
-  }
-
-  .status-item.host-status {
-    align-items:flex-start;
-    min-width:160px;
-    gap:4px;
-  }
-
-  .status-item .status-meta {
-    font-size:11px;
-    color:var(--sap-muted);
+  .status-item .status-value {
+    font-weight:600;
   }
 
   .status-item .pending-request {
@@ -654,6 +574,11 @@
     padding: 4px 12px;
     background: rgba(255,255,255,0.1);
     border-radius: 6px;
+  }
+
+  body.fullscreen-mode #realtimeStatusPanel,
+  body.fullscreen-mode #realtimeResetWrapper {
+    display: none !important;
   }
   
   .fullscreen-customer-info {
@@ -2300,14 +2225,6 @@ body.dark-mode #messageToggleBtn:hover{
     </div>
   </div>
 
-  <div class="context-switch-toast" id="contextSwitchToast" role="status" aria-live="polite">
-    <div class="context-switch-spinner" aria-hidden="true"></div>
-    <div>
-      <div><strong>Loading session…</strong></div>
-      <div class="status-meta" id="contextSwitchDetails">Retrieving latest runbooks</div>
-    </div>
-  </div>
-
   <div class="content">
     <div class="control-request-banner" id="controlRequestBanner" role="alert">
       <div>
@@ -2814,6 +2731,139 @@ document.addEventListener('DOMContentLoaded', function() {
   if (fullscreenToggle && !fullscreenToggle.__bound) {
     fullscreenToggle.addEventListener('click', toggleFullscreenMode);
     fullscreenToggle.__bound = true;
+  }
+
+  var recentBtn = document.getElementById('recentCustomersBtn');
+  if (recentBtn && !recentBtn.__bound) {
+    recentBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      toggleRecentCustomersDropdown();
+    });
+    recentBtn.__bound = true;
+  }
+
+  var bookmarkBtn = document.getElementById('bookmarkSessionBtn');
+  if (bookmarkBtn && !bookmarkBtn.__bound) {
+    bookmarkBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      bookmarkCurrentSession();
+    });
+    bookmarkBtn.__bound = true;
+  }
+
+  var requestBtn = document.getElementById('requestControlBtn');
+  if (requestBtn && !requestBtn.__bound) {
+    requestBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      requestHostControl();
+    });
+    requestBtn.__bound = true;
+  }
+
+  var approveBtn = document.getElementById('approveControlBtn');
+  if (approveBtn && !approveBtn.__bound) {
+    approveBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      approveControlRequest();
+    });
+    approveBtn.__bound = true;
+  }
+
+  var dismissBtn = document.getElementById('dismissControlBtn');
+  if (dismissBtn && !dismissBtn.__bound) {
+    dismissBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      dismissControlRequest();
+    });
+    dismissBtn.__bound = true;
+  }
+
+  var operatorNameInput = document.getElementById('operatorName');
+  if (operatorNameInput && !operatorNameInput.__bound) {
+    operatorNameInput.addEventListener('change', function() {
+      persistOperatorProfile(this.value || '');
+      if (typeof updatePresence === 'function') {
+        setTimeout(updatePresence, 100);
+      }
+      if (typeof window.canWrite === 'function' && window.canWrite() && window.firestore && typeof window.firestore.setDoc === 'function') {
+        try {
+          window.firestore.setDoc(sessionRef, { controllerName: getOperatorName() }, { merge: true });
+        } catch (err) {
+          console.warn('Failed to persist controller name update', err);
+        }
+      }
+      renderHostStatus();
+    });
+    operatorNameInput.__bound = true;
+  }
+
+  var customerNameInput = document.getElementById('customerName');
+  if (customerNameInput && !customerNameInput.__bound) {
+    customerNameInput.addEventListener('change', function() {
+      if (this.value && this.value.trim().length > 0) {
+        var transformCycleInput = document.getElementById('transformCycle');
+        addRecentCustomer(this.value.trim(), transformCycleInput ? transformCycleInput.value : '');
+      }
+      if (window.AppState.fullscreenMode) {
+        updateFullscreenCustomerInfo();
+      }
+    });
+    customerNameInput.addEventListener('focus', function() {
+      window.AppState.inputLock = true;
+    });
+    customerNameInput.addEventListener('blur', function() {
+      setTimeout(function() {
+        window.AppState.inputLock = false;
+      }, 500);
+    });
+    customerNameInput.__bound = true;
+  }
+
+// Password Protection
+const APP_PASSWORD = 'downtime2025';
+let isAuthenticated = false;
+let authUiInitialized = false;
+let clockIntervalId = null;
+
+function runAuthenticatedStartup() {
+  if (!isAuthenticated || authUiInitialized) return;
+  authUiInitialized = true;
+
+  initializeApp();
+  initDarkMode();
+  updateRecentCustomersDropdown();
+  renderHostStatus();
+  renderControlRequestBanner();
+
+  bindMessageToggleButton();
+  window.setMessagesEnabled(window.AppState && typeof window.AppState.messagesOn === 'boolean' ? window.AppState.messagesOn : false);
+  updateFocusExitControl(window.AppState.fullscreenMode);
+
+  updateClock();
+  if (!clockIntervalId) {
+    clockIntervalId = setInterval(updateClock, 1000);
+  }
+
+  var darkModeToggle = document.getElementById('darkModeToggle');
+  if (darkModeToggle && !darkModeToggle.__bound) {
+    darkModeToggle.addEventListener('click', toggleDarkMode);
+    darkModeToggle.__bound = true;
+  }
+
+  var fullscreenToggle = document.getElementById('fullscreenToggle');
+  if (fullscreenToggle && !fullscreenToggle.__bound) {
+    fullscreenToggle.addEventListener('click', toggleFullscreenMode);
+    fullscreenToggle.__bound = true;
+  }
+
+  var focusExitBtn = document.getElementById('focusExitButton');
+  if (focusExitBtn && !focusExitBtn.__bound) {
+    focusExitBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      toggleFullscreenMode(false);
+    });
+    focusExitBtn.__bound = true;
   }
 
   var recentBtn = document.getElementById('recentCustomersBtn');
@@ -3749,6 +3799,24 @@ function persistBookmarkedSessions(list) {
   } catch (err) {
     console.warn('Unable to persist bookmarked sessions', err);
   }
+
+  dropdown.querySelectorAll('.recent-customer-item').forEach(function(item) {
+    item.addEventListener('click', function(event) {
+      if (event.target && event.target.matches('.recent-remove')) return;
+      var customer = decodeURIComponent(this.getAttribute('data-customer') || '');
+      var transform = decodeURIComponent(this.getAttribute('data-transform') || '');
+      window.selectRecentCustomer(customer, transform);
+    });
+  });
+
+  dropdown.querySelectorAll('.recent-remove').forEach(function(btn) {
+    btn.addEventListener('click', function(event) {
+      event.stopPropagation();
+      var payload = this.getAttribute('data-remove') || '';
+      var parts = payload.split('|');
+      removeBookmarkedSession(decodeURIComponent(parts[0] || ''), decodeURIComponent(parts[1] || ''));
+    });
+  });
 }
 
 function getRecentCustomers() {
@@ -5992,6 +6060,9 @@ const url = new URL(window.location.href);
 let customerParam = url.searchParams.get("customer") || "";
 let phaseParam = url.searchParams.get("phase") || url.searchParams.get("transformCycle") || "";
 let viewerParam = url.searchParams.get("viewer");
+let requestedViewerMode = viewerParam === "1";
+let hostBlockReason = null;
+let hostBlockAlerted = false;
 
 const nameInput = document.getElementById("customerName");
 const phaseInput = document.getElementById("transformCycle");
@@ -6035,9 +6106,7 @@ if (operatorInput && storedOperatorName) {
   operatorInput.value = storedOperatorName;
 }
 
-// Set initial values
-if (customerParam && nameInput) nameInput.value = customerParam;
-if (phaseParam && phaseInput) phaseInput.value = phaseParam;
+updateConnectionIndicator('pending', 'Connecting to Firebase…');
 
 // Generate safe key for Firebase
 const toKey = s => (s||"default").toString().trim().toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"") || "default";
@@ -6287,34 +6356,50 @@ async function detectMode() {
   console.log("Current domain:", window.location.hostname);
   console.log("Viewer param:", viewerParam);
 
-  if (viewerParam === null || viewerParam === undefined) {
-    try {
-      const sessionSnap = await getDoc(sessionRef);
-      console.log("Session exists:", sessionSnap.exists());
-      if (sessionSnap.exists()) {
-        console.log("Session data:", sessionSnap.data());
-      }
+  const hostAttempted = viewerParam !== "1";
+  hostBlockReason = null;
 
-      const sessionData = sessionSnap.data() || {};
-      const isDowntimeActive = !!sessionData.state?.downtimeStarted;
-
-      if (!sessionSnap.exists() || !sessionData.controllerUid || !isDowntimeActive) {
-        isFirstUser = true;
-        url.searchParams.set("viewer", "0");
-        window.AppState.isFirstUser = true;
-        console.log("Mode: HOST (available)");
-      } else {
-        url.searchParams.set("viewer", "1");
-        viewerForced = true;
-        console.log("Mode: VIEWER (session exists)");
-      }
-      history.replaceState(null, "", url.toString());
-    } catch (e) {
-      console.error("Error checking session:", e);
+  try {
+    const sessionSnap = await getDoc(sessionRef);
+    console.log("Session exists:", sessionSnap.exists());
+    if (sessionSnap.exists()) {
+      console.log("Session data:", sessionSnap.data());
     }
-  } else {
-    viewerForced = viewerParam === "1";
-    console.log("Mode: " + (viewerForced ? "VIEWER" : "HOST") + " (explicit)");
+
+    const sessionData = sessionSnap.data() || {};
+    const controllerUid = sessionData.controllerUid || null;
+    const sessionHasHost = !!controllerUid;
+
+    if (hostAttempted && !sessionHasHost) {
+      isFirstUser = true;
+      viewerForced = false;
+      requestedViewerMode = false;
+      url.searchParams.set("viewer", "0");
+      window.AppState.isFirstUser = true;
+      console.log("Mode: HOST (available)");
+    } else {
+      isFirstUser = false;
+      viewerForced = true;
+      requestedViewerMode = true;
+      url.searchParams.set("viewer", "1");
+      if (hostAttempted && sessionHasHost) {
+        hostBlockReason = "⚠️ Only one host is allowed for this customer and cycle. You have been placed in viewer mode.";
+        console.warn(hostBlockReason);
+      } else {
+        console.log("Mode: VIEWER (explicit or no host requested)");
+      }
+    }
+
+    history.replaceState(null, "", url.toString());
+    viewerParam = url.searchParams.get("viewer");
+    requestedViewerMode = viewerParam === "1";
+  } catch (e) {
+    console.error("Error checking session:", e);
+  }
+
+  if (hostBlockReason && !hostBlockAlerted) {
+    hostBlockAlerted = true;
+    setTimeout(() => alert(hostBlockReason), 100);
   }
 }
 
@@ -6323,6 +6408,7 @@ await detectMode();
 // Create status overlay
 (function createOverlay() {
   const statusPanel = document.createElement("div");
+  statusPanel.id = 'realtimeStatusPanel';
   statusPanel.style.cssText = "position:fixed;right:10px;bottom:10px;background:#fff;border:1px solid #dcdcdc;border-radius:8px;padding:10px 12px;font:12px system-ui,-apple-system,sans-serif;box-shadow:0 2px 6px rgba(0,0,0,.08);z-index:100000;min-width:280px";
   statusPanel.innerHTML = `
     <div style="display:flex;gap:6px;align-items:center;justify-content:space-between;margin-bottom:6px;">
@@ -6366,6 +6452,7 @@ await detectMode();
   };
   
   const resetBtn = document.createElement("div");
+  resetBtn.id = 'realtimeResetWrapper';
   resetBtn.style.cssText = "position:fixed;left:10px;bottom:10px;z-index:100001";
   resetBtn.innerHTML = `<button id="rt-reset" style="padding:10px 14px;border:none;border-radius:8px;cursor:pointer;background:#d32f2f;color:#fff;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,.15)">🔄 Reset</button>`;
   document.body.appendChild(resetBtn);
@@ -6490,14 +6577,22 @@ window.canWrite = function() {
   // If no remote controller set, we can write (we are/can be the host)
   if (!remoteController) return true;
 
-  // If we are the remote controller, we can write
-  if (remoteController === uid) return true;
+  // We can only write if we are the registered controller
+  return remoteController === uid;
+};
 
-  // If downtime is not active, allow takeover actions
-  if (!remoteDowntimeActive) return true;
+if (typeof updateViewerPanel === 'function') {
+  updateViewerPanel();
+}
 
-  // Otherwise, we're a viewer
-  return false;
+window.getViewerState = function() {
+  const currentUrl = new URL(window.location.href);
+  return {
+    viewerParam,
+    viewerForced,
+    urlViewer: currentUrl.searchParams.get('viewer'),
+    canWrite: typeof window.canWrite === 'function' ? window.canWrite() : null
+  };
 };
 
 if (typeof updateViewerPanel === 'function') {
@@ -6982,6 +7077,7 @@ function subscribeToSession() {
     sessionRef,
     async (snap) => {
   const data = snap.data() || {};
+  const wasViewerRequested = requestedViewerMode;
   remoteController = data.controllerUid || null;
   latestSessionData = data;
   controlRequest = data.controlRequest && data.controlRequest.uid ? { ...data.controlRequest } : null;
@@ -7011,37 +7107,45 @@ function subscribeToSession() {
 
   renderControlRequestBanner();
 
-  // CRITICAL FIX: Only block host mode when downtime is ACTIVE with another controller
-  if (!viewerForced && remoteController && remoteController !== uid && isDowntimeActive) {
-    console.warn("⚠️ Cannot become host: Downtime is active with another controller");
-    alert("⚠️ HOST MODE BLOCKED\n\nAnother user is currently controlling an active downtime session for this customer and transformation cycle.\n\nYou have been switched to VIEWER mode.\n\nWait for the current session to complete or contact the current host.");
-    viewerForced = true;
-
-    // Update URL to reflect viewer mode
+  if (remoteController === uid && viewerForced) {
+    viewerForced = false;
+    viewerParam = "0";
+    requestedViewerMode = false;
     const url = new URL(window.location.href);
-    url.searchParams.set("viewer", "1");
+    url.searchParams.set("viewer", "0");
     history.replaceState(null, "", url.toString());
-  }
-
-  // Allow takeover if downtime is not active
-  if (!viewerForced && remoteController && remoteController !== uid && !isDowntimeActive && !attemptedControllerClaim) {
-    attemptedControllerClaim = true;
-    try {
-      await window.firestore.setDoc(sessionRef, {
-        controllerUid: uid,
-        controllerName: getOperatorName(),
-        controllerSetAt: window.firestore.serverTimestamp()
-      }, { merge: true });
-      console.log("✓ Took control of inactive session:", uid);
-      remoteController = uid;
-    } catch (err) {
-      console.warn("Could not take control of inactive session", err);
+    hostBlockReason = null;
+    hostBlockAlerted = false;
+    if (typeof updatePresence === 'function') {
+      setTimeout(() => updatePresence(), 0);
     }
   }
 
-  // Try to become controller if none exists, not forced as viewer, AND downtime is NOT active
-  // This allows new hosts to take over when no active session is running
-  if (!remoteController && !viewerForced && !isDowntimeActive && initialSync) {
+  if (remoteController && remoteController !== uid) {
+    if (!viewerForced) {
+      viewerForced = true;
+      if (typeof updatePresence === 'function') {
+        setTimeout(() => updatePresence(), 0);
+      }
+    }
+
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("viewer") !== "1") {
+      url.searchParams.set("viewer", "1");
+      history.replaceState(null, "", url.toString());
+    }
+    viewerParam = "1";
+    requestedViewerMode = true;
+
+    if (!wasViewerRequested && !hostBlockAlerted) {
+      hostBlockReason = "⚠️ Only one host is allowed for this customer and cycle. You have been placed in viewer mode.";
+      hostBlockAlerted = true;
+      alert(hostBlockReason);
+    }
+  }
+
+  // Try to become controller if none exists and we are eligible to host
+  if (!remoteController && !viewerForced && initialSync) {
     try {
       await window.firestore.setDoc(sessionRef, {
         controllerUid: uid,
@@ -7236,6 +7340,9 @@ async function switchSessionContext(newValues) {
   initialSync = true;
   viewerParam = url.searchParams.get("viewer");
   viewerForced = viewerParam === "1";
+  requestedViewerMode = viewerParam === "1";
+  hostBlockReason = null;
+  hostBlockAlerted = false;
   window.AppState.isFirstUser = false;
   controlRequest = null;
   controllerName = null;
