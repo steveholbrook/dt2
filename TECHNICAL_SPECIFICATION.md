@@ -24,9 +24,9 @@ This document enumerates the functional features that currently ship with the do
    *Description:* The application auto-initializes authenticated flows on load—no password prompt—while waiting for Firebase anonymous sign-in to complete before binding realtime listeners.  
    *Key Implementation:* `runAuthenticatedStartup()` and the `DOMContentLoaded` listener that immediately triggers it.
 
-6. **F6 – Downtime Session Lifecycle**  
-   *Description:* Hosts can start, pause, resume, and stop downtime sessions. Elapsed duration, start timestamps, and reset state synchronize to viewers and persist in Firestore.  
-   *Key Implementation:* `startDowntime()`, `pauseDowntime()`, `resumeDowntime()`, `stopDowntime()`, and supporting helpers `computeDowntimeDuration()` plus `updateDowntimeStatus()`.
+6. **F6 – Downtime Session Lifecycle**
+   *Description:* Hosts can start, pause, resume, and stop downtime sessions. Elapsed duration, start timestamps, and reset state synchronize to viewers and persist in Firestore, with host-side mutations deferred into the offline queue until Firebase authentication finishes so handshake races never drop the first update.
+   *Key Implementation:* `startDowntime()`, `pauseDowntime()`, `resumeDowntime()`, `stopDowntime()`, shared serialization in `serialize()`, and helpers `computeDowntimeDuration()` plus `updateDowntimeStatus()`.
 
 7. **F7 – Pause Reason Capture & Display**  
    *Description:* When pausing, hosts provide a reason that propagates to viewer overlays and timeline tooltips so stakeholders understand stoppages.  
@@ -108,7 +108,7 @@ This document enumerates the functional features that currently ship with the do
 10. **P10 – Role-Based Access Controls:** Integrate optional identity providers so organizations can assign granular permissions beyond the current host/viewer split.
 
 ## 6. Production Hardening Enhancements
-1. **N1 – Resilient Offline Queueing:** Host mutations are queued via `OfflineQueue` whenever `navigator.onLine` is false. Once connectivity returns, `flushOfflineQueue()` replays serialized session snapshots, while `LocalRealtimeBridge.emitState()` keeps co-located viewers updated immediately and the diagnostics drawer queue view shows pending replays.
+1. **N1 – Resilient Offline Queueing:** Host mutations are queued via `OfflineQueue` whenever `navigator.onLine` is false or Firebase authentication has not yet issued a UID. Once connectivity or auth returns, `flushOfflineQueue()` replays serialized session snapshots, while `LocalRealtimeBridge.emitState()` keeps co-located viewers updated immediately and the diagnostics drawer queue view shows pending replays.
 2. **N2 – Dependency-Aware Timeline Planning:** The existing predecessor column now drives `calculateBlockPositions()` so downstream tasks automatically shift when upstream sequences move.
 3. **N3 – Viewer Engagement Metrics:** Presence snapshots hydrate `ViewerEngagement`, updating peak counts, active durations, and overlay fields `rt-peak-viewers`, `rt-avg-session`, and `rt-current-viewers` for real-time staffing visibility.
 4. **N4 – Guided Onboarding Tours:** `OnboardingTour` highlights key controls for first-time hosts, triggered automatically when a user becomes the controlling host and available on demand from the diagnostics drawer.
