@@ -5812,9 +5812,16 @@ if (operatorInput && storedOperatorName) {
   operatorInput.value = storedOperatorName;
 }
 
-// Set initial values
-if (customerParam && nameInput) nameInput.value = customerParam;
-if (phaseParam && phaseInput) phaseInput.value = phaseParam;
+const lastSessionContext = loadLastSessionContext();
+if (!customerParam && lastSessionContext.customer) customerParam = lastSessionContext.customer;
+if (!phaseParam && lastSessionContext.transform) phaseParam = lastSessionContext.transform;
+
+const storedOperatorName = readStoredOperatorName();
+if (operatorInput && storedOperatorName) {
+  operatorInput.value = storedOperatorName;
+}
+
+updateConnectionIndicator('pending', 'Connecting to Firebase…');
 
 // Generate safe key for Firebase
 const toKey = s => (s||"default").toString().trim().toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"") || "default";
