@@ -3525,6 +3525,7 @@ function getBookmarkedSessions() {
     console.warn('Failed to parse bookmarked sessions', err);
     return [];
   }
+  return hours.toFixed(1) + 'h';
 }
 
 function persistBookmarkedSessions(list) {
@@ -3798,16 +3799,24 @@ document.addEventListener('click', function(e) {
   if (dropdown && !dropdown.contains(e.target) && e.target !== btn && e.target !== input) {
     dropdown.classList.remove('show');
   }
-});
+}
 
-// Browser close confirmation
-window.addEventListener('beforeunload', function (e) {
-  if (window.canWrite && window.canWrite() && window.AppState.downtimeStarted) {
-    var confirmationMessage = 'You have an active downtime session. Are you sure you want to leave?';
-    e.returnValue = confirmationMessage;
-    return confirmationMessage;
+function getRecentCustomers() {
+  try {
+    var stored = JSON.parse(localStorage.getItem('recentSessions') || 'null');
+    if (stored) {
+      return normalizeRecentSessions(stored);
+    }
+  } catch (err) {
+    console.warn('Failed to parse recent sessions', err);
   }
-});
+  try {
+    var legacy = JSON.parse(localStorage.getItem('recentCustomers') || 'null');
+    return normalizeRecentSessions(legacy);
+  } catch (err) {
+    return [];
+  }
+}
 
 // Initialize application after authentication when needed
 document.addEventListener('DOMContentLoaded', function() {
