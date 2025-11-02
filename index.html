@@ -7464,104 +7464,392 @@ function updateViewerPanel() {
 
     renderFocusIndicators();
 
-    // Update start time
-    const startEl = document.getElementById("rt-start");
-    if (startEl && state.downtimeStartTime) {
-      startEl.textContent = new Date(state.downtimeStartTime).toLocaleString();
-    } else if (startEl) {
-      startEl.textContent = "—";
-    }
-
-    // Update ETA
-    const etaEl = document.getElementById("rt-eta");
-    if (etaEl && state.downtimeStartTime) {
-      const endTime = new Date(state.downtimeStartTime.getTime() + state.downtimeDuration * 3600000);
-      etaEl.textContent = endTime.toLocaleString();
-    } else if (etaEl) {
-      etaEl.textContent = "—";
-    }
-
-    // Update progress bar
-    if (state.downtimeStarted && state.downtimeStartTime) {
-      const now = Date.now();
-      const start = new Date(state.downtimeStartTime).getTime();
-      const duration = state.downtimeDuration * 3600000;
-      let pausedOffset = state.pausedDuration || 0;
-      if (state.downtimePaused && state.pauseStartTime) {
-        const pauseStart = new Date(state.pauseStartTime).getTime();
-        if (!isNaN(pauseStart)) {
-          pausedOffset += Math.max(0, now - pauseStart);
-        }
-      }
-      const elapsed = now - start - pausedOffset;
-      const percent = Math.min(100, Math.max(0, (elapsed / duration) * 100));
-
-      const bar = document.getElementById("rt-bar");
-      const label = document.getElementById("rt-bar-label");
-      if (bar) bar.style.width = `${percent}%`;
-      if (label) label.textContent = `${Math.round(percent)}%`;
-    } else {
-      const bar = document.getElementById("rt-bar");
-      const label = document.getElementById("rt-bar-label");
-      if (bar) bar.style.width = '0%';
-      if (label) label.textContent = '0%';
-    }
-  } else {
-    document.body.classList.remove('viewer-mode');
+  function update(partial) {
+    config = { ...config, ...partial };
+    persist();
   }
 
-  updateTimelinePreview();
-  renderHostStatus();
+  function get() {
+    return { ...config };
+  }
+
+  function shouldTrigger(varianceMinutes, variancePercent) {
+    if (!config.enabled) return false;
+    const exceedsPercent = Math.abs(variancePercent) >= config.variancePercent;
+    const exceedsMinutes = Math.abs(varianceMinutes) >= config.varianceMinutes;
+    const signature = `${Math.round(varianceMinutes)}:${Math.round(variancePercent)}`;
+    if (exceedsPercent || exceedsMinutes) {
+      if (lastSignature === signature) return false;
+      lastSignature = signature;
+      return true;
+    }
+    lastSignature = null;
+    return false;
+  }
+
+  return { update, get, shouldTrigger };
+})();
+
+function renderAutomationConfig() {
+  const form = document.getElementById('automationForm');
+  if (!form) return;
+  const config = KpiAutomation.get();
+  const percentInput = document.getElementById('automationPercent');
+  const minutesInput = document.getElementById('automationMinutes');
+  const enabledInput = document.getElementById('automationEnabled');
+  if (percentInput) percentInput.value = config.variancePercent;
+  if (minutesInput) minutesInput.value = config.varianceMinutes;
+  if (enabledInput) enabledInput.checked = !!config.enabled;
 }
 
-function updateTimelinePreview() {
-  const previewContainer = document.getElementById('rt-timeline-preview');
-  const list = document.getElementById('rt-timeline-list');
-  if (!previewContainer || !list) return;
+let lastAutomationToastAt = 0;
 
-  const state = window.AppState || {};
-  const runbooks = Array.isArray(state.runbooks) ? state.runbooks.slice() : [];
-  if (runbooks.length === 0) {
-    previewContainer.style.display = 'none';
-    list.innerHTML = '';
-    return;
+function handleKpiAutomation(plannedMinutes, actualMinutes) {
+  const varianceMinutes = actualMinutes - plannedMinutes;
+  const variancePercent = plannedMinutes ? (varianceMinutes / plannedMinutes) * 100 : 0;
+  if (!KpiAutomation.shouldTrigger(varianceMinutes, variancePercent)) return;
+
+  const message = `Variance ${variancePercent.toFixed(1)}% (${formatHoursShort(Math.abs(varianceMinutes))})`; 
+  if (Date.now() - lastAutomationToastAt > 5000 && typeof showToast === 'function') {
+    showToast('📈 KPI automation alert – ' + message);
+    lastAutomationToastAt = Date.now();
   }
-
-  runbooks.sort(function(a, b) {
-    const aStart = (a.scheduleHours || 0) * 60 + (a.scheduleMinutes || 0);
-    const bStart = (b.scheduleHours || 0) * 60 + (b.scheduleMinutes || 0);
-    return aStart - bStart;
+  NotificationHooks.notify('kpi-threshold', {
+    varianceMinutes,
+    variancePercent,
+    plannedMinutes,
+    actualMinutes
   });
+}
 
-  const activeItems = runbooks.filter(function(runbook) {
-    return !runbook.completed && (runbook.status !== 'completed');
-  }).slice(0, 5);
+function renderSnapshotStatus() {
+  const statusEl = document.getElementById('snapshotStatus');
+  if (!statusEl) return;
+  try {
+    const snapshot = JSON.parse(localStorage.getItem('dt2-mobile-snapshot') || 'null');
+    if (snapshot && snapshot.generatedAt) {
+      const when = new Date(snapshot.generatedAt).toLocaleString();
+      statusEl.textContent = `Snapshot from ${when} · ${snapshot.runbooks ? snapshot.runbooks.length : 0} tasks`;
+    } else {
+      statusEl.textContent = 'No snapshot generated.';
+    }
+  } catch (err) {
+    statusEl.textContent = 'Snapshot unavailable';
+  }
+}
 
-  if (activeItems.length === 0) {
-    previewContainer.style.display = 'none';
-    list.innerHTML = '';
-    return;
+function generateMobileSnapshot() {
+  const state = window.AppState || {};
+  const snapshot = {
+    generatedAt: new Date().toISOString(),
+    customer: nameInput?.value || '',
+    transform: phaseInput?.value || '',
+    downtime: {
+      started: !!state.downtimeStarted,
+      startTime: state.downtimeStartTime || null,
+      duration: state.downtimeDuration || null,
+      paused: !!state.downtimePaused
+    },
+    runbooks: (state.runbooks || []).map(function(r) {
+      return {
+        sequence: r.sequence,
+        runblock: r.runblock,
+        responsibility: r.responsibility,
+        status: r.status,
+        planned: `${String(r.scheduleHours || 0).padStart(2,'0')}:${String(r.scheduleMinutes || 0).padStart(2,'0')}`,
+        duration: `${String(r.durationHours || 0).padStart(2,'0')}:${String(r.durationMinutes || 0).padStart(2,'0')}`,
+        predecessor: r.predecessor || null
+      };
+    })
+  };
+  try {
+    localStorage.setItem('dt2-mobile-snapshot', JSON.stringify(snapshot));
+    renderSnapshotStatus();
+    showToast('📱 Mobile snapshot cached for offline access.');
+  } catch (err) {
+    console.error('Failed to persist mobile snapshot', err);
+    alert('Unable to generate snapshot – storage full?');
+  }
+  return snapshot;
+}
+
+function ensureDiagnosticsDrawer() {
+  if (document.getElementById('diagnosticsDrawer')) return;
+  const drawer = document.createElement('div');
+  drawer.id = 'diagnosticsDrawer';
+  drawer.innerHTML = `
+    <header>
+      <h3>Health Diagnostics</h3>
+      <button id="diagnosticsClose" class="btn small danger" type="button">Close</button>
+    </header>
+    <div class="diagnostics-body">
+      <dl>
+        <dt>Status</dt><dd id="diag-connection">—</dd>
+        <dt>Auth</dt><dd id="diag-auth">—</dd>
+        <dt>Last Sync</dt><dd id="diag-last-snapshot">—</dd>
+        <dt>Presence</dt><dd id="diag-presence">—</dd>
+      </dl>
+      <div class="offline-queue">
+        <h4>Offline Queue <span id="offlineQueueCount" style="display:none;background:var(--sap-accent);color:#fff;padding:0 6px;border-radius:999px;font-size:10px;"></span></h4>
+        <ul id="offlineQueueList"><li style="color:var(--sap-muted)">Queue empty</li></ul>
+      </div>
+      <div class="hooks">
+        <h4>Notification Hooks</h4>
+        <form id="hookForm" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;">
+          <input type="url" id="hookUrl" placeholder="https://hooks.slack.com/..." required>
+          <select id="hookEvent">
+            <option value="all">All events</option>
+            <option value="downtime-start">Downtime started</option>
+            <option value="downtime-stop">Downtime stopped</option>
+            <option value="focus-enter">Focus entered</option>
+            <option value="focus-exit">Focus exited</option>
+            <option value="dark-mode">Dark mode toggled</option>
+            <option value="kpi-threshold">KPI threshold exceeded</option>
+          </select>
+          <button class="btn small primary" type="submit">Add hook</button>
+        </form>
+        <ul id="hooksList"></ul>
+      </div>
+      <div class="automation">
+        <h4>KPI Automation</h4>
+        <form id="automationForm" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;">
+          <label style="font-size:11px;display:flex;justify-content:space-between;gap:8px;">Variance %
+            <input type="number" min="1" max="100" id="automationPercent" style="width:90px;">
+          </label>
+          <label style="font-size:11px;display:flex;justify-content:space-between;gap:8px;">Variance minutes
+            <input type="number" min="1" max="360" id="automationMinutes" style="width:90px;">
+          </label>
+          <label style="font-size:11px;display:flex;align-items:center;gap:6px;"><input type="checkbox" id="automationEnabled"> Enable automation</label>
+          <button class="btn small primary" type="submit">Save thresholds</button>
+        </form>
+      </div>
+      <div class="snapshot">
+        <h4>Mobile Snapshot</h4>
+        <p id="snapshotStatus" style="font-size:11px;color:var(--sap-muted);margin:4px 0;">No snapshot generated.</p>
+        <button id="snapshotGenerate" class="btn small" type="button">Generate snapshot</button>
+      </div>
+      <div class="messaging-help" style="margin-top:12px;">
+        <h4>Messaging Tips</h4>
+        <p style="font-size:11px;color:var(--sap-muted);">Use the <strong>Messages</strong> toggle to surface announcements. Each message row supports scheduling via planned time, responsibility, and status badges. Enable messages only after validating content so viewers are not spammed.</p>
+      </div>
+      <div class="tour-controls" style="margin-top:12px;">
+        <h4>Onboarding</h4>
+        <button id="tourRestart" class="btn small primary" type="button">Run host tour</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(drawer);
+
+  const closeBtn = drawer.querySelector('#diagnosticsClose');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', function() {
+      drawer.classList.remove('open');
+    });
   }
 
-  const downtimeStart = state.downtimeStartTime ? new Date(state.downtimeStartTime).getTime() : null;
+  const hookForm = drawer.querySelector('#hookForm');
+  if (hookForm) {
+    hookForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const urlInput = drawer.querySelector('#hookUrl');
+      const eventInput = drawer.querySelector('#hookEvent');
+      const urlValue = urlInput?.value.trim();
+      const eventValue = eventInput?.value || 'all';
+      if (urlValue) {
+        NotificationHooks.addHook(urlValue, [eventValue]);
+        urlInput.value = '';
+      }
+    });
+  }
 
-  list.innerHTML = activeItems.map(function(runbook) {
-    const offsetMinutes = (runbook.scheduleHours || 0) * 60 + (runbook.scheduleMinutes || 0);
-    let timeLabel = `${String(runbook.scheduleHours || 0).padStart(2,'0')}:${String(runbook.scheduleMinutes || 0).padStart(2,'0')}`;
-    if (downtimeStart) {
-      const scheduledMs = downtimeStart + offsetMinutes * 60000;
-      timeLabel = new Date(scheduledMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-    const status = (runbook.status || 'not-started').replace(/-/g, ' ');
-    const name = escapeHtml(runbook.runblock || 'Unnamed task');
-    return `<li style="display:flex;gap:8px;justify-content:space-between;margin-bottom:4px;">` +
-      `<span style="font-family:monospace;color:#555;">${timeLabel}</span>` +
-      `<span style="flex:1;text-align:right;">${name}<span style="display:block;font-size:10px;color:#666;">${status}</span></span>` +
-    `</li>`;
-  }).join('');
+  const automationForm = drawer.querySelector('#automationForm');
+  if (automationForm) {
+    automationForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const percent = parseInt(document.getElementById('automationPercent').value, 10) || 0;
+      const minutes = parseInt(document.getElementById('automationMinutes').value, 10) || 0;
+      const enabled = document.getElementById('automationEnabled').checked;
+      KpiAutomation.update({ variancePercent: Math.max(1, percent), varianceMinutes: Math.max(1, minutes), enabled });
+      showToast('⚙️ KPI automation thresholds updated');
+    });
+  }
 
-  previewContainer.style.display = 'block';
+  const snapshotBtn = drawer.querySelector('#snapshotGenerate');
+  if (snapshotBtn) {
+    snapshotBtn.addEventListener('click', function() {
+      generateMobileSnapshot();
+    });
+  }
+
+  const tourBtn = drawer.querySelector('#tourRestart');
+  if (tourBtn) {
+    tourBtn.addEventListener('click', function() {
+      OnboardingTour.start(true);
+    });
+  }
 }
+
+function renderDiagnosticsPanel() {
+  const statusEl = document.getElementById('diag-connection');
+  if (statusEl) statusEl.textContent = connectionStatus || '—';
+  const authEl = document.getElementById('diag-auth');
+  if (authEl) authEl.textContent = auth?.currentUser?.uid ? auth.currentUser.uid.slice(-6) : 'anon';
+  const lastEl = document.getElementById('diag-last-snapshot');
+  if (lastEl) {
+    if (lastSnapshotAt) {
+      const seconds = Math.round((Date.now() - lastSnapshotAt) / 1000);
+      lastEl.textContent = seconds <= 1 ? 'Realtime' : `${seconds}s ago`;
+    } else {
+      lastEl.textContent = 'Pending';
+    }
+  }
+  const presenceEl = document.getElementById('diag-presence');
+  if (presenceEl) presenceEl.textContent = Object.keys(presenceRoster || {}).length;
+
+  renderOfflineQueueState();
+  renderNotificationHooks();
+  renderAutomationConfig();
+  renderSnapshotStatus();
+}
+
+function toggleDiagnosticsDrawer(forceState) {
+  ensureDiagnosticsDrawer();
+  const drawer = document.getElementById('diagnosticsDrawer');
+  if (!drawer) return;
+  if (typeof forceState === 'boolean') {
+    drawer.classList.toggle('open', forceState);
+  } else {
+    drawer.classList.toggle('open');
+  }
+  if (drawer.classList.contains('open')) {
+    renderDiagnosticsPanel();
+  }
+}
+
+function showMessagingInstructions() {
+  toggleDiagnosticsDrawer(true);
+  showToast('ℹ️ Diagnostics drawer includes messaging & announcement guidance.');
+}
+
+const CommandPalette = (function() {
+  let overlay = null;
+  let input = null;
+  let list = null;
+  let activeIndex = 0;
+
+  const commands = [
+    { id: 'toggle-focus', label: 'Toggle focus mode', action: () => toggleFullscreenMode(), shortcut: 'F' },
+    { id: 'toggle-dark', label: 'Toggle dark mode', action: () => toggleDarkMode(), shortcut: 'D' },
+    { id: 'start-downtime', label: 'Start downtime session', action: () => { if (typeof startDowntime === 'function') startDowntime(); }, shortcut: 'Ctrl+Enter' },
+    { id: 'pause-downtime', label: 'Pause downtime', action: () => { if (typeof pauseDowntime === 'function') pauseDowntime(); } },
+    { id: 'resume-downtime', label: 'Resume downtime', action: () => { if (typeof resumeDowntime === 'function') resumeDowntime(); } },
+    { id: 'open-diagnostics', label: 'Open diagnostics drawer', action: () => toggleDiagnosticsDrawer(true) },
+    { id: 'messages-help', label: 'Messaging framework instructions', action: showMessagingInstructions },
+    { id: 'save-template', label: 'Save current template', action: () => { if (typeof window.saveTemplate === 'function') window.saveTemplate(); }, shortcut: 'Ctrl+S' },
+    { id: 'generate-snapshot', label: 'Generate mobile snapshot', action: generateMobileSnapshot }
+  ];
+
+  function ensure() {
+    if (overlay) return;
+    overlay = document.createElement('div');
+    overlay.className = 'command-palette-overlay';
+    overlay.innerHTML = `
+      <div class="command-palette">
+        <input type="text" placeholder="Type a command…" aria-label="Command search" />
+        <ul></ul>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    input = overlay.querySelector('input');
+    list = overlay.querySelector('ul');
+
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) {
+        close();
+      }
+    });
+
+    input.addEventListener('input', function() {
+      renderList(input.value);
+    });
+
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        activeIndex = Math.min(activeIndex + 1, filteredCommands.length - 1);
+        highlight();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        activeIndex = Math.max(activeIndex - 1, 0);
+        highlight();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        invoke(activeIndex);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        close();
+      }
+    });
+  }
+
+  let filteredCommands = commands.slice();
+
+  function renderList(filterValue) {
+    const query = (filterValue || '').toLowerCase();
+    filteredCommands = commands.filter(function(cmd) {
+      return !query || cmd.label.toLowerCase().includes(query);
+    });
+    if (!filteredCommands.length) {
+      list.innerHTML = '<li style="color:var(--sap-muted);">No commands</li>';
+      return;
+    }
+    list.innerHTML = filteredCommands.map(function(cmd, idx) {
+      const shortcut = cmd.shortcut ? `<span class="shortcut">${cmd.shortcut}</span>` : '';
+      return `<li data-index="${idx}" class="${idx === activeIndex ? 'active' : ''}">${cmd.label}${shortcut}</li>`;
+    }).join('');
+    list.querySelectorAll('li').forEach(function(item) {
+      item.addEventListener('click', function() {
+        const idx = parseInt(item.getAttribute('data-index'), 10);
+        invoke(idx);
+      });
+    });
+    highlight();
+  }
+
+  function highlight() {
+    if (!list) return;
+    list.querySelectorAll('li').forEach(function(li) {
+      li.classList.remove('active');
+    });
+    const active = list.querySelector(`li[data-index="${activeIndex}"]`);
+    if (active) {
+      active.classList.add('active');
+      active.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  function invoke(idx) {
+    const command = filteredCommands[idx];
+    if (!command) return;
+    close();
+    try {
+      command.action();
+    } catch (err) {
+      console.error('Command execution failed', err);
+    }
+  }
+
+  function open() {
+    ensure();
+    overlay.classList.add('show');
+    filteredCommands = commands.slice();
+    activeIndex = 0;
+    renderList('');
+    setTimeout(function() {
+      input.focus();
+      input.select();
+    }, 0);
+  }
 
 // Push state to Firebase (host only)
 async function transmitState(statePayload, reason) {
