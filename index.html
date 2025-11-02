@@ -153,6 +153,193 @@
     border-color: rgba(255,255,255,0.08);
     color: #f5f7fa;
   }
+
+  #diagnosticsDrawer {
+    position: fixed;
+    right: 16px;
+    bottom: 80px;
+    width: 320px;
+    max-height: 70vh;
+    background: var(--sap-panel);
+    border: 1px solid var(--sap-border);
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.25);
+    transform: translateY(110%);
+    transition: transform 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    z-index: 100003;
+    overflow: hidden;
+  }
+
+  #diagnosticsDrawer.open {
+    transform: translateY(0);
+  }
+
+  #diagnosticsDrawer header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, rgba(10,110,209,0.1), rgba(8,84,160,0.15));
+    border-bottom: 1px solid rgba(10,110,209,0.15);
+  }
+
+  #diagnosticsDrawer header h3 {
+    margin: 0;
+    font-size: 14px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+
+  #diagnosticsDrawer .diagnostics-body {
+    padding: 12px 16px;
+    overflow-y: auto;
+  }
+
+  #diagnosticsDrawer dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 8px;
+    font-size: 12px;
+  }
+
+  #diagnosticsDrawer dl dt {
+    color: var(--sap-muted);
+  }
+
+  #diagnosticsDrawer dl dd {
+    margin: 0;
+    font-weight: 600;
+  }
+
+  #diagnosticsDrawer .offline-queue {
+    margin-top: 12px;
+  }
+
+  #diagnosticsDrawer .offline-queue h4,
+  #diagnosticsDrawer .hooks h4,
+  #diagnosticsDrawer .automation h4,
+  #diagnosticsDrawer .snapshot h4 {
+    margin: 12px 0 6px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--sap-muted);
+  }
+
+  #diagnosticsDrawer ul {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 11px;
+  }
+
+  #diagnosticsDrawer button.small {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  .command-palette-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 10vh;
+    z-index: 100004;
+  }
+
+  .command-palette-overlay.show {
+    display: flex;
+  }
+
+  .command-palette {
+    width: min(520px, 90vw);
+    background: var(--sap-panel);
+    border-radius: 12px;
+    border: 1px solid var(--sap-border);
+    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.35);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .command-palette input {
+    border: none;
+    padding: 12px 16px;
+    font-size: 14px;
+    outline: none;
+    border-bottom: 1px solid var(--sap-border);
+  }
+
+  .command-palette ul {
+    list-style: none;
+    margin: 0;
+    padding: 8px 0;
+    max-height: 280px;
+    overflow-y: auto;
+  }
+
+  .command-palette li {
+    padding: 10px 16px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .command-palette li.active,
+  .command-palette li:hover {
+    background: rgba(10,110,209,0.1);
+  }
+
+  .command-palette li span.shortcut {
+    font-size: 11px;
+    color: var(--sap-muted);
+  }
+
+  .onboarding-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100005;
+  }
+
+  .onboarding-overlay.show {
+    display: flex;
+  }
+
+  .onboarding-card {
+    width: min(440px, 90vw);
+    background: var(--sap-panel);
+    border-radius: 16px;
+    padding: 20px 24px;
+    box-shadow: 0 32px 64px rgba(15, 23, 42, 0.35);
+  }
+
+  .onboarding-card h2 {
+    margin-top: 0;
+    margin-bottom: 8px;
+  }
+
+  .onboarding-card footer {
+    margin-top: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .tour-highlight {
+    position: relative;
+    z-index: 100006 !important;
+    box-shadow: 0 0 0 4px rgba(10,110,209,0.35);
+    border-radius: 8px;
+  }
   
   *{
     box-sizing: border-box;
@@ -2485,9 +2672,9 @@ function runAuthenticatedStartup() {
   }
 
   bindMessageToggleButton();
-  window.setMessagesEnabled(window.AppState && typeof window.AppState.messagesOn === 'boolean' ? window.AppState.messagesOn : false);
+  window.setMessagesEnabled(window.AppState && typeof window.AppState.messagesOn === 'boolean' ? window.AppState.messagesOn : false, { source: 'init', skipSync: true });
   updateFocusExitControl(window.AppState.fullscreenMode);
-  applyFocusState(window.AppState.fullscreenMode, { forceRefresh: true, skipTimelineRefresh: true });
+  setFocusMode(window.AppState.fullscreenMode, { forceRefresh: true, skipTimelineRefresh: true });
 
   updateClock();
   if (!clockIntervalId) {
@@ -2795,6 +2982,7 @@ function recordStatusChange(type, options) {
   window.AppState.lastStatusSeenAt = payload.at;
   showToast(message);
   playStatusTone(type);
+  NotificationHooks.notify(type, payload);
   if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
     schedulePush();
   }
@@ -2811,6 +2999,65 @@ function handleRemoteStatusChange(change) {
 }
 
 // Template Management Functions
+const TemplateGovernance = (function() {
+  const storageKey = 'dt2-template-governance';
+  let registry = {};
+  try {
+    registry = JSON.parse(localStorage.getItem(storageKey) || '{}');
+  } catch (err) {
+    registry = {};
+  }
+
+  function persist() {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(registry));
+    } catch (err) {
+      console.warn('Failed to persist template governance registry', err);
+    }
+  }
+
+  function ensureEntry(name) {
+    const key = name.toLowerCase();
+    if (!registry[key]) {
+      registry[key] = { version: '1.0.0', history: [] };
+    }
+    return registry[key];
+  }
+
+  function bumpVersion(name, note) {
+    const key = name.toLowerCase();
+    const entry = ensureEntry(name);
+    if (entry.history && entry.history.length) {
+      const parts = (entry.version || '1.0.0').split('.').map(function(part) { return parseInt(part, 10) || 0; });
+      parts[2] = (parts[2] || 0) + 1;
+      entry.version = `${parts[0]}.${parts[1]}.${parts[2]}`;
+    } else {
+      entry.version = '1.0.0';
+    }
+    entry.history = entry.history || [];
+    entry.history.unshift({ note: note || 'Update', at: new Date().toISOString() });
+    entry.history = entry.history.slice(0, 10);
+    registry[key] = entry;
+    persist();
+    return entry;
+  }
+
+  function getMetadata(name) {
+    const key = name.toLowerCase();
+    const entry = registry[key];
+    if (!entry) return { version: '0.0.0', history: [] };
+    return { version: entry.version || '0.0.0', history: (entry.history || []).slice() };
+  }
+
+  function hasHistory(name) {
+    const key = name.toLowerCase();
+    const entry = registry[key];
+    return !!(entry && entry.history && entry.history.length);
+  }
+
+  return { bumpVersion, getMetadata, hasHistory };
+})();
+
 window.saveTemplate = async function() {
   const templateName = document.getElementById('templateName');
   if (!templateName.value.trim()) {
@@ -2822,9 +3069,15 @@ window.saveTemplate = async function() {
     alert('No runbook data to save. Please add some runbooks first.');
     return;
   }
-  
+
+  const trimmedName = templateName.value.trim();
+  const existing = TemplateGovernance.getMetadata(trimmedName);
+  const defaultNote = existing.history.length ? 'Updated runbook sequence' : 'Initial version';
+  const summary = prompt('Summarize this template update (for changelog visibility):', defaultNote) || defaultNote;
+  const governance = TemplateGovernance.bumpVersion(trimmedName, summary);
+
   const template = {
-    name: templateName.value.trim(),
+    name: trimmedName,
     runbooks: window.AppState.runbooks.map(r => ({
       sequence: r.sequence,
       strategy: r.strategy,
@@ -2838,9 +3091,11 @@ window.saveTemplate = async function() {
       durationMinutes: r.durationMinutes
     })),
     createdAt: new Date().toISOString(),
-    createdBy: document.getElementById('customerName')?.value || 'Unknown'
+    createdBy: document.getElementById('customerName')?.value || 'Unknown',
+    version: governance.version,
+    changeLog: governance.history
   };
-  
+
   try {
     // Will be saved via Firebase
     if (window.saveTemplateToFirebase) {
@@ -2885,7 +3140,8 @@ window.loadTemplate = async function(templateId) {
         window.setMessagesEnabled(false);
       }
 
-      alert('✅ Template loaded successfully!');
+      var versionInfo = template.version ? ` (v${template.version})` : '';
+      alert('✅ Template loaded successfully' + versionInfo + '!');
     }
   } catch (e) {
     console.error('Error loading template:', e);
@@ -2926,15 +3182,18 @@ window.refreshTemplates = async function() {
       listContainer.innerHTML = templates.map(function(t) {
         const date = new Date(t.createdAt).toLocaleDateString();
         const runbookCount = t.runbooks.length;
-        
+        const version = t.version || '1.0.0';
+        const changelogParam = encodeURIComponent(JSON.stringify(t.changeLog || []));
+
         return `
           <div class="template-item">
             <div class="template-info">
               <div class="template-name">${t.name}</div>
-              <div class="template-meta">${runbookCount} runbooks • Created ${date} by ${t.createdBy}</div>
+              <div class="template-meta">v${version} • ${runbookCount} runbooks • Created ${date} by ${t.createdBy}</div>
             </div>
             <div class="template-actions">
               <button class="btn small primary" onclick="loadTemplate('${t.id}')">📂 Load</button>
+              <button class="btn small" onclick="showTemplateChangelog('${encodeURIComponent(t.name)}','${version}','${changelogParam}')">📝 Log</button>
               <button class="btn small danger" onclick="deleteTemplate('${t.id}')">🗑️ Delete</button>
             </div>
           </div>
@@ -2945,6 +3204,25 @@ window.refreshTemplates = async function() {
     console.error('Error refreshing templates:', e);
     listContainer.innerHTML = '<div style="padding:20px;text-align:center;color:var(--sap-error);">Error loading templates</div>';
   }
+};
+
+window.showTemplateChangelog = function(encodedName, version, encodedLog) {
+  let entries = [];
+  let name = decodeURIComponent(encodedName || 'Template');
+  try {
+    entries = JSON.parse(decodeURIComponent(encodedLog || '[]')) || [];
+  } catch (err) {
+    console.warn('Failed to parse changelog', err);
+  }
+  if (!entries.length) {
+    alert(`${name} v${version}\nNo recorded changes yet.`);
+    return;
+  }
+  const lines = entries.map(function(entry) {
+    const when = entry.at ? new Date(entry.at).toLocaleString() : 'Unknown time';
+    return `${when} – ${entry.note}`;
+  }).join('\n');
+  alert(`${name} v${version}\n\n${lines}`);
 };
 
 // NEW: Keyboard Shortcuts Handler
@@ -3068,19 +3346,53 @@ function applyFocusState(isActive, options = {}) {
   return changed;
 }
 
-function toggleFullscreenMode(forceState) {
-  var shouldEnable = typeof forceState === 'boolean' ? forceState : !window.AppState.fullscreenMode;
-  var changed = applyFocusState(shouldEnable, { attemptFullscreen: true });
+function renderFocusIndicators() {
+  if (!window.AppState) return;
+  var focusRow = document.getElementById('rt-focus-row');
+  var focusTime = document.getElementById('rt-focus-time');
+  if (!focusRow || !focusTime) return;
 
-  if (changed && window.canWrite && window.canWrite()) {
+  if (window.AppState.fullscreenMode && window.AppState.fullscreenSince) {
+    var since = window.AppState.fullscreenSince instanceof Date ? window.AppState.fullscreenSince : new Date(window.AppState.fullscreenSince);
+    focusRow.style.display = 'block';
+    focusTime.textContent = since.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  } else {
+    focusRow.style.display = 'none';
+  }
+}
+
+function setFocusMode(active, options) {
+  var opts = options || {};
+  var changed = applyFocusState(active, opts);
+  if (changed || opts.forceRefresh) {
+    renderFocusIndicators();
+  }
+  return changed;
+}
+
+function toggleFullscreenMode(forceState) {
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    showToast('Focus mode is controlled by the host in viewer mode.');
+    return false;
+  }
+
+  var shouldEnable = typeof forceState === 'boolean' ? forceState : !window.AppState.fullscreenMode;
+  var changed = setFocusMode(shouldEnable, { attemptFullscreen: true });
+
+  if (!changed) {
+    return false;
+  }
+
+  if (window.canWrite && window.canWrite()) {
     recordStatusChange(shouldEnable ? 'focus-enter' : 'focus-exit', {
       message: shouldEnable ? 'Focus mode enabled' : 'Focus mode exited'
     });
+    if (typeof schedulePush === 'function') {
+      schedulePush('focus-toggle');
+    }
   }
 
-  if (changed && typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
-    schedulePush();
-  }
+  return true;
 }
 
 function lazyLoadTimelineForFocus() {
@@ -3134,19 +3446,19 @@ window.toggleFullscreenMode = toggleFullscreenMode;
 document.addEventListener('fullscreenchange', function() {
   var isFullscreen = !!document.fullscreenElement;
   if (!isFullscreen && window.AppState.fullscreenMode) {
-    var exited = applyFocusState(false, { forceRefresh: true });
+    var exited = setFocusMode(false, { forceRefresh: true });
     if (exited && window.canWrite && window.canWrite()) {
       recordStatusChange('focus-exit', { message: 'Focus mode exited' });
       if (typeof schedulePush === 'function') {
-        schedulePush();
+        schedulePush('focus-toggle');
       }
     }
   } else if (isFullscreen && !window.AppState.fullscreenMode) {
-    var entered = applyFocusState(true, { forceRefresh: true, since: new Date() });
+    var entered = setFocusMode(true, { forceRefresh: true, since: new Date() });
     if (entered && window.canWrite && window.canWrite()) {
       recordStatusChange('focus-enter', { message: 'Focus mode enabled' });
       if (typeof schedulePush === 'function') {
-        schedulePush();
+        schedulePush('focus-toggle');
       }
     }
   }
@@ -3294,22 +3606,57 @@ setInterval(function() {
 
 // NEW: Dark Mode Functions
 function initDarkMode() {
-  var stored = localStorage.getItem('darkMode');
+  var stored = null;
+  try {
+    stored = localStorage.getItem('darkMode');
+  } catch (err) {
+    console.warn('Unable to read stored dark mode preference', err);
+  }
   var darkMode = stored === 'true';
-  window.AppState.darkMode = darkMode;
-  document.body.classList.toggle('dark-mode', darkMode);
-  updateDarkModeButton(darkMode);
+  setDarkMode(darkMode, { source: 'init', skipSync: true, skipStorage: true, force: true });
 }
 
-function toggleDarkMode() {
-  var isDark = !window.AppState.darkMode;
-  window.AppState.darkMode = isDark;
-  document.body.classList.toggle('dark-mode', isDark);
-  localStorage.setItem('darkMode', isDark);
-  updateDarkModeButton(isDark);
-  if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
-    schedulePush();
+function setDarkMode(enabled, options) {
+  var opts = options || {};
+  var desired = !!enabled;
+  window.AppState = window.AppState || {};
+  var previous = !!window.AppState.darkMode;
+  if (!opts.force && desired === previous) {
+    return false;
   }
+
+  window.AppState.darkMode = desired;
+  document.body.classList.toggle('dark-mode', desired);
+  updateDarkModeButton(desired);
+
+  if (!opts.skipStorage) {
+    try {
+      localStorage.setItem('darkMode', desired);
+    } catch (err) {
+      console.warn('Unable to persist dark mode preference', err);
+    }
+  }
+
+  return true;
+}
+
+function toggleDarkMode(forceState) {
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    showToast('Dark mode is controlled by the host in viewer mode.');
+    return false;
+  }
+
+  var desired = typeof forceState === 'boolean' ? forceState : !window.AppState.darkMode;
+  var changed = setDarkMode(desired, { source: 'host' });
+  if (!changed) {
+    return false;
+  }
+
+  NotificationHooks.notify('dark-mode', { enabled: desired, at: new Date().toISOString() });
+  if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
+    schedulePush('dark-mode');
+  }
+  return true;
 }
 
 function updateDarkModeButton(isDark) {
@@ -3368,6 +3715,7 @@ function updateFullscreenKpis() {
       varianceLabel.textContent = '-' + varianceText;
       varianceLabel.style.color = 'var(--sap-success)';
     }
+    handleKpiAutomation(plannedMinutes, actualMinutes);
   }
 }
 
@@ -3630,20 +3978,43 @@ function bindMessageToggleButton() {
   if (!toggleBtn) return;
   messageToggleBound = true;
   toggleBtn.addEventListener('click', function() {
-    window.setMessagesEnabled(!window.AppState.messagesOn);
+    if (typeof window.canWrite === 'function' && !window.canWrite()) {
+      showToast('Messaging visibility is controlled by the host in viewer mode.');
+      return;
+    }
+    window.setMessagesEnabled(!window.AppState.messagesOn, { source: 'host' });
   });
   applyMessageToggleState();
 }
 
-function setMessagesEnabled(enabled) {
+function setMessagesEnabled(enabled, options) {
   window.AppState = window.AppState || {};
-  window.AppState.messagesOn = !!enabled;
-  applyMessageToggleState();
-  if (typeof renderRunbookTable === 'function') renderRunbookTable();
-  if (typeof updateTimeline === 'function') updateTimeline();
-  if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
-    schedulePush();
+  var opts = options || {};
+  var desired = !!enabled;
+  var previous = !!window.AppState.messagesOn;
+
+  if (!opts.force && desired === previous) {
+    applyMessageToggleState();
+    return desired;
   }
+
+  window.AppState.messagesOn = desired;
+  applyMessageToggleState();
+
+  if (!opts.skipRender) {
+    if (typeof renderRunbookTable === 'function') renderRunbookTable();
+    if (typeof updateTimeline === 'function') updateTimeline();
+  }
+
+  if (opts.source === 'remote' || opts.skipSync) {
+    return desired;
+  }
+
+  if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
+    schedulePush('messages-toggle');
+  }
+
+  return desired;
 }
 
 window.setMessagesEnabled = setMessagesEnabled;
@@ -3670,28 +4041,6 @@ window.selectRecentCustomer = function(name, transform) {
   // Update fullscreen info if in fullscreen mode
   if (window.AppState.fullscreenMode) {
     updateFullscreenCustomerInfo();
-  }
-}
-
-function bindMessageToggleButton() {
-  if (messageToggleBound) return;
-  var toggleBtn = document.getElementById('messageToggleBtn');
-  if (!toggleBtn) return;
-  messageToggleBound = true;
-  toggleBtn.addEventListener('click', function() {
-    window.setMessagesEnabled(!window.AppState.messagesOn);
-  });
-  applyMessageToggleState();
-}
-
-function setMessagesEnabled(enabled) {
-  window.AppState = window.AppState || {};
-  window.AppState.messagesOn = !!enabled;
-  applyMessageToggleState();
-  if (typeof renderRunbookTable === 'function') renderRunbookTable();
-  if (typeof updateTimeline === 'function') updateTimeline();
-  if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
-    schedulePush();
   }
 }
 
@@ -4934,6 +5283,11 @@ window.startDowntime = function() {
   updateProgressIndicators();
   updateTimeline();
   renderRunbookTable();
+
+  if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
+    schedulePush('downtime-start');
+  }
+  recordStatusChange('downtime-start', { message: 'Downtime started' });
 };
 
 window.pauseDowntime = function() {
@@ -5041,7 +5395,7 @@ window.stopDowntime = function() {
     if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
       schedulePush();
     }
-    recordStatusChange('reset', { message: 'Downtime stopped and reset' });
+    recordStatusChange('downtime-stop', { message: 'Downtime stopped and reset' });
     updateViewerPanel();
   }
 };
@@ -5747,6 +6101,310 @@ console.log("Session initialization:", {
   fullUrl: window.location.href
 });
 
+function createLocalRealtimeBridge(sessionKey) {
+  const safeSessionKey = sessionKey || 'default__default';
+  const stateKey = `dt2-local-state-${safeSessionKey}`;
+  const presenceKey = `dt2-local-presence-${safeSessionKey}`;
+  const hasStorage = (function() {
+    try {
+      const probeKey = '__dt2_rt_probe__';
+      localStorage.setItem(probeKey, '1');
+      localStorage.removeItem(probeKey);
+      return true;
+    } catch (err) {
+      return false;
+    }
+  })();
+  const supportsBroadcast = typeof BroadcastChannel !== 'undefined';
+
+  function safeParse(raw, fallback) {
+    if (!raw) return fallback;
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed === null ? fallback : parsed;
+    } catch (err) {
+      return fallback;
+    }
+  }
+
+  let stateCache = hasStorage ? safeParse(localStorage.getItem(stateKey), null) : null;
+  let presenceCache = hasStorage ? safeParse(localStorage.getItem(presenceKey), {}) : {};
+  if (!presenceCache || typeof presenceCache !== 'object') presenceCache = {};
+
+  const stateListeners = new Set();
+  const presenceListeners = new Set();
+
+  const stateChannel = supportsBroadcast ? new BroadcastChannel(`${stateKey}-channel`) : null;
+  const presenceChannel = supportsBroadcast ? new BroadcastChannel(`${presenceKey}-channel`) : null;
+
+  function persistState() {
+    if (!hasStorage) return;
+    try {
+      localStorage.setItem(stateKey, JSON.stringify(stateCache));
+    } catch (err) {
+      console.warn('Local realtime state persist failed', err);
+    }
+  }
+
+  function persistPresence() {
+    if (!hasStorage) return;
+    try {
+      localStorage.setItem(presenceKey, JSON.stringify(presenceCache));
+    } catch (err) {
+      console.warn('Local realtime presence persist failed', err);
+    }
+  }
+
+  function notifyStateListeners(payload) {
+    stateListeners.forEach(function(listener) {
+      try {
+        listener(payload.state, payload);
+      } catch (err) {
+        console.error('Local realtime state listener error', err);
+      }
+    });
+  }
+
+  function currentPresenceEntries() {
+    return Object.keys(presenceCache).map(function(id) {
+      return { presenceDocId: id, ...presenceCache[id] };
+    });
+  }
+
+  function notifyPresenceListeners() {
+    const entries = currentPresenceEntries();
+    presenceListeners.forEach(function(listener) {
+      try {
+        listener(entries);
+      } catch (err) {
+        console.error('Local realtime presence listener error', err);
+      }
+    });
+  }
+
+  function setStatePayload(payload, options) {
+    if (!payload || typeof payload !== 'object') return;
+    const opts = options || {};
+    stateCache = payload;
+    persistState();
+    if (opts.broadcast && stateChannel) {
+      try {
+        stateChannel.postMessage(payload);
+      } catch (err) {
+        console.warn('Local realtime state broadcast failed', err);
+      }
+    }
+    notifyStateListeners(payload);
+  }
+
+  function setPresenceMap(map, options) {
+    const opts = options || {};
+    presenceCache = map && typeof map === 'object' ? { ...map } : {};
+    persistPresence();
+    if (opts.broadcast && presenceChannel) {
+      try {
+        presenceChannel.postMessage({ type: 'presence', map: presenceCache });
+      } catch (err) {
+        console.warn('Local realtime presence broadcast failed', err);
+      }
+    }
+    notifyPresenceListeners();
+  }
+
+  if (stateChannel) {
+    stateChannel.addEventListener('message', function(event) {
+      const payload = event && event.data;
+      if (payload && payload.type === 'state' && payload.state) {
+        setStatePayload(payload, { broadcast: false });
+      }
+    });
+  }
+
+  const storageStateHandler = function(event) {
+    if (event.key === stateKey && event.newValue) {
+      const payload = safeParse(event.newValue, null);
+      if (payload && payload.state) {
+        setStatePayload(payload, { broadcast: false });
+      }
+    }
+  };
+
+  const storagePresenceHandler = function(event) {
+    if (event.key === presenceKey) {
+      const map = safeParse(event.newValue, {});
+      setPresenceMap(map, { broadcast: false });
+    }
+  };
+
+  if (hasStorage) {
+    window.addEventListener('storage', storageStateHandler);
+    window.addEventListener('storage', storagePresenceHandler);
+  }
+
+  if (presenceChannel) {
+    presenceChannel.addEventListener('message', function(event) {
+      const payload = event && event.data;
+      if (payload && payload.type === 'presence' && payload.map) {
+        setPresenceMap(payload.map, { broadcast: false });
+      }
+    });
+  }
+
+  function emitState(state, reason, meta) {
+    if (!state) return;
+    const payload = {
+      type: 'state',
+      state,
+      reason: reason || 'update',
+      uid: (meta && meta.uid) || uid || null,
+      ts: Date.now(),
+      origin: (meta && meta.origin) || 'local'
+    };
+    setStatePayload(payload, { broadcast: true });
+  }
+
+  function ingestState(state, meta) {
+    if (!state) return;
+    const payload = {
+      type: 'state',
+      state,
+      reason: (meta && meta.reason) || 'ingest',
+      uid: (meta && meta.uid) || null,
+      ts: Date.now(),
+      origin: (meta && meta.origin) || 'remote'
+    };
+    const broadcast = !meta || meta.broadcast !== false;
+    setStatePayload(payload, { broadcast });
+  }
+
+  function normalizePresenceEntry(entry) {
+    if (!entry) return null;
+    const id = entry.presenceDocId || entry.id || entry.uid || entry.instanceId;
+    if (!id) return null;
+    let lastActiveMs = Date.now();
+    if (typeof entry.lastActive === 'number') {
+      lastActiveMs = entry.lastActive;
+    } else if (entry.lastActive && typeof entry.lastActive.toMillis === 'function') {
+      lastActiveMs = entry.lastActive.toMillis();
+    } else if (entry.lastActive && typeof entry.lastActive.seconds === 'number') {
+      lastActiveMs = entry.lastActive.seconds * 1000;
+    } else if (typeof entry.lastActiveMillis === 'number') {
+      lastActiveMs = entry.lastActiveMillis;
+    }
+    return {
+      id,
+      payload: {
+        uid: entry.uid || id,
+        displayName: entry.displayName || entry.name || null,
+        name: entry.name || entry.displayName || null,
+        mode: entry.mode || 'viewer',
+        lastActive: lastActiveMs,
+        instanceId: entry.instanceId || sessionInstanceId
+      }
+    };
+  }
+
+  function emitPresenceEntry(entry) {
+    const normalized = normalizePresenceEntry(entry);
+    if (!normalized) return;
+    const next = { ...presenceCache };
+    next[normalized.id] = normalized.payload;
+    setPresenceMap(next, { broadcast: true });
+  }
+
+  function ingestPresence(entries, meta) {
+    const next = {};
+    (entries || []).forEach(function(entry) {
+      const normalized = normalizePresenceEntry(entry);
+      if (normalized) {
+        next[normalized.id] = normalized.payload;
+      }
+    });
+    const broadcast = !meta || meta.broadcast !== false;
+    setPresenceMap(next, { broadcast });
+  }
+
+  function removePresence(id) {
+    if (!id) return;
+    if (!presenceCache[id]) return;
+    const next = { ...presenceCache };
+    delete next[id];
+    setPresenceMap(next, { broadcast: true });
+  }
+
+  function subscribeState(callback) {
+    if (typeof callback !== 'function') return function() {};
+    stateListeners.add(callback);
+    if (stateCache && stateCache.state) {
+      try {
+        callback(stateCache.state, stateCache);
+      } catch (err) {
+        console.error('Local realtime state listener error', err);
+      }
+    }
+    return function() {
+      stateListeners.delete(callback);
+    };
+  }
+
+  function subscribePresence(callback) {
+    if (typeof callback !== 'function') return function() {};
+    presenceListeners.add(callback);
+    try {
+      callback(currentPresenceEntries());
+    } catch (err) {
+      console.error('Local realtime presence listener error', err);
+    }
+    return function() {
+      presenceListeners.delete(callback);
+    };
+  }
+
+  function getCachedState() {
+    return stateCache;
+  }
+
+  function getPresenceSnapshot() {
+    return currentPresenceEntries();
+  }
+
+  function dispose() {
+    stateListeners.clear();
+    presenceListeners.clear();
+    if (stateChannel) {
+      try { stateChannel.close(); } catch (err) {}
+    }
+    if (presenceChannel) {
+      try { presenceChannel.close(); } catch (err) {}
+    }
+    if (hasStorage) {
+      window.removeEventListener('storage', storageStateHandler);
+      window.removeEventListener('storage', storagePresenceHandler);
+    }
+  }
+
+  return {
+    emitState,
+    ingestState,
+    subscribeState,
+    emitPresenceEntry,
+    ingestPresence,
+    subscribePresence,
+    removePresence,
+    getCachedState,
+    getPresenceSnapshot,
+    dispose
+  };
+}
+
+let LocalRealtime = createLocalRealtimeBridge(sessionContext.sessionKey);
+let localStateUnsubscribe = null;
+let localPresenceUnsubscribe = null;
+
+window.LocalRealtimeBridge = LocalRealtime;
+
+bindLocalRealtimeBridges();
+
 function getOperatorName() {
   const raw = (operatorInput && operatorInput.value) ? operatorInput.value.trim() : "";
   if (raw) return raw;
@@ -5812,15 +6470,29 @@ function hideContextSwitchToast() {
 }
 
 function resolveControllerName() {
-  if (!remoteController) return null;
-  if (latestSessionData && latestSessionData.controllerName) {
-    return latestSessionData.controllerName;
+  if (remoteController) {
+    if (latestSessionData && latestSessionData.controllerName) {
+      return latestSessionData.controllerName;
+    }
+    const presence = presenceRoster[remoteController];
+    if (presence) {
+      return presence.displayName || presence.name || null;
+    }
+    if (remoteController && typeof remoteController === 'string') {
+      return 'User ' + remoteController.slice(-6);
+    }
+    return null;
   }
-  const presence = presenceRoster[remoteController];
-  if (presence) {
-    return presence.displayName || presence.name || null;
+
+  const rosterEntries = Object.values(presenceRoster || {});
+  const fallbackHost = rosterEntries.find(function(entry) {
+    return entry && (entry.mode || '').toLowerCase() !== 'viewer';
+  });
+  if (fallbackHost) {
+    return fallbackHost.displayName || fallbackHost.name || 'Host';
   }
-  return 'User ' + remoteController.slice(-6);
+
+  return null;
 }
 
 function renderHostStatus() {
@@ -5842,6 +6514,9 @@ function renderHostStatus() {
       hostMeta.textContent = 'Awaiting first host';
     } else if (canWrite && remoteController === uid) {
       hostMeta.textContent = 'You are controlling this session';
+      if (typeof OnboardingTour !== 'undefined' && OnboardingTour) {
+        OnboardingTour.maybeStart();
+      }
     } else if (activeName) {
       hostMeta.textContent = 'Controlled by ' + activeName;
     } else {
@@ -5882,6 +6557,11 @@ function renderHostStatus() {
         }
       }
     }
+  }
+
+  const overlayHost = document.getElementById('rt-host-name');
+  if (overlayHost) {
+    overlayHost.textContent = activeName || 'Unassigned';
   }
 }
 
@@ -5926,10 +6606,13 @@ window.addEventListener('online', function() {
   if (connectionStatus === 'offline') {
     updateConnectionIndicator('pending', 'Re-establishing connection…');
   }
+  flushOfflineQueue();
+  renderOfflineQueueState();
 });
 
 window.addEventListener('offline', function() {
   updateConnectionIndicator('offline', 'Browser is offline');
+  renderOfflineQueueState();
 });
 
 setInterval(function() {
@@ -6023,6 +6706,21 @@ function createRealtimeOverlay() {
       <span id="rt-online" style="display:inline-block;padding:2px 8px;border:1px solid #dcdcdc;border-radius:999px;">0 online</span>
       <span id="rt-mode" style="font-weight:600;color:#444">mode: —</span>
     </div>
+    <div style="margin-top:6px;font-size:12px;display:flex;gap:6px;align-items:center;justify-content:space-between;">
+      <span><strong>Host:</strong> <span id="rt-host-name">—</span></span>
+      <button id="rt-open-diagnostics" style="padding:2px 8px;border:1px solid #ccc;border-radius:999px;background:#f3f5f8;font-size:11px;cursor:pointer;">Diagnostics</button>
+    </div>
+    <div id="rt-engagement" style="margin-top:6px;padding:6px 8px;background:#f7f9fc;border:1px solid #e1e6f0;border-radius:6px;font-size:11px;line-height:1.4;">
+      <div style="display:flex;justify-content:space-between;">
+        <span>Peak viewers</span>
+        <strong id="rt-peak-viewers">0</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px;">
+        <span>Avg session length</span>
+        <strong id="rt-avg-session">0m</strong>
+      </div>
+      <div id="rt-current-viewers" style="margin-top:4px;color:#556;"></div>
+    </div>
     <div id="rt-viewer-panel" style="display:none;margin-top:8px">
       <div style="font-size:12px;margin-bottom:2px"><b>Status:</b> <span id="rt-status">—</span></div>
       <div style="font-size:12px;margin-bottom:4px"><b>Start:</b> <span id="rt-start">—</span></div>
@@ -6054,6 +6752,14 @@ function createRealtimeOverlay() {
     setTimeout(() => btn.textContent = prev, 1500);
   };
 
+  const diagnosticsBtn = document.getElementById('rt-open-diagnostics');
+  if (diagnosticsBtn && !diagnosticsBtn.__bound) {
+    diagnosticsBtn.__bound = true;
+    diagnosticsBtn.addEventListener('click', function() {
+      toggleDiagnosticsDrawer();
+    });
+  }
+
   const resetBtn = document.createElement("div");
   resetBtn.id = 'realtimeResetWrapper';
   resetBtn.style.cssText = "position:fixed;left:10px;bottom:10px;z-index:100001";
@@ -6063,6 +6769,8 @@ function createRealtimeOverlay() {
   if (typeof updateViewerPanel === 'function') {
     setTimeout(() => updateViewerPanel(), 0);
   }
+
+  renderFocusIndicators();
 }
 
 createRealtimeOverlay();
@@ -6122,6 +6830,8 @@ function initializeRealtime() {
     }
 
     subscribeToSession();
+    await flushOfflineQueue({ force: true });
+    renderOfflineQueueState();
   })();
 
   realtimeInitPromise = realtimeInitPromise.catch(function(err) {
@@ -6136,20 +6846,39 @@ function initializeRealtime() {
 // Presence tracking
 
 async function updatePresence() {
+  const currentUrl = new URL(window.location.href);
+  const forcedViewer = viewerForced || currentUrl.searchParams.get('viewer') === '1';
+  const canWriteNow = typeof window.canWrite === 'function' ? window.canWrite() : !forcedViewer;
+  const presenceId = presenceDocId || uid || sessionInstanceId;
+  const presencePayload = {
+    id: presenceId,
+    uid: uid || presenceId,
+    displayName: getOperatorName(),
+    name: getOperatorName(),
+    mode: canWriteNow ? 'host' : 'viewer',
+    instanceId: sessionInstanceId,
+    lastActive: Date.now()
+  };
+
+  try {
+    if (LocalRealtime && typeof LocalRealtime.emitPresenceEntry === 'function') {
+      LocalRealtime.emitPresenceEntry(presencePayload);
+    }
+  } catch (err) {
+    console.warn('Local realtime presence emit failed', err);
+  }
+
   if (!presenceRef) return;
   try {
-    const currentUrl = new URL(window.location.href);
-    const forcedViewer = viewerForced || currentUrl.searchParams.get('viewer') === '1';
-    const canWriteNow = typeof window.canWrite === 'function' ? window.canWrite() : !forcedViewer;
     await window.firestore.setDoc(presenceRef, {
-      displayName: getOperatorName(),
-      name: getOperatorName(),
+      displayName: presencePayload.displayName,
+      name: presencePayload.name,
       customer: sessionContext.customerValue,
       transform: sessionContext.transformValue,
       uid,
       instanceId: sessionInstanceId,
       lastActive: window.firestore.serverTimestamp(),
-      mode: canWriteNow ? 'host' : 'viewer'
+      mode: presencePayload.mode
     }, { merge: true });
   } catch(e) {
     console.error("Presence update failed:", e);
@@ -6159,6 +6888,183 @@ async function updatePresence() {
 let presenceIntervalId = null;
 let presenceUnsubscribe = null;
 
+const ViewerEngagement = {
+  active: {},
+  history: [],
+  peak: 0,
+  totalDurationMs: 0,
+  sessionsCompleted: 0
+};
+
+function formatDurationMinutes(ms) {
+  const minutes = Math.max(0, Math.round(ms / 60000));
+  if (minutes < 1) {
+    return '<1m';
+  }
+  return `${minutes}m`;
+}
+
+function renderViewerMetrics() {
+  const peakEl = document.getElementById('rt-peak-viewers');
+  if (peakEl) {
+    peakEl.textContent = ViewerEngagement.peak.toString();
+  }
+
+  const avgEl = document.getElementById('rt-avg-session');
+  if (avgEl) {
+    if (ViewerEngagement.sessionsCompleted === 0) {
+      const activeIds = Object.keys(ViewerEngagement.active);
+      if (activeIds.length) {
+        const now = Date.now();
+        const runningAverage = activeIds.reduce(function(total, id) {
+          const active = ViewerEngagement.active[id];
+          return total + Math.max(0, now - (active.startedAt || now));
+        }, 0) / activeIds.length;
+        avgEl.textContent = formatDurationMinutes(runningAverage);
+      } else {
+        avgEl.textContent = '0m';
+      }
+    } else {
+      const avg = ViewerEngagement.totalDurationMs / ViewerEngagement.sessionsCompleted;
+      avgEl.textContent = formatDurationMinutes(avg);
+    }
+  }
+
+  const currentEl = document.getElementById('rt-current-viewers');
+  if (currentEl) {
+    const ids = Object.keys(ViewerEngagement.active);
+    if (!ids.length) {
+      currentEl.textContent = 'No active viewers';
+    } else {
+      const now = Date.now();
+      currentEl.innerHTML = ids.map(function(id) {
+        const session = ViewerEngagement.active[id];
+        const duration = now - (session.startedAt || now);
+        const label = session.displayName || session.uid || 'Viewer';
+        return `<div>${label} · ${formatDurationMinutes(duration)}</div>`;
+      }).join('');
+    }
+  }
+}
+
+function trackViewerEngagement(viewerEntries, now) {
+  const activeIds = new Set();
+
+  viewerEntries.forEach(function(entry) {
+    const id = entry.uid || entry.presenceDocId || entry.id;
+    if (!id) return;
+    activeIds.add(id);
+    if (!ViewerEngagement.active[id]) {
+      ViewerEngagement.active[id] = {
+        startedAt: now,
+        lastSeen: now,
+        displayName: entry.displayName || entry.name || 'Viewer',
+        uid: id
+      };
+    } else {
+      ViewerEngagement.active[id].lastSeen = now;
+      ViewerEngagement.active[id].displayName = entry.displayName || entry.name || ViewerEngagement.active[id].displayName;
+    }
+  });
+
+  Object.keys(ViewerEngagement.active).forEach(function(id) {
+    if (!activeIds.has(id)) {
+      const session = ViewerEngagement.active[id];
+      const duration = Math.max(0, (session.lastSeen || now) - (session.startedAt || now));
+      if (duration) {
+        ViewerEngagement.history.push({ id, duration, name: session.displayName });
+        ViewerEngagement.totalDurationMs += duration;
+        ViewerEngagement.sessionsCompleted += 1;
+      }
+      delete ViewerEngagement.active[id];
+    }
+  });
+
+  ViewerEngagement.peak = Math.max(ViewerEngagement.peak, activeIds.size);
+  renderViewerMetrics();
+}
+
+function handlePresenceEntries(entries) {
+  const now = Date.now();
+  let online = 0;
+  let viewerCount = 0;
+  let hostCount = 0;
+  const roster = {};
+  const viewerEntries = [];
+
+  (entries || []).forEach(function(entry) {
+    if (!entry) return;
+    const presenceEntry = { ...entry };
+    const rosterEntry = {
+      ...presenceEntry,
+      displayName: presenceEntry.displayName || presenceEntry.name || null,
+      name: presenceEntry.name || presenceEntry.displayName || null,
+      mode: presenceEntry.mode || 'viewer'
+    };
+    if (presenceEntry.presenceDocId) {
+      roster[presenceEntry.presenceDocId] = rosterEntry;
+    }
+    if (presenceEntry.uid) {
+      roster[presenceEntry.uid] = rosterEntry;
+    }
+
+    let timestamp = 0;
+    if (typeof presenceEntry.lastActive === 'number') {
+      timestamp = presenceEntry.lastActive;
+    } else if (presenceEntry.lastActive && typeof presenceEntry.lastActive.toMillis === 'function') {
+      timestamp = presenceEntry.lastActive.toMillis();
+    } else if (presenceEntry.lastActive && typeof presenceEntry.lastActive.seconds === 'number') {
+      timestamp = presenceEntry.lastActive.seconds * 1000;
+    } else if (typeof presenceEntry.lastActiveMillis === 'number') {
+      timestamp = presenceEntry.lastActiveMillis;
+    } else if (presenceEntry.updatedAt && typeof presenceEntry.updatedAt.seconds === 'number') {
+      timestamp = presenceEntry.updatedAt.seconds * 1000;
+    } else if (typeof presenceEntry.ts === 'number') {
+      timestamp = presenceEntry.ts;
+    }
+
+    const isActive = timestamp ? (now - timestamp < 45000) : true;
+    if (isActive) {
+      online++;
+      if ((rosterEntry.mode || '').toLowerCase() === 'viewer') {
+        viewerCount++;
+        viewerEntries.push({ ...rosterEntry, lastActive: timestamp });
+      } else {
+        hostCount++;
+      }
+    }
+  });
+
+  presenceRoster = roster;
+  controllerName = resolveControllerName();
+  trackViewerEngagement(viewerEntries, now);
+
+  const el = document.getElementById('rt-online');
+  if (el) {
+    el.textContent = `${viewerCount} viewer${viewerCount === 1 ? '' : 's'} online`;
+    el.setAttribute('title', `${online} active participant${online === 1 ? '' : 's'} · ${hostCount} host${hostCount === 1 ? '' : 's'} on deck`);
+  }
+
+  const headerViewer = document.getElementById('viewerCountHeader');
+  if (headerViewer) {
+    headerViewer.textContent = viewerCount === 1 ? '1 viewer' : `${viewerCount} viewers`;
+  }
+
+  const headerMeta = document.getElementById('viewerCountMeta');
+  if (headerMeta) {
+    headerMeta.textContent = viewerCount ? 'Viewing live progress' : 'No active viewers';
+  }
+
+  renderControlRequestBanner();
+  renderDiagnosticsPanel();
+  if (typeof renderHostStatus === 'function') {
+    try { renderHostStatus(); } catch (err) { console.warn('Host status render failed', err); }
+  }
+  if (typeof updateViewerPanel === 'function') {
+    try { updateViewerPanel(); } catch (err) { console.warn('Viewer panel update failed', err); }
+  }
+}
+
 async function bindPresenceListeners() {
   if (presenceIntervalId) clearInterval(presenceIntervalId);
   await updatePresence();
@@ -6167,54 +7073,19 @@ async function bindPresenceListeners() {
   if (presenceUnsubscribe) presenceUnsubscribe();
   const presenceCollectionRef = collection(db, "sessions", sessionContext.sessionKey, "presence");
   presenceUnsubscribe = window.firestore.onSnapshot(presenceCollectionRef, (snap) => {
-    const now = Date.now();
-    let online = 0;
-    let viewerCount = 0;
-    let hostCount = 0;
-    const roster = {};
-    snap.forEach(d => {
-      const data = d.data() || {};
-      const entry = { ...data, presenceDocId: d.id };
-      roster[d.id] = entry;
-      if (entry.uid) {
-        roster[entry.uid] = entry;
-      }
-      let timestamp = 0;
-      if (entry.lastActive && typeof entry.lastActive.toMillis === 'function') {
-        timestamp = entry.lastActive.toMillis();
-      } else if (entry.lastActive && typeof entry.lastActive.seconds === 'number') {
-        timestamp = entry.lastActive.seconds * 1000;
-      } else if (d.updateTime && typeof d.updateTime.toMillis === 'function') {
-        timestamp = d.updateTime.toMillis();
-      } else if (data.updatedAt && typeof data.updatedAt.seconds === 'number') {
-        timestamp = data.updatedAt.seconds * 1000;
-      }
-      const isActive = timestamp ? (now - timestamp < 45000) : true;
-      if (isActive) {
-        online++;
-        if ((entry.mode || '').toLowerCase() === 'viewer') {
-          viewerCount++;
-        } else {
-          hostCount++;
-        }
-      }
+    const entries = [];
+    snap.forEach(function(docSnap) {
+      const data = docSnap.data() || {};
+      entries.push({ ...data, presenceDocId: docSnap.id });
     });
-    presenceRoster = roster;
-    controllerName = resolveControllerName();
-    const el = document.getElementById("rt-online");
-    if (el) {
-      el.textContent = `${viewerCount} viewer${viewerCount === 1 ? '' : 's'} online`;
-      el.setAttribute('title', `${online} active participant${online === 1 ? '' : 's'} · ${hostCount} host${hostCount === 1 ? '' : 's'} on deck`);
+    try {
+      if (LocalRealtime && typeof LocalRealtime.ingestPresence === 'function') {
+        LocalRealtime.ingestPresence(entries, { origin: 'remote' });
+      }
+    } catch (err) {
+      console.warn('Local realtime presence ingest failed', err);
     }
-    const headerViewer = document.getElementById('viewerCountHeader');
-    if (headerViewer) {
-      headerViewer.textContent = viewerCount === 1 ? '1 viewer' : `${viewerCount} viewers`;
-    }
-    const headerMeta = document.getElementById('viewerCountMeta');
-    if (headerMeta) {
-      headerMeta.textContent = viewerCount ? 'Viewing live progress' : 'No active viewers';
-    }
-    renderControlRequestBanner();
+    handlePresenceEntries(entries);
   }, (error) => {
     console.warn('Presence listener error', error);
     updateConnectionIndicator('degraded', 'Presence updates delayed');
@@ -6222,6 +7093,34 @@ async function bindPresenceListeners() {
 }
 
 await bindPresenceListeners();
+
+function bindLocalRealtimeBridges() {
+  if (!LocalRealtime) return;
+
+  if (localStateUnsubscribe) localStateUnsubscribe();
+  localStateUnsubscribe = LocalRealtime.subscribeState(function(state, meta) {
+    const currentUid = uid;
+    if (meta && meta.uid && currentUid && meta.uid === currentUid && typeof window.canWrite === 'function' && window.canWrite()) {
+      return;
+    }
+    try {
+      applyRemoteState(state);
+      renderControlRequestBanner();
+      renderHostStatus();
+      if (typeof updateViewerPanel === 'function') updateViewerPanel();
+      if (typeof updateTimelinePreview === 'function') updateTimelinePreview();
+      if (typeof renderRunbookTable === 'function') renderRunbookTable();
+      if (typeof updateTimeline === 'function') updateTimeline();
+    } catch (err) {
+      console.error('Failed to apply local realtime state', err);
+    }
+  });
+
+  if (localPresenceUnsubscribe) localPresenceUnsubscribe();
+  localPresenceUnsubscribe = LocalRealtime.subscribePresence(function(entries) {
+    handlePresenceEntries(entries);
+  });
+}
 
 // Session management
 let sessionRef = doc(db, "sessions", sessionContext.sessionKey);
@@ -6305,27 +7204,20 @@ function applyRemoteState(remoteState) {
   state.downtimeStartTime = remoteState.downtimeStartTime ? new Date(remoteState.downtimeStartTime) : null;
   state.completionTimes = remoteState.completionTimes || {};
   state.syncedTimelinePosition = remoteState.syncedTimelinePosition || 0;
-  state.messagesOn = !!remoteState.messagesOn;
+  if (remoteState.messagesOn !== undefined) {
+    setMessagesEnabled(!!remoteState.messagesOn, { source: 'remote', skipSync: true });
+  }
   state.lastPauseReason = remoteState.lastPauseReason || '';
   state.lastResetAt = remoteState.lastResetAt ? new Date(remoteState.lastResetAt) : null;
 
   // Sync dark mode across clients
   if (remoteState.darkMode !== undefined) {
-    state.darkMode = !!remoteState.darkMode;
-    document.body.classList.toggle('dark-mode', state.darkMode);
-    updateDarkModeButton(state.darkMode);
-    try {
-      localStorage.setItem('darkMode', state.darkMode);
-    } catch (err) {
-      console.warn('Unable to persist dark mode preference', err);
-    }
+    setDarkMode(!!remoteState.darkMode, { source: 'remote', force: true });
   }
-
-  applyMessageToggleState();
 
   if (remoteState.fullscreenMode !== undefined) {
     const remoteFocusSince = remoteState.fullscreenSince ? new Date(remoteState.fullscreenSince) : null;
-    applyFocusState(!!remoteState.fullscreenMode, {
+    setFocusMode(!!remoteState.fullscreenMode, {
       attemptFullscreen: false,
       since: remoteFocusSince,
       forceRefresh: !window.canWrite() && !!remoteState.fullscreenMode
@@ -6453,7 +7345,7 @@ function applyRemoteState(remoteState) {
 function updateViewerPanel() {
   const state = window.AppState;
   const isViewer = !window.canWrite();
-  
+
   console.log("Updating viewer panel:", {
     isViewer: isViewer,
     downtimeStarted: state.downtimeStarted,
@@ -6464,6 +7356,11 @@ function updateViewerPanel() {
   // Update mode display
   const modeEl = document.getElementById("rt-mode");
   if (modeEl) modeEl.textContent = `mode: ${isViewer ? "VIEWER" : "HOST"}`;
+
+  const hostEl = document.getElementById('rt-host-name');
+  if (hostEl) {
+    hostEl.textContent = controllerName || resolveControllerName() || 'Unassigned';
+  }
   
   // Show/hide viewer panel
   const panel = document.getElementById("rt-viewer-panel");
@@ -6565,17 +7462,7 @@ function updateViewerPanel() {
       }
     }
 
-    const focusRow = document.getElementById('rt-focus-row');
-    const focusTime = document.getElementById('rt-focus-time');
-    if (focusRow && focusTime) {
-      if (state.fullscreenMode && state.fullscreenSince) {
-        focusRow.style.display = 'block';
-        const since = new Date(state.fullscreenSince);
-        focusTime.textContent = since.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      } else {
-        focusRow.style.display = 'none';
-      }
-    }
+    renderFocusIndicators();
 
     // Update start time
     const startEl = document.getElementById("rt-start");
@@ -6677,45 +7564,790 @@ function updateTimelinePreview() {
 }
 
 // Push state to Firebase (host only)
-async function pushState(reason = "update") {
-  if (!window.canWrite() || writing) return;
-  
-  const currentState = serialize();
-  const stateJson = JSON.stringify(currentState);
-  
-  if (stateJson === lastSentState) return;
-  
-  writing = true;
+async function transmitState(statePayload, reason) {
   try {
     await window.firestore.updateDoc(sessionRef, {
-      state: currentState,
+      state: statePayload,
       updatedAt: window.firestore.serverTimestamp(),
       reason
     });
+  } catch (primaryError) {
+    await window.firestore.setDoc(sessionRef, {
+      state: statePayload,
+      controllerUid: uid,
+      controllerName: getOperatorName(),
+      updatedAt: window.firestore.serverTimestamp(),
+      reason
+    }, { merge: true });
+  }
+}
+
+async function pushState(reason = "update", forcedState) {
+  if (!window.canWrite() || writing) return;
+
+  const currentState = forcedState || serialize();
+  const stateJson = JSON.stringify(currentState);
+
+  if (!forcedState && stateJson === lastSentState) return;
+
+  try {
+    if (LocalRealtime && typeof LocalRealtime.emitState === 'function') {
+      LocalRealtime.emitState(currentState, reason, { uid, origin: 'local' });
+    }
+  } catch (err) {
+    console.warn('Local realtime state emit failed', err);
+  }
+
+  if (!uid) {
+    OfflineQueue.enqueue(currentState, reason, 'auth-pending');
+    updateConnectionIndicator('pending', 'Waiting for Firebase authentication…');
+    renderOfflineQueueState();
+    return;
+  }
+
+  if (!navigator.onLine) {
+    OfflineQueue.enqueue(currentState, reason, 'offline');
+    updateConnectionIndicator('offline', 'Browser is offline – queued updates');
+    return;
+  }
+
+  writing = true;
+  try {
+    await transmitState(currentState, reason);
     lastSentState = stateJson;
   } catch (e) {
-    try {
-      await window.firestore.setDoc(sessionRef, {
-        state: currentState,
-        controllerUid: uid,
-        controllerName: getOperatorName(),
-        updatedAt: window.firestore.serverTimestamp(),
-        reason
-      }, { merge: true });
-      lastSentState = stateJson;
-    } catch (e2) {
-      console.error("Failed to push state:", e2);
-    }
+    console.warn('Primary state push failed, queuing for retry', e);
+    OfflineQueue.enqueue(currentState, reason, e && e.message ? e.message : 'push failed');
   } finally {
     writing = false;
   }
 }
 
+async function flushOfflineQueue(options = {}) {
+  if (!navigator.onLine) return;
+  if (!uid) return;
+  if (!options.force && typeof window.canWrite === 'function' && !window.canWrite()) return;
+  writing = true;
+  try {
+    await OfflineQueue.flush(async function(queuedState, queuedReason) {
+      await transmitState(queuedState, queuedReason);
+      lastSentState = JSON.stringify(queuedState);
+    });
+  } finally {
+    writing = false;
+    renderOfflineQueueState();
+  }
+}
+
 // Debounced push
+const OfflineQueue = (function() {
+  const storageKey = 'dt2-offline-queue';
+  let queue = [];
+  try {
+    const persisted = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    if (Array.isArray(persisted)) {
+      queue = persisted;
+    }
+  } catch (err) {
+    console.warn('Failed to read offline queue', err);
+  }
+
+  function persist() {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(queue.slice(-20)));
+    } catch (err) {
+      console.warn('Unable to persist offline queue', err);
+    }
+    renderOfflineQueueState();
+  }
+
+  function enqueue(state, reason, errorMessage) {
+    queue.push({
+      state,
+      reason,
+      error: errorMessage || null,
+      timestamp: Date.now()
+    });
+    persist();
+  }
+
+  function shift() {
+    const item = queue.shift();
+    persist();
+    return item;
+  }
+
+  function snapshot() {
+    return queue.slice();
+  }
+
+  async function flush(transmit) {
+    if (typeof transmit !== 'function') return;
+    if (!navigator.onLine) return;
+    if (queue.length === 0) return;
+
+    const pending = snapshot();
+    queue.length = 0;
+    persist();
+
+    for (const entry of pending) {
+      try {
+        await transmit(entry.state, entry.reason || 'replay');
+      } catch (err) {
+        console.warn('Failed to replay queued action', err);
+        enqueue(entry.state, entry.reason, err && err.message ? err.message : 'Replay failure');
+        break;
+      }
+    }
+  }
+
+  return {
+    enqueue,
+    flush,
+    snapshot
+  };
+})();
+
+function renderOfflineQueueState() {
+  const entries = OfflineQueue.snapshot();
+  const countEl = document.getElementById('offlineQueueCount');
+  if (countEl) {
+    countEl.textContent = entries.length;
+    countEl.style.display = entries.length ? 'inline-block' : 'none';
+  }
+  const listEl = document.getElementById('offlineQueueList');
+  if (listEl) {
+    if (!entries.length) {
+      listEl.innerHTML = '<li style="color:var(--sap-muted)">Queue empty</li>';
+    } else {
+      listEl.innerHTML = entries.map(function(entry) {
+        const ts = new Date(entry.timestamp).toLocaleTimeString();
+        return `<li><code>${entry.reason || 'update'}</code> @ ${ts}${entry.error ? ` · <span style="color:var(--sap-warning)">${entry.error}</span>` : ''}</li>`;
+      }).join('');
+    }
+  }
+}
+
+const NotificationHooks = (function() {
+  const storageKey = 'dt2-notification-hooks';
+  let hooks = [];
+  try {
+    const stored = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    if (Array.isArray(stored)) {
+      hooks = stored;
+    }
+  } catch (err) {
+    console.warn('Failed to parse notification hooks', err);
+  }
+
+  function persist() {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(hooks));
+    } catch (err) {
+      console.warn('Unable to persist notification hooks', err);
+    }
+    renderNotificationHooks();
+  }
+
+  function addHook(url, events) {
+    if (!url) return;
+    hooks.push({ id: 'hook-' + Math.random().toString(36).slice(2, 10), url, events: events && events.length ? events : ['all'] });
+    persist();
+  }
+
+  function removeHook(id) {
+    hooks = hooks.filter(function(hook) { return hook.id !== id; });
+    persist();
+  }
+
+  async function notify(eventName, payload) {
+    if (!hooks.length) return;
+    if (!navigator.onLine) {
+      console.warn('Skipping external notifications while offline');
+      return;
+    }
+    if (typeof fetch !== 'function') {
+      console.warn('Fetch API unavailable – cannot deliver notification hooks');
+      return;
+    }
+
+    const body = JSON.stringify({ event: eventName, payload, generatedAt: new Date().toISOString() });
+    await Promise.allSettled(hooks.map(async function(hook) {
+      if (!hook || !hook.url) return;
+      const interested = hook.events.includes('all') || hook.events.includes(eventName);
+      if (!interested) return;
+      try {
+        await fetch(hook.url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: body
+        });
+      } catch (err) {
+        console.warn('Notification hook failed', hook.url, err);
+      }
+    }));
+  }
+
+  function getHooks() {
+    return hooks.slice();
+  }
+
+  return { addHook, removeHook, notify, getHooks };
+})();
+
+function renderNotificationHooks() {
+  const list = document.getElementById('hooksList');
+  if (!list) return;
+  const hooks = NotificationHooks.getHooks();
+  if (!hooks.length) {
+    list.innerHTML = '<li style="color:var(--sap-muted)">No hooks configured</li>';
+    return;
+  }
+  list.innerHTML = hooks.map(function(hook) {
+    const events = (hook.events || ['all']).join(', ');
+    return `<li style="margin-bottom:4px;">
+      <div>${hook.url}</div>
+      <div style="font-size:10px;color:var(--sap-muted);">Events: ${events}</div>
+      <button class="btn small danger" data-hook-id="${hook.id}">Remove</button>
+    </li>`;
+  }).join('');
+
+  list.querySelectorAll('button[data-hook-id]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      NotificationHooks.removeHook(btn.getAttribute('data-hook-id'));
+    });
+  });
+}
+
+const KpiAutomation = (function() {
+  const storageKey = 'dt2-kpi-automation';
+  let config = { variancePercent: 15, varianceMinutes: 20, enabled: true };
+  try {
+    const stored = JSON.parse(localStorage.getItem(storageKey) || 'null');
+    if (stored && typeof stored === 'object') {
+      config = { ...config, ...stored };
+    }
+  } catch (err) {
+    console.warn('Failed to parse KPI automation config', err);
+  }
+  let lastSignature = null;
+
+  function persist() {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(config));
+    } catch (err) {
+      console.warn('Unable to persist KPI automation config', err);
+    }
+    renderAutomationConfig();
+  }
+
+  function update(partial) {
+    config = { ...config, ...partial };
+    persist();
+  }
+
+  function get() {
+    return { ...config };
+  }
+
+  function shouldTrigger(varianceMinutes, variancePercent) {
+    if (!config.enabled) return false;
+    const exceedsPercent = Math.abs(variancePercent) >= config.variancePercent;
+    const exceedsMinutes = Math.abs(varianceMinutes) >= config.varianceMinutes;
+    const signature = `${Math.round(varianceMinutes)}:${Math.round(variancePercent)}`;
+    if (exceedsPercent || exceedsMinutes) {
+      if (lastSignature === signature) return false;
+      lastSignature = signature;
+      return true;
+    }
+    lastSignature = null;
+    return false;
+  }
+
+  return { update, get, shouldTrigger };
+})();
+
+function renderAutomationConfig() {
+  const form = document.getElementById('automationForm');
+  if (!form) return;
+  const config = KpiAutomation.get();
+  const percentInput = document.getElementById('automationPercent');
+  const minutesInput = document.getElementById('automationMinutes');
+  const enabledInput = document.getElementById('automationEnabled');
+  if (percentInput) percentInput.value = config.variancePercent;
+  if (minutesInput) minutesInput.value = config.varianceMinutes;
+  if (enabledInput) enabledInput.checked = !!config.enabled;
+}
+
+let lastAutomationToastAt = 0;
+
+function handleKpiAutomation(plannedMinutes, actualMinutes) {
+  const varianceMinutes = actualMinutes - plannedMinutes;
+  const variancePercent = plannedMinutes ? (varianceMinutes / plannedMinutes) * 100 : 0;
+  if (!KpiAutomation.shouldTrigger(varianceMinutes, variancePercent)) return;
+
+  const message = `Variance ${variancePercent.toFixed(1)}% (${formatHoursShort(Math.abs(varianceMinutes))})`; 
+  if (Date.now() - lastAutomationToastAt > 5000 && typeof showToast === 'function') {
+    showToast('📈 KPI automation alert – ' + message);
+    lastAutomationToastAt = Date.now();
+  }
+  NotificationHooks.notify('kpi-threshold', {
+    varianceMinutes,
+    variancePercent,
+    plannedMinutes,
+    actualMinutes
+  });
+}
+
+function renderSnapshotStatus() {
+  const statusEl = document.getElementById('snapshotStatus');
+  if (!statusEl) return;
+  try {
+    const snapshot = JSON.parse(localStorage.getItem('dt2-mobile-snapshot') || 'null');
+    if (snapshot && snapshot.generatedAt) {
+      const when = new Date(snapshot.generatedAt).toLocaleString();
+      statusEl.textContent = `Snapshot from ${when} · ${snapshot.runbooks ? snapshot.runbooks.length : 0} tasks`;
+    } else {
+      statusEl.textContent = 'No snapshot generated.';
+    }
+  } catch (err) {
+    statusEl.textContent = 'Snapshot unavailable';
+  }
+}
+
+function generateMobileSnapshot() {
+  const state = window.AppState || {};
+  const snapshot = {
+    generatedAt: new Date().toISOString(),
+    customer: nameInput?.value || '',
+    transform: phaseInput?.value || '',
+    downtime: {
+      started: !!state.downtimeStarted,
+      startTime: state.downtimeStartTime || null,
+      duration: state.downtimeDuration || null,
+      paused: !!state.downtimePaused
+    },
+    runbooks: (state.runbooks || []).map(function(r) {
+      return {
+        sequence: r.sequence,
+        runblock: r.runblock,
+        responsibility: r.responsibility,
+        status: r.status,
+        planned: `${String(r.scheduleHours || 0).padStart(2,'0')}:${String(r.scheduleMinutes || 0).padStart(2,'0')}`,
+        duration: `${String(r.durationHours || 0).padStart(2,'0')}:${String(r.durationMinutes || 0).padStart(2,'0')}`,
+        predecessor: r.predecessor || null
+      };
+    })
+  };
+  try {
+    localStorage.setItem('dt2-mobile-snapshot', JSON.stringify(snapshot));
+    renderSnapshotStatus();
+    showToast('📱 Mobile snapshot cached for offline access.');
+  } catch (err) {
+    console.error('Failed to persist mobile snapshot', err);
+    alert('Unable to generate snapshot – storage full?');
+  }
+  return snapshot;
+}
+
+function ensureDiagnosticsDrawer() {
+  if (document.getElementById('diagnosticsDrawer')) return;
+  const drawer = document.createElement('div');
+  drawer.id = 'diagnosticsDrawer';
+  drawer.innerHTML = `
+    <header>
+      <h3>Health Diagnostics</h3>
+      <button id="diagnosticsClose" class="btn small danger" type="button">Close</button>
+    </header>
+    <div class="diagnostics-body">
+      <dl>
+        <dt>Status</dt><dd id="diag-connection">—</dd>
+        <dt>Auth</dt><dd id="diag-auth">—</dd>
+        <dt>Last Sync</dt><dd id="diag-last-snapshot">—</dd>
+        <dt>Presence</dt><dd id="diag-presence">—</dd>
+      </dl>
+      <div class="offline-queue">
+        <h4>Offline Queue <span id="offlineQueueCount" style="display:none;background:var(--sap-accent);color:#fff;padding:0 6px;border-radius:999px;font-size:10px;"></span></h4>
+        <ul id="offlineQueueList"><li style="color:var(--sap-muted)">Queue empty</li></ul>
+      </div>
+      <div class="hooks">
+        <h4>Notification Hooks</h4>
+        <form id="hookForm" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;">
+          <input type="url" id="hookUrl" placeholder="https://hooks.slack.com/..." required>
+          <select id="hookEvent">
+            <option value="all">All events</option>
+            <option value="downtime-start">Downtime started</option>
+            <option value="downtime-stop">Downtime stopped</option>
+            <option value="focus-enter">Focus entered</option>
+            <option value="focus-exit">Focus exited</option>
+            <option value="dark-mode">Dark mode toggled</option>
+            <option value="kpi-threshold">KPI threshold exceeded</option>
+          </select>
+          <button class="btn small primary" type="submit">Add hook</button>
+        </form>
+        <ul id="hooksList"></ul>
+      </div>
+      <div class="automation">
+        <h4>KPI Automation</h4>
+        <form id="automationForm" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;">
+          <label style="font-size:11px;display:flex;justify-content:space-between;gap:8px;">Variance %
+            <input type="number" min="1" max="100" id="automationPercent" style="width:90px;">
+          </label>
+          <label style="font-size:11px;display:flex;justify-content:space-between;gap:8px;">Variance minutes
+            <input type="number" min="1" max="360" id="automationMinutes" style="width:90px;">
+          </label>
+          <label style="font-size:11px;display:flex;align-items:center;gap:6px;"><input type="checkbox" id="automationEnabled"> Enable automation</label>
+          <button class="btn small primary" type="submit">Save thresholds</button>
+        </form>
+      </div>
+      <div class="snapshot">
+        <h4>Mobile Snapshot</h4>
+        <p id="snapshotStatus" style="font-size:11px;color:var(--sap-muted);margin:4px 0;">No snapshot generated.</p>
+        <button id="snapshotGenerate" class="btn small" type="button">Generate snapshot</button>
+      </div>
+      <div class="messaging-help" style="margin-top:12px;">
+        <h4>Messaging Tips</h4>
+        <p style="font-size:11px;color:var(--sap-muted);">Use the <strong>Messages</strong> toggle to surface announcements. Each message row supports scheduling via planned time, responsibility, and status badges. Enable messages only after validating content so viewers are not spammed.</p>
+      </div>
+      <div class="tour-controls" style="margin-top:12px;">
+        <h4>Onboarding</h4>
+        <button id="tourRestart" class="btn small primary" type="button">Run host tour</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(drawer);
+
+  const closeBtn = drawer.querySelector('#diagnosticsClose');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', function() {
+      drawer.classList.remove('open');
+    });
+  }
+
+  const hookForm = drawer.querySelector('#hookForm');
+  if (hookForm) {
+    hookForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const urlInput = drawer.querySelector('#hookUrl');
+      const eventInput = drawer.querySelector('#hookEvent');
+      const urlValue = urlInput?.value.trim();
+      const eventValue = eventInput?.value || 'all';
+      if (urlValue) {
+        NotificationHooks.addHook(urlValue, [eventValue]);
+        urlInput.value = '';
+      }
+    });
+  }
+
+  const automationForm = drawer.querySelector('#automationForm');
+  if (automationForm) {
+    automationForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const percent = parseInt(document.getElementById('automationPercent').value, 10) || 0;
+      const minutes = parseInt(document.getElementById('automationMinutes').value, 10) || 0;
+      const enabled = document.getElementById('automationEnabled').checked;
+      KpiAutomation.update({ variancePercent: Math.max(1, percent), varianceMinutes: Math.max(1, minutes), enabled });
+      showToast('⚙️ KPI automation thresholds updated');
+    });
+  }
+
+  const snapshotBtn = drawer.querySelector('#snapshotGenerate');
+  if (snapshotBtn) {
+    snapshotBtn.addEventListener('click', function() {
+      generateMobileSnapshot();
+    });
+  }
+
+  const tourBtn = drawer.querySelector('#tourRestart');
+  if (tourBtn) {
+    tourBtn.addEventListener('click', function() {
+      OnboardingTour.start(true);
+    });
+  }
+}
+
+function renderDiagnosticsPanel() {
+  const statusEl = document.getElementById('diag-connection');
+  if (statusEl) statusEl.textContent = connectionStatus || '—';
+  const authEl = document.getElementById('diag-auth');
+  if (authEl) authEl.textContent = auth?.currentUser?.uid ? auth.currentUser.uid.slice(-6) : 'anon';
+  const lastEl = document.getElementById('diag-last-snapshot');
+  if (lastEl) {
+    if (lastSnapshotAt) {
+      const seconds = Math.round((Date.now() - lastSnapshotAt) / 1000);
+      lastEl.textContent = seconds <= 1 ? 'Realtime' : `${seconds}s ago`;
+    } else {
+      lastEl.textContent = 'Pending';
+    }
+  }
+  const presenceEl = document.getElementById('diag-presence');
+  if (presenceEl) presenceEl.textContent = Object.keys(presenceRoster || {}).length;
+
+  renderOfflineQueueState();
+  renderNotificationHooks();
+  renderAutomationConfig();
+  renderSnapshotStatus();
+}
+
+function toggleDiagnosticsDrawer(forceState) {
+  ensureDiagnosticsDrawer();
+  const drawer = document.getElementById('diagnosticsDrawer');
+  if (!drawer) return;
+  if (typeof forceState === 'boolean') {
+    drawer.classList.toggle('open', forceState);
+  } else {
+    drawer.classList.toggle('open');
+  }
+  if (drawer.classList.contains('open')) {
+    renderDiagnosticsPanel();
+  }
+}
+
+function showMessagingInstructions() {
+  toggleDiagnosticsDrawer(true);
+  showToast('ℹ️ Diagnostics drawer includes messaging & announcement guidance.');
+}
+
+const CommandPalette = (function() {
+  let overlay = null;
+  let input = null;
+  let list = null;
+  let activeIndex = 0;
+
+  const commands = [
+    { id: 'toggle-focus', label: 'Toggle focus mode', action: () => toggleFullscreenMode(), shortcut: 'F' },
+    { id: 'toggle-dark', label: 'Toggle dark mode', action: () => toggleDarkMode(), shortcut: 'D' },
+    { id: 'start-downtime', label: 'Start downtime session', action: () => { if (typeof startDowntime === 'function') startDowntime(); }, shortcut: 'Ctrl+Enter' },
+    { id: 'pause-downtime', label: 'Pause downtime', action: () => { if (typeof pauseDowntime === 'function') pauseDowntime(); } },
+    { id: 'resume-downtime', label: 'Resume downtime', action: () => { if (typeof resumeDowntime === 'function') resumeDowntime(); } },
+    { id: 'open-diagnostics', label: 'Open diagnostics drawer', action: () => toggleDiagnosticsDrawer(true) },
+    { id: 'messages-help', label: 'Messaging framework instructions', action: showMessagingInstructions },
+    { id: 'save-template', label: 'Save current template', action: () => { if (typeof window.saveTemplate === 'function') window.saveTemplate(); }, shortcut: 'Ctrl+S' },
+    { id: 'generate-snapshot', label: 'Generate mobile snapshot', action: generateMobileSnapshot }
+  ];
+
+  function ensure() {
+    if (overlay) return;
+    overlay = document.createElement('div');
+    overlay.className = 'command-palette-overlay';
+    overlay.innerHTML = `
+      <div class="command-palette">
+        <input type="text" placeholder="Type a command…" aria-label="Command search" />
+        <ul></ul>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    input = overlay.querySelector('input');
+    list = overlay.querySelector('ul');
+
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) {
+        close();
+      }
+    });
+
+    input.addEventListener('input', function() {
+      renderList(input.value);
+    });
+
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        activeIndex = Math.min(activeIndex + 1, filteredCommands.length - 1);
+        highlight();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        activeIndex = Math.max(activeIndex - 1, 0);
+        highlight();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        invoke(activeIndex);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        close();
+      }
+    });
+  }
+
+  let filteredCommands = commands.slice();
+
+  function renderList(filterValue) {
+    const query = (filterValue || '').toLowerCase();
+    filteredCommands = commands.filter(function(cmd) {
+      return !query || cmd.label.toLowerCase().includes(query);
+    });
+    if (!filteredCommands.length) {
+      list.innerHTML = '<li style="color:var(--sap-muted);">No commands</li>';
+      return;
+    }
+    list.innerHTML = filteredCommands.map(function(cmd, idx) {
+      const shortcut = cmd.shortcut ? `<span class="shortcut">${cmd.shortcut}</span>` : '';
+      return `<li data-index="${idx}" class="${idx === activeIndex ? 'active' : ''}">${cmd.label}${shortcut}</li>`;
+    }).join('');
+    list.querySelectorAll('li').forEach(function(item) {
+      item.addEventListener('click', function() {
+        const idx = parseInt(item.getAttribute('data-index'), 10);
+        invoke(idx);
+      });
+    });
+    highlight();
+  }
+
+  function highlight() {
+    if (!list) return;
+    list.querySelectorAll('li').forEach(function(li) {
+      li.classList.remove('active');
+    });
+    const active = list.querySelector(`li[data-index="${activeIndex}"]`);
+    if (active) {
+      active.classList.add('active');
+      active.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  function invoke(idx) {
+    const command = filteredCommands[idx];
+    if (!command) return;
+    close();
+    try {
+      command.action();
+    } catch (err) {
+      console.error('Command execution failed', err);
+    }
+  }
+
+  function open() {
+    ensure();
+    overlay.classList.add('show');
+    filteredCommands = commands.slice();
+    activeIndex = 0;
+    renderList('');
+    setTimeout(function() {
+      input.focus();
+      input.select();
+    }, 0);
+  }
+
+  function close() {
+    if (!overlay) return;
+    overlay.classList.remove('show');
+  }
+
+  return { open, close };
+})();
+
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    CommandPalette.open();
+  }
+});
+
+const OnboardingTour = (function() {
+  const storageKey = 'dt2-onboarding-complete';
+  let overlay = null;
+  let stepIndex = 0;
+  let highlighted = null;
+
+  const steps = [
+    { selector: '#fullscreenToggle', title: 'Focus mode', description: 'Use focus mode to hide configuration panels and synchronize a fullscreen view with all viewers.' },
+    { selector: '#darkModeToggle', title: 'Dark mode', description: 'Toggle dark mode to adjust the shared theme. The preference propagates to viewers in real time.' },
+    { selector: '#messageToggleBtn', title: 'Messaging framework', description: 'Enable messages after validating announcements. Scheduled messages appear in the timeline for viewers.' },
+    { selector: '#rt-open-diagnostics', title: 'Health diagnostics', description: 'Open the diagnostics drawer for offline queue visibility, webhook configuration, and automation settings.' },
+    { selector: '#rt-copy', title: 'Share viewer link', description: 'Copy a viewer-safe link when you are ready to broadcast downtime updates to observers.' }
+  ];
+
+  function ensureOverlay() {
+    if (overlay) return;
+    overlay = document.createElement('div');
+    overlay.className = 'onboarding-overlay';
+    overlay.innerHTML = `
+      <div class="onboarding-card" role="dialog" aria-modal="true" aria-labelledby="tourTitle">
+        <h2 id="tourTitle"></h2>
+        <p id="tourDescription" style="font-size:13px;line-height:1.5;"></p>
+        <footer>
+          <button id="tourSkip" class="btn subtle" type="button">Skip</button>
+          <div style="display:flex;gap:8px;">
+            <button id="tourPrev" class="btn small" type="button">Back</button>
+            <button id="tourNext" class="btn small primary" type="button">Next</button>
+          </div>
+        </footer>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('#tourSkip').addEventListener('click', function() {
+      finish(true);
+    });
+    overlay.querySelector('#tourPrev').addEventListener('click', function() {
+      showStep(stepIndex - 1);
+    });
+    overlay.querySelector('#tourNext').addEventListener('click', function() {
+      if (stepIndex === steps.length - 1) {
+        finish(true);
+      } else {
+        showStep(stepIndex + 1);
+      }
+    });
+  }
+
+  function highlightTarget(selector) {
+    if (highlighted) {
+      highlighted.classList.remove('tour-highlight');
+      highlighted = null;
+    }
+    if (!selector) return;
+    const target = document.querySelector(selector);
+    if (target) {
+      target.classList.add('tour-highlight');
+      highlighted = target;
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  function showStep(index) {
+    ensureOverlay();
+    stepIndex = Math.max(0, Math.min(index, steps.length - 1));
+    const step = steps[stepIndex];
+    overlay.querySelector('#tourTitle').textContent = step.title;
+    overlay.querySelector('#tourDescription').textContent = step.description;
+    overlay.classList.add('show');
+    highlightTarget(step.selector);
+    overlay.querySelector('#tourPrev').disabled = stepIndex === 0;
+    overlay.querySelector('#tourNext').textContent = stepIndex === steps.length - 1 ? 'Finish' : 'Next';
+  }
+
+  function finish(store) {
+    if (overlay) overlay.classList.remove('show');
+    highlightTarget(null);
+    if (store) {
+      try {
+        localStorage.setItem(storageKey, 'true');
+      } catch (err) {
+        console.warn('Unable to persist onboarding completion', err);
+      }
+    }
+  }
+
+  function start(force) {
+    try {
+      if (!force && localStorage.getItem(storageKey) === 'true') return;
+    } catch (err) {
+      console.warn('Onboarding storage check failed', err);
+    }
+    showStep(0);
+  }
+
+  return {
+    start,
+    maybeStart: function() { start(false); }
+  };
+})();
+
 let pushTimer = null;
-function schedulePush() {
+function schedulePush(reason = 'debounce') {
   clearTimeout(pushTimer);
-  pushTimer = setTimeout(() => pushState("debounce"), 250);
+  pushTimer = setTimeout(() => pushState(reason), 250);
 }
 
 // Subscribe to session changes
@@ -6753,9 +8385,28 @@ function subscribeToSession() {
   // Apply state
   if (data.state) {
     applyRemoteState(data.state);
+    try {
+      if (LocalRealtime && typeof LocalRealtime.ingestState === 'function') {
+        LocalRealtime.ingestState(data.state, {
+          uid: data.controllerUid || null,
+          reason: data.reason || 'remote-sync',
+          origin: 'remote'
+        });
+      }
+    } catch (err) {
+      console.warn('Local realtime state ingest failed', err);
+    }
   }
 
   renderControlRequestBanner();
+
+  if (typeof flushOfflineQueue === 'function' && uid && remoteController === uid) {
+    try {
+      await flushOfflineQueue();
+    } catch (err) {
+      console.warn('Offline queue flush after snapshot failed', err);
+    }
+  }
 
   if (remoteController === uid && viewerForced) {
     viewerForced = false;
@@ -6916,6 +8567,7 @@ async function dismissControlRequest() {
 async function switchSessionContext(newValues) {
   const newContext = deriveSessionContext(newValues);
   const previousContext = sessionContext;
+  const previousPresenceId = presenceDocId || uid || sessionInstanceId;
 
   if (newContext.sessionKey === previousContext.sessionKey) {
     sessionContext = { ...previousContext, ...newContext };
@@ -6947,6 +8599,32 @@ async function switchSessionContext(newValues) {
   }
 
   console.log("Switching session context", previousContext.sessionKey, "->", newContext.sessionKey);
+
+  if (LocalRealtime && typeof LocalRealtime.removePresence === 'function') {
+    try {
+      LocalRealtime.removePresence(previousPresenceId);
+    } catch (err) {
+      console.warn('Failed to clear local presence before context switch', err);
+    }
+  }
+
+  if (localStateUnsubscribe) {
+    try { localStateUnsubscribe(); } catch (err) { console.warn('Failed to detach local state listener', err); }
+    localStateUnsubscribe = null;
+  }
+  if (localPresenceUnsubscribe) {
+    try { localPresenceUnsubscribe(); } catch (err) { console.warn('Failed to detach local presence listener', err); }
+    localPresenceUnsubscribe = null;
+  }
+
+  if (LocalRealtime && typeof LocalRealtime.dispose === 'function') {
+    try {
+      LocalRealtime.dispose();
+    } catch (err) {
+      console.warn('Failed to dispose realtime bridge', err);
+    }
+  }
+
   contextSwitchInFlight = true;
   showContextSwitchToast(`Switching to ${newContext.customerValue} · ${newContext.transformValue}`);
   updateConnectionIndicator('pending', 'Syncing new session context…');
@@ -7013,6 +8691,10 @@ async function switchSessionContext(newValues) {
   if (transformLabel) transformLabel.textContent = sessionContext.transformValue;
   addRecentCustomer(sessionContext.customerValue, sessionContext.transformValue);
   renderControlRequestBanner();
+
+  LocalRealtime = createLocalRealtimeBridge(sessionContext.sessionKey);
+  window.LocalRealtimeBridge = LocalRealtime;
+  bindLocalRealtimeBridges();
 
   await bindPresenceListeners();
   subscribeToSession();
@@ -7128,6 +8810,17 @@ setInterval(() => {
     }
   }
 }, 1000);
+
+window.addEventListener('beforeunload', function() {
+  const presenceId = presenceDocId || uid || sessionInstanceId;
+  try {
+    if (LocalRealtime && typeof LocalRealtime.removePresence === 'function') {
+      LocalRealtime.removePresence(presenceId);
+    }
+  } catch (err) {
+    console.warn('Failed to clean up local presence on unload', err);
+  }
+});
 
 window.initializeRealtime = initializeRealtime;
 window.schedulePush = schedulePush;
