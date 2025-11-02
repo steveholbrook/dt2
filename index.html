@@ -3646,27 +3646,26 @@ window.selectRecentCustomer = function(name, transform) {
   if (window.AppState.fullscreenMode) {
     updateFullscreenCustomerInfo();
   }
-};
+}
 
-// Close dropdown when clicking outside
-document.addEventListener('click', function(e) {
-  var btn = document.getElementById('recentCustomersBtn');
-  var dropdown = document.getElementById('recentCustomersDropdown');
-  var input = document.getElementById('customerName');
-  
-  if (dropdown && !dropdown.contains(e.target) && e.target !== btn && e.target !== input) {
-    dropdown.classList.remove('show');
+function persistRecentSessions(recent) {
+  try {
+    localStorage.setItem('recentSessions', JSON.stringify(recent));
+  } catch (err) {
+    console.warn('Unable to persist recent sessions', err);
   }
-});
+}
 
-// Browser close confirmation
-window.addEventListener('beforeunload', function (e) {
-  if (window.canWrite && window.canWrite() && window.AppState.downtimeStarted) {
-    var confirmationMessage = 'You have an active downtime session. Are you sure you want to leave?';
-    e.returnValue = confirmationMessage;
-    return confirmationMessage;
+function bookmarkCurrentSession() {
+  var customerInput = document.getElementById('customerName');
+  var transformInput = document.getElementById('transformCycle');
+  if (!customerInput) return;
+
+  var customer = (customerInput.value || '').trim();
+  if (!customer) {
+    alert('Enter a customer name before bookmarking.');
+    return;
   }
-});
 
 // Initialize application after authentication when needed
 document.addEventListener('DOMContentLoaded', function() {
@@ -5577,6 +5576,21 @@ let presenceDocId = null;
 let presenceRef = null;
 window.getCurrentUid = function() {
   return uid;
+};
+
+window.firestore = {
+  setDoc,
+  updateDoc,
+  onSnapshot,
+  serverTimestamp,
+  collection,
+  addDoc,
+  deleteDoc,
+  query,
+  orderBy,
+  getDocs,
+  doc,
+  getDoc
 };
 
 window.firestore = {
