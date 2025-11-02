@@ -3671,27 +3671,29 @@ window.selectRecentCustomer = function(name, transform) {
   if (window.AppState.fullscreenMode) {
     updateFullscreenCustomerInfo();
   }
-};
+}
 
-// Close dropdown when clicking outside
-document.addEventListener('click', function(e) {
-  var btn = document.getElementById('recentCustomersBtn');
-  var dropdown = document.getElementById('recentCustomersDropdown');
-  var input = document.getElementById('customerName');
-  
-  if (dropdown && !dropdown.contains(e.target) && e.target !== btn && e.target !== input) {
-    dropdown.classList.remove('show');
-  }
-});
+function bindMessageToggleButton() {
+  if (messageToggleBound) return;
+  var toggleBtn = document.getElementById('messageToggleBtn');
+  if (!toggleBtn) return;
+  messageToggleBound = true;
+  toggleBtn.addEventListener('click', function() {
+    window.setMessagesEnabled(!window.AppState.messagesOn);
+  });
+  applyMessageToggleState();
+}
 
-// Browser close confirmation
-window.addEventListener('beforeunload', function (e) {
-  if (window.canWrite && window.canWrite() && window.AppState.downtimeStarted) {
-    var confirmationMessage = 'You have an active downtime session. Are you sure you want to leave?';
-    e.returnValue = confirmationMessage;
-    return confirmationMessage;
+function setMessagesEnabled(enabled) {
+  window.AppState = window.AppState || {};
+  window.AppState.messagesOn = !!enabled;
+  applyMessageToggleState();
+  if (typeof renderRunbookTable === 'function') renderRunbookTable();
+  if (typeof updateTimeline === 'function') updateTimeline();
+  if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
+    schedulePush();
   }
-});
+}
 
 // Initialize application after authentication when needed
 document.addEventListener('DOMContentLoaded', function() {
