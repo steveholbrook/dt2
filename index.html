@@ -367,84 +367,6 @@
     font-weight:700;
   }
   
-  /* Password Protection Modal */
-  .password-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100000;
-  }
-  
-  .password-modal.hidden {
-    display: none;
-  }
-  
-  .password-content {
-    background: var(--sap-panel);
-    padding: 40px;
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-    max-width: 450px;
-    width: 90%;
-    text-align: center;
-  }
-  
-  .password-content h2 {
-    margin: 0 0 20px 0;
-    color: var(--sap-accent);
-  }
-  
-  .password-content input {
-    width: 100%;
-    padding: 12px;
-    margin: 16px 0;
-    border: 2px solid var(--sap-border);
-    border-radius: 8px;
-    font-size: 16px;
-    text-align: center;
-  }
-  
-  .password-content .btn {
-    width: 100%;
-    margin-top: 8px;
-  }
-  
-  .password-error {
-    color: var(--sap-error);
-    margin-top: 12px;
-    font-size: 14px;
-  }
-  
-  .user-guide {
-    text-align: left;
-    margin-top: 24px;
-    padding-top: 24px;
-    border-top: 1px solid var(--sap-border);
-    font-size: 13px;
-    line-height: 1.6;
-  }
-  
-  .user-guide h3 {
-    margin: 0 0 12px 0;
-    font-size: 14px;
-    color: var(--sap-accent);
-  }
-  
-  .user-guide ul {
-    margin: 8px 0;
-    padding-left: 20px;
-  }
-  
-  .user-guide li {
-    margin: 6px 0;
-  }
-  
   /* Dark Mode Toggle Button */
   .dark-mode-toggle {
     background: rgba(255,255,255,0.2);
@@ -2106,29 +2028,6 @@ body.dark-mode #messageToggleBtn:hover{
   crossorigin="anonymous"></script>
 </head>
 <body>
-  <!-- Password Protection Modal -->
-  <div class="password-modal" id="passwordModal">
-    <div class="password-content">
-      <h2>🔒 Secure Access</h2>
-      <p>Please enter the password to access the Downtime Tracking App</p>
-      <input type="password" id="passwordInput" placeholder="Enter password" autocomplete="off">
-      <button class="btn primary" onclick="checkPassword()">Unlock</button>
-      <div class="password-error" id="passwordError"></div>
-      
-      <div class="user-guide">
-        <h3>📖 Quick Start Guide</h3>
-        <ul>
-          <li><strong>Host Mode:</strong> First user becomes the host and can edit all data</li>
-          <li><strong>Viewer Mode:</strong> Additional users can view live progress</li>
-          <li><strong>Password:</strong> <code>downtime2025</code></li>
-          <li><strong>Share Link:</strong> Click "📋 Copy link" to share viewer access</li>
-          <li><strong>Templates:</strong> Save/load runbook configurations for reuse</li>
-          <li><strong>Focus Mode:</strong> Press 'F' or click Focus button for fullscreen</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-
   <!-- Enhanced Tooltip -->
   <div class="enhanced-tooltip" id="enhancedTooltip">
     <div class="tooltip-header">
@@ -2536,18 +2435,8 @@ body.dark-mode #messageToggleBtn:hover{
 <script>
 'use strict';
 
-// Password Protection
-const APP_PASSWORD = 'downtime2025';
-
-function normalizePassword(input) {
-  return (input || '').trim().toLowerCase();
-}
-
-function isValidPasswordInput(input) {
-  // Fix: normalize both sides for consistent comparison
-  return normalizePassword(input) === normalizePassword(APP_PASSWORD);
-}
-let isAuthenticated = false;
+// Authentication state
+let isAuthenticated = true;
 let authUiInitialized = false;
 let clockIntervalId = null;
 let realtimeInitPromise = null;
@@ -2711,40 +2600,9 @@ function runAuthenticatedStartup() {
   }
 }
 
-function checkPassword() {
-  const input = document.getElementById('passwordInput');
-  const error = document.getElementById('passwordError');
-  const modal = document.getElementById('passwordModal');
-
-  if (isValidPasswordInput(input.value)) {
-    isAuthenticated = true;
-    modal.classList.add('hidden');
-    localStorage.setItem('appAuthenticated', 'true');
-    runAuthenticatedStartup();
-  } else {
-    error.textContent = '❌ Incorrect password. Please try again.';
-    input.value = '';
-    input.focus();
-  }
-}
-
-// Check authentication on load
+// Initialize application when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-  const passwordInput = document.getElementById('passwordInput');
-  if (localStorage.getItem('appAuthenticated') === 'true') {
-    isAuthenticated = true;
-    document.getElementById('passwordModal').classList.add('hidden');
-    runAuthenticatedStartup();
-  } else {
-    passwordInput.focus();
-  }
-
-  // Allow Enter key to submit password
-  passwordInput.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-      checkPassword();
-    }
-  });
+  runAuthenticatedStartup();
 });
 
 // Initialize Microsoft Teams if running inside Teams
@@ -3526,7 +3384,6 @@ function getBookmarkedSessions() {
     console.warn('Failed to parse bookmarked sessions', err);
     return [];
   }
-  return hours.toFixed(1) + 'h';
 }
 
 function persistBookmarkedSessions(list) {
@@ -3789,35 +3646,26 @@ window.selectRecentCustomer = function(name, transform) {
   if (window.AppState.fullscreenMode) {
     updateFullscreenCustomerInfo();
   }
-};
+}
 
-// Close dropdown when clicking outside
-document.addEventListener('click', function(e) {
-  var btn = document.getElementById('recentCustomersBtn');
-  var dropdown = document.getElementById('recentCustomersDropdown');
-  var input = document.getElementById('customerName');
-  
-  if (dropdown && !dropdown.contains(e.target) && e.target !== btn && e.target !== input) {
-    dropdown.classList.remove('show');
+function persistRecentSessions(recent) {
+  try {
+    localStorage.setItem('recentSessions', JSON.stringify(recent));
+  } catch (err) {
+    console.warn('Unable to persist recent sessions', err);
   }
 }
 
-function getRecentCustomers() {
-  try {
-    var stored = JSON.parse(localStorage.getItem('recentSessions') || 'null');
-    if (stored) {
-      return normalizeRecentSessions(stored);
-    }
-  } catch (err) {
-    console.warn('Failed to parse recent sessions', err);
+function bookmarkCurrentSession() {
+  var customerInput = document.getElementById('customerName');
+  var transformInput = document.getElementById('transformCycle');
+  if (!customerInput) return;
+
+  var customer = (customerInput.value || '').trim();
+  if (!customer) {
+    alert('Enter a customer name before bookmarking.');
+    return;
   }
-  try {
-    var legacy = JSON.parse(localStorage.getItem('recentCustomers') || 'null');
-    return normalizeRecentSessions(legacy);
-  } catch (err) {
-    return [];
-  }
-}
 
 // Initialize application after authentication when needed
 document.addEventListener('DOMContentLoaded', function() {
@@ -5728,6 +5576,21 @@ let presenceDocId = null;
 let presenceRef = null;
 window.getCurrentUid = function() {
   return uid;
+};
+
+window.firestore = {
+  setDoc,
+  updateDoc,
+  onSnapshot,
+  serverTimestamp,
+  collection,
+  addDoc,
+  deleteDoc,
+  query,
+  orderBy,
+  getDocs,
+  doc,
+  getDoc
 };
 
 window.firestore = {
