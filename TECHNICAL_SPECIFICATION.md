@@ -16,17 +16,17 @@ This document enumerates the functional features that currently ship with the do
    *Description:* Only one host can control a session at a time. Additional tabs that attempt to enter host mode see an alert, are switched into viewer mode, and their Firestore permissions are scoped to read-only.  
    *Key Implementation:* `claimHostController()`, `handleControllerConflict()`, and `hostBlockReason` logic inside `initializeRealtime()`.
 
-4. **F4 – Presence Tracking & Viewer Count**  
-   *Description:* Each tab writes a presence document containing its role. Active entries (45-second heartbeat) are tallied to surface the number of viewers and total participants in the header and share overlay.  
-   *Key Implementation:* `bindPresenceListeners()`, `updatePresence()`, and DOM nodes `viewerCountHeader`, `viewerCountMeta`, and `rt-online`.
+4. **F4 – Presence Tracking & Viewer Count**
+   *Description:* Each tab writes a presence document containing its role. Active entries (45-second heartbeat) are tallied to surface the number of viewers and total participants in the header and share overlay, while the active host’s display name stays mirrored in viewer panels. A local `LocalRealtimeBridge` fallback mirrors presence updates across browser tabs when Firestore is slow or unreachable, so the viewer count never drops to zero during transient outages.
+   *Key Implementation:* `bindPresenceListeners()`, `updatePresence()`, `handlePresenceEntries()` (updates viewer/host rosters and `rt-host-name`), `LocalRealtimeBridge.emitPresenceEntry()`, and DOM nodes `viewerCountHeader`, `viewerCountMeta`, and `rt-online`.
 
-5. **F5 – Host Authentication Bootstrap**  
-   *Description:* The application auto-initializes authenticated flows on load—no password prompt—while waiting for Firebase anonymous sign-in to complete before binding realtime listeners.  
-   *Key Implementation:* `runAuthenticatedStartup()` and the `DOMContentLoaded` listener that immediately triggers it.
+5. **F5 – Host Authentication Bootstrap**
+   *Description:* The application auto-initializes authenticated flows on load—no password prompt—while waiting for Firebase anonymous sign-in to complete before binding realtime listeners. Presence and session subscriptions only attach after a UID is issued so connection failures surface immediately and controller claims always run with the authenticated identity.
+   *Key Implementation:* `runAuthenticatedStartup()`, `initializeRealtime()` (which now resets controller state, binds `bindPresenceListeners()` post-auth, and then calls `subscribeToSession()`), and the `DOMContentLoaded` listener that triggers the startup.
 
-6. **F6 – Downtime Session Lifecycle**  
-   *Description:* Hosts can start, pause, resume, and stop downtime sessions. Elapsed duration, start timestamps, and reset state synchronize to viewers and persist in Firestore.  
-   *Key Implementation:* `startDowntime()`, `pauseDowntime()`, `resumeDowntime()`, `stopDowntime()`, and supporting helpers `computeDowntimeDuration()` plus `updateDowntimeStatus()`.
+6. **F6 – Downtime Session Lifecycle**
+   *Description:* Hosts can start, pause, resume, and stop downtime sessions. Elapsed duration, start timestamps, and reset state synchronize to viewers and persist in Firestore, with host-side mutations deferred into the offline queue until Firebase authentication finishes so handshake races never drop the first update.
+   *Key Implementation:* `startDowntime()` (delegates to `StateCore.startDowntime()` to normalize state mutations), `pauseDowntime()`, `resumeDowntime()`, `stopDowntime()`, shared serialization in `serialize()`, and helpers `computeDowntimeDuration()` plus `updateDowntimeStatus()`.
 
 7. **F7 – Pause Reason Capture & Display**  
    *Description:* When pausing, hosts provide a reason that propagates to viewer overlays and timeline tooltips so stakeholders understand stoppages.  
@@ -52,13 +52,13 @@ This document enumerates the functional features that currently ship with the do
     *Description:* Timeline messages can be enabled or suppressed globally. Template loads default to disabled, and the toggle button keeps the UI state synchronized across host and viewer sessions.  
     *Key Implementation:* `setMessagesEnabled()`, `bindMessageToggleButton()`, and control `#messageToggleBtn`.
 
-13. **F13 – Focus Mode & Fullscreen Sync**  
-    *Description:* The focus button triggers the Fullscreen API, hides non-tracker panels, and shares focus status with viewers, including start timestamps and exit controls.  
-    *Key Implementation:* `toggleFullscreenMode()`, `applyFocusState()`, `updateFocusExitControl()`, and viewer field `rt-focus-time`.
+13. **F13 – Focus Mode & Fullscreen Sync**
+   *Description:* The focus button triggers the Fullscreen API, hides non-tracker panels, and shares focus status with viewers, including start timestamps and exit controls. Offline queueing and the realtime bridge ensure focus transitions initiated while disconnected replay locally and propagate once connectivity returns. Viewer clients receive read-only updates while hosts retain exclusive control of the toggle.
+   *Key Implementation:* `toggleFullscreenMode()` (host guard), `setFocusMode()` (central state writer), `applyFocusState()` (now calling `StateCore.ensureFocusState()` for normalized state handling), `renderFocusIndicators()`, `updateFocusExitControl()`, `schedulePush('focus-toggle')`, and viewer field `rt-focus-time`.
 
-14. **F14 – Dark Mode Synchronization**  
-    *Description:* Dark mode is a shared session preference—toggling it updates Firestore, re-applies palette tokens locally, and informs viewers so the UI stays consistent.  
-    *Key Implementation:* `toggleDarkMode()`, `applyDarkModeFromState()`, Firestore fields `darkModeEnabled`, and DOM class `body.dark-mode`.
+14. **F14 – Dark Mode Synchronization**
+   *Description:* Dark mode is a shared session preference—toggling it updates Firestore, re-applies palette tokens locally, and informs viewers so the UI stays consistent. The resilient offline queue plus `LocalRealtimeBridge.emitState()` record toggles made without a network connection and replay them instantly across tabs. Viewer clicks are blocked with guidance so only the controlling host can change the theme.
+   *Key Implementation:* `toggleDarkMode()` (host guard), `setDarkMode()` (persists shared preference via `StateCore.ensureDarkMode()` and writes local storage), shared state serialization, Firestore field `darkMode`, DOM class `body.dark-mode`, and the realtime bridge state channel.
 
 15. **F15 – Audio & Toast Notifications**  
     *Description:* Pause/resume events trigger toast notifications and optional audio cues to alert distributed teams. Viewers receive mirrored alerts.  
@@ -72,20 +72,20 @@ This document enumerates the functional features that currently ship with the do
     *Description:* Frequently used customer/transform combinations can be bookmarked for quick selection. Recent session dropdowns accelerate setup and populate the share sheet.  
     *Key Implementation:* `bookmarkCurrentSession()`, `updateRecentCustomersDropdown()`, and storage helpers `persistRecentCustomers()`.
 
-18. **F18 – Operator Identity & Control Requests**  
-    *Description:* Hosts specify their operator name, which propagates through presence data. Viewers can request control, and the host sees takeover prompts before claims execute.  
-    *Key Implementation:* `setOperatorName()`, `renderControlRequestBanner()`, and Firestore field `requestedController`.
+18. **F18 – Operator Identity & Control Requests**
+    *Description:* Hosts specify their operator name, which propagates through presence data. Viewers can request control, and the host sees takeover prompts before claims execute. Local presence mirroring keeps the host display name visible to viewers even if Firestore briefly drops offline.
+    *Key Implementation:* `setOperatorName()`, `renderControlRequestBanner()`, Firestore field `requestedController`, and `LocalRealtimeBridge` presence snapshots.
 
-19. **F19 – Messaging & Announcement Framework**  
-    *Description:* Hosts can craft structured messages that appear in the timeline with validation, scheduling, and default muted states until explicitly enabled.  
-    *Key Implementation:* `createMessageRow()`, message validation helpers, and timeline message rendering in `renderTimelineMessages()`.
+19. **F19 – Messaging & Announcement Framework**
+   *Description:* Hosts can craft structured messages that appear in the timeline with validation, scheduling, and default muted states until explicitly enabled. Use the Messages toggle beside the runbook grid to enable announcements only after validation. The diagnostics drawer (`Diagnostics` button in the realtime overlay) surfaces step-by-step guidance and the command palette (`Ctrl+K`) exposes “Messaging framework instructions” for quick reference. Local realtime mirroring keeps message visibility synchronized even when offline, and viewer clicks are rejected with guidance so the host remains the single source of truth.
+   *Key Implementation:* `createMessageRow()`, message validation helpers, timeline rendering in `renderTimelineMessages()`, host-only control wiring via `bindMessageToggleButton()` and `setMessagesEnabled(enabled, options)` (delegating to `StateCore.ensureMessagingState()`), support content wired through `showMessagingInstructions()`, and `LocalRealtimeBridge.emitState()`.
 
-20. **F20 – Testing & Mocking Harness**  
-    *Description:* A Node-based mock harness (`tests/host_viewer_mock.test.js`) simulates Firebase interactions, verifying pause/resume math, host enforcement, and template toggles without live services.  
-    *Key Implementation:* Test suite definitions and exported utilities under `tests/host_viewer_mock.test.js`.
+20. **F20 – Testing & Mocking Harness**
+    *Description:* A Node-based mock harness (`tests/host_viewer_mock.test.js`) simulates Firebase interactions, verifying pause/resume math, host enforcement, and template toggles without live services.
+    *Key Implementation:* Test suite definitions and exported utilities under `tests/host_viewer_mock.test.js`, plus reducer coverage in `tests/state_core.test.js` for focus, dark-mode, messaging, and downtime lifecycle logic.
 
 ## 3. Data & Realtime Dependencies
-- **Firebase Firestore & Auth:** Anonymous authentication is used to persist sessions, runbooks, templates, and presence records. Collections include `sessions`, nested `presence`, `runbooks`, and `templates` paths.  
+- **Firebase Firestore & Auth:** Anonymous authentication is used to persist sessions, runbooks, templates, and presence records. Collections include `sessions`, nested `presence`, `runbooks`, and `templates` paths. `ensureFirebaseConnection()` validates connectivity (with retry backoff) before realtime listeners bind so degraded conditions show up immediately in diagnostics.
 - **Local Storage:** Persists recent customer selections, dark-mode defaults, focus preferences, and host acknowledgement flags for faster reloads.  
 - **Clipboard & Fullscreen APIs:** Provide sharing capabilities and presentation mode across desktop and mobile browsers.  
 - **Audio Assets:** Embedded base64 snippets support toast sounds without requiring separate asset downloads.
@@ -107,15 +107,15 @@ This document enumerates the functional features that currently ship with the do
 9. **P9 – Incident Postmortem Export:** Generate a one-click postmortem document summarizing downtime timeline, reasons, and KPI deltas.  
 10. **P10 – Role-Based Access Controls:** Integrate optional identity providers so organizations can assign granular permissions beyond the current host/viewer split.
 
-## 6. Additional Improvement Opportunities
-1. **N1 – Resilient Offline Queueing:** Cache host actions while offline and replay them when the connection restores so focus, dark mode, and downtime updates survive transient drops.
-2. **N2 – Dependency-Aware Timeline Planning:** Allow tasks to reference predecessors and automatically adjust schedules when upstream work shifts.
-3. **N3 – Viewer Engagement Metrics:** Track viewer session lengths and peak attendance, surfacing insights in the realtime overlay for staffing analysis.
-4. **N4 – Guided Onboarding Tours:** Provide an interactive walkthrough that highlights each toolbar control and session action for first-time hosts.
-5. **N5 – Template Version Governance:** Introduce semantic versioning for templates with change logs so teams can audit updates before loading them.
-6. **N6 – External Notification Hooks:** Offer webhooks or native integrations (e.g., Slack, Teams) to broadcast downtime state changes outside the app.
-7. **N7 – KPI Threshold Automation:** Let admins configure automated escalation rules when planned vs. actual variance exceeds a percentage or duration.
-8. **N8 – Mobile Offline Snapshot:** Generate a static, read-only snapshot of the timeline for mobile viewers when bandwidth is constrained.
-9. **N9 – Command Palette Shortcuts:** Implement a searchable command palette (`Ctrl+K`) to quickly navigate actions like toggling focus or saving templates.
-10. **N10 – Health Diagnostics Panel:** Surface Firebase latency, auth status, and presence heartbeat timings in a diagnostic drawer to speed up incident triage.
+## 6. Production Hardening Enhancements
+1. **N1 – Resilient Offline Queueing:** Host mutations are queued via `OfflineQueue` whenever `navigator.onLine` is false or Firebase authentication has not yet issued a UID. Once connectivity or auth returns, `flushOfflineQueue()` replays serialized session snapshots, while `LocalRealtimeBridge.emitState()` keeps co-located viewers updated immediately and the diagnostics drawer queue view shows pending replays.
+2. **N2 – Dependency-Aware Timeline Planning:** The existing predecessor column now drives `calculateBlockPositions()` so downstream tasks automatically shift when upstream sequences move.
+3. **N3 – Viewer Engagement Metrics:** Presence snapshots hydrate `ViewerEngagement`, updating peak counts, active durations, and overlay fields `rt-peak-viewers`, `rt-avg-session`, and `rt-current-viewers` for real-time staffing visibility.
+4. **N4 – Guided Onboarding Tours:** `OnboardingTour` highlights key controls for first-time hosts, triggered automatically when a user becomes the controlling host and available on demand from the diagnostics drawer.
+5. **N5 – Template Version Governance:** `TemplateGovernance` assigns semantic versions and maintains per-template changelogs. The template list shows `vX.Y.Z` metadata, and `showTemplateChangelog()` surfaces history before loading.
+6. **N6 – External Notification Hooks:** The diagnostics drawer exposes a webhook form wired to `NotificationHooks.notify()`, broadcasting downtime lifecycle, focus, dark-mode, and KPI threshold events to Slack/Teams URLs.
+7. **N7 – KPI Threshold Automation:** `KpiAutomation` persists variance thresholds; `handleKpiAutomation()` triggers toasts and notification hooks when planned vs. actual variance exceeds configured limits.
+8. **N8 – Mobile Offline Snapshot:** `generateMobileSnapshot()` captures a condensed JSON summary of the current timeline for mobile consumption, stored under `dt2-mobile-snapshot` and accessible via diagnostics controls or the command palette.
+9. **N9 – Command Palette Shortcuts:** The `CommandPalette` overlay (`Ctrl+K`) exposes quick actions (focus toggle, dark mode, downtime controls, diagnostics, messaging help, template save, snapshot generation).
+10. **N10 – Health Diagnostics Panel:** `ensureDiagnosticsDrawer()` introduces a persistent diagnostics drawer that surfaces connection state, auth identifiers, presence counts, offline queue depth, automation thresholds, messaging tips, and onboarding controls.
 
