@@ -6463,301 +6463,6 @@ function getOperatorName() {
   return stored || "Guest";
 }
 
-  function safeParse(raw, fallback) {
-    if (!raw) return fallback;
-    try {
-      const parsed = JSON.parse(raw);
-      return parsed === null ? fallback : parsed;
-    } catch (err) {
-      return fallback;
-    }
-  }
-
-  let stateCache = hasStorage ? safeParse(localStorage.getItem(stateKey), null) : null;
-  let presenceCache = hasStorage ? safeParse(localStorage.getItem(presenceKey), {}) : {};
-  if (!presenceCache || typeof presenceCache !== 'object') presenceCache = {};
-
-  const stateListeners = new Set();
-  const presenceListeners = new Set();
-
-  const stateChannel = supportsBroadcast ? new BroadcastChannel(`${stateKey}-channel`) : null;
-  const presenceChannel = supportsBroadcast ? new BroadcastChannel(`${presenceKey}-channel`) : null;
-
-  function persistState() {
-    if (!hasStorage) return;
-    try {
-      localStorage.setItem(stateKey, JSON.stringify(stateCache));
-    } catch (err) {
-      console.warn('Local realtime state persist failed', err);
-    }
-  }
-
-  function persistPresence() {
-    if (!hasStorage) return;
-    try {
-      localStorage.setItem(presenceKey, JSON.stringify(presenceCache));
-    } catch (err) {
-      console.warn('Local realtime presence persist failed', err);
-    }
-  }
-
-  function notifyStateListeners(payload) {
-    stateListeners.forEach(function(listener) {
-      try {
-        listener(payload.state, payload);
-      } catch (err) {
-        console.error('Local realtime state listener error', err);
-      }
-    });
-  }
-
-  function currentPresenceEntries() {
-    return Object.keys(presenceCache).map(function(id) {
-      return { presenceDocId: id, ...presenceCache[id] };
-    });
-  }
-
-  function notifyPresenceListeners() {
-    const entries = currentPresenceEntries();
-    presenceListeners.forEach(function(listener) {
-      try {
-        listener(entries);
-      } catch (err) {
-        console.error('Local realtime presence listener error', err);
-      }
-    });
-  }
-
-  function setStatePayload(payload, options) {
-    if (!payload || typeof payload !== 'object') return;
-    const opts = options || {};
-    stateCache = payload;
-    persistState();
-    if (opts.broadcast && stateChannel) {
-      try {
-        stateChannel.postMessage(payload);
-      } catch (err) {
-        console.warn('Local realtime state broadcast failed', err);
-      }
-    }
-    notifyStateListeners(payload);
-  }
-
-  function setPresenceMap(map, options) {
-    const opts = options || {};
-    presenceCache = map && typeof map === 'object' ? { ...map } : {};
-    persistPresence();
-    if (opts.broadcast && presenceChannel) {
-      try {
-        presenceChannel.postMessage({ type: 'presence', map: presenceCache });
-      } catch (err) {
-        console.warn('Local realtime presence broadcast failed', err);
-      }
-    }
-    notifyPresenceListeners();
-  }
-
-  if (stateChannel) {
-    stateChannel.addEventListener('message', function(event) {
-      const payload = event && event.data;
-      if (payload && payload.type === 'state' && payload.state) {
-        setStatePayload(payload, { broadcast: false });
-      }
-    });
-  }
-
-  const storageStateHandler = function(event) {
-    if (event.key === stateKey && event.newValue) {
-      const payload = safeParse(event.newValue, null);
-      if (payload && payload.state) {
-        setStatePayload(payload, { broadcast: false });
-      }
-    }
-  };
-
-  const storagePresenceHandler = function(event) {
-    if (event.key === presenceKey) {
-      const map = safeParse(event.newValue, {});
-      setPresenceMap(map, { broadcast: false });
-    }
-  };
-
-  if (hasStorage) {
-    window.addEventListener('storage', storageStateHandler);
-    window.addEventListener('storage', storagePresenceHandler);
-  }
-
-  if (presenceChannel) {
-    presenceChannel.addEventListener('message', function(event) {
-      const payload = event && event.data;
-      if (payload && payload.type === 'presence' && payload.map) {
-        setPresenceMap(payload.map, { broadcast: false });
-      }
-    });
-  }
-
-  function emitState(state, reason, meta) {
-    if (!state) return;
-    const payload = {
-      type: 'state',
-      state,
-      reason: reason || 'update',
-      uid: (meta && meta.uid) || uid || null,
-      ts: Date.now(),
-      origin: (meta && meta.origin) || 'local'
-    };
-    setStatePayload(payload, { broadcast: true });
-  }
-
-  function ingestState(state, meta) {
-    if (!state) return;
-    const payload = {
-      type: 'state',
-      state,
-      reason: (meta && meta.reason) || 'ingest',
-      uid: (meta && meta.uid) || null,
-      ts: Date.now(),
-      origin: (meta && meta.origin) || 'remote'
-    };
-    const broadcast = !meta || meta.broadcast !== false;
-    setStatePayload(payload, { broadcast });
-  }
-
-  function normalizePresenceEntry(entry) {
-    if (!entry) return null;
-    const id = entry.presenceDocId || entry.id || entry.uid || entry.instanceId;
-    if (!id) return null;
-    let lastActiveMs = Date.now();
-    if (typeof entry.lastActive === 'number') {
-      lastActiveMs = entry.lastActive;
-    } else if (entry.lastActive && typeof entry.lastActive.toMillis === 'function') {
-      lastActiveMs = entry.lastActive.toMillis();
-    } else if (entry.lastActive && typeof entry.lastActive.seconds === 'number') {
-      lastActiveMs = entry.lastActive.seconds * 1000;
-    } else if (typeof entry.lastActiveMillis === 'number') {
-      lastActiveMs = entry.lastActiveMillis;
-    }
-    return {
-      id,
-      payload: {
-        uid: entry.uid || id,
-        displayName: entry.displayName || entry.name || null,
-        name: entry.name || entry.displayName || null,
-        mode: entry.mode || 'viewer',
-        lastActive: lastActiveMs,
-        instanceId: entry.instanceId || sessionInstanceId
-      }
-    };
-  }
-
-  function emitPresenceEntry(entry) {
-    const normalized = normalizePresenceEntry(entry);
-    if (!normalized) return;
-    const next = { ...presenceCache };
-    next[normalized.id] = normalized.payload;
-    setPresenceMap(next, { broadcast: true });
-  }
-
-  function ingestPresence(entries, meta) {
-    const next = {};
-    (entries || []).forEach(function(entry) {
-      const normalized = normalizePresenceEntry(entry);
-      if (normalized) {
-        next[normalized.id] = normalized.payload;
-      }
-    });
-    const broadcast = !meta || meta.broadcast !== false;
-    setPresenceMap(next, { broadcast });
-  }
-
-  function removePresence(id) {
-    if (!id) return;
-    if (!presenceCache[id]) return;
-    const next = { ...presenceCache };
-    delete next[id];
-    setPresenceMap(next, { broadcast: true });
-  }
-
-  function subscribeState(callback) {
-    if (typeof callback !== 'function') return function() {};
-    stateListeners.add(callback);
-    if (stateCache && stateCache.state) {
-      try {
-        callback(stateCache.state, stateCache);
-      } catch (err) {
-        console.error('Local realtime state listener error', err);
-      }
-    }
-    return function() {
-      stateListeners.delete(callback);
-    };
-  }
-
-  function subscribePresence(callback) {
-    if (typeof callback !== 'function') return function() {};
-    presenceListeners.add(callback);
-    try {
-      callback(currentPresenceEntries());
-    } catch (err) {
-      console.error('Local realtime presence listener error', err);
-    }
-    return function() {
-      presenceListeners.delete(callback);
-    };
-  }
-
-  function getCachedState() {
-    return stateCache;
-  }
-
-  function getPresenceSnapshot() {
-    return currentPresenceEntries();
-  }
-
-  function dispose() {
-    stateListeners.clear();
-    presenceListeners.clear();
-    if (stateChannel) {
-      try { stateChannel.close(); } catch (err) {}
-    }
-    if (presenceChannel) {
-      try { presenceChannel.close(); } catch (err) {}
-    }
-    if (hasStorage) {
-      window.removeEventListener('storage', storageStateHandler);
-      window.removeEventListener('storage', storagePresenceHandler);
-    }
-  }
-
-  return {
-    emitState,
-    ingestState,
-    subscribeState,
-    emitPresenceEntry,
-    ingestPresence,
-    subscribePresence,
-    removePresence,
-    getCachedState,
-    getPresenceSnapshot,
-    dispose
-  };
-}
-
-let LocalRealtime = createLocalRealtimeBridge(sessionContext.sessionKey);
-let localStateUnsubscribe = null;
-let localPresenceUnsubscribe = null;
-
-window.LocalRealtimeBridge = LocalRealtime;
-
-bindLocalRealtimeBridges();
-
-function getOperatorName() {
-  const raw = (operatorInput && operatorInput.value) ? operatorInput.value.trim() : "";
-  if (raw) return raw;
-  const stored = readStoredOperatorName();
-  return stored || "Guest";
-}
-
 function persistOperatorProfile(name) {
   const normalized = (name || "").trim();
   try {
@@ -7169,6 +6874,17 @@ function initializeRealtime() {
     presenceRef = doc(db, "sessions", sessionContext.sessionKey, "presence", presenceDocId);
     sessionRef = doc(db, "sessions", sessionContext.sessionKey);
 
+    remoteController = null;
+    controllerName = null;
+    attemptedControllerClaim = false;
+    initialSync = true;
+
+    try {
+      await ensureFirebaseConnection();
+    } catch (err) {
+      console.error('Firebase connectivity degraded', err);
+    }
+
     try {
       await ensureFirebaseConnection();
     } catch (err) {
@@ -7444,7 +7160,33 @@ async function bindPresenceListeners() {
   });
 }
 
-await bindPresenceListeners();
+function bindLocalRealtimeBridges() {
+  if (!LocalRealtime) return;
+
+  if (localStateUnsubscribe) localStateUnsubscribe();
+  localStateUnsubscribe = LocalRealtime.subscribeState(function(state, meta) {
+    const currentUid = uid;
+    if (meta && meta.uid && currentUid && meta.uid === currentUid && typeof window.canWrite === 'function' && window.canWrite()) {
+      return;
+    }
+    try {
+      applyRemoteState(state);
+      renderControlRequestBanner();
+      renderHostStatus();
+      if (typeof updateViewerPanel === 'function') updateViewerPanel();
+      if (typeof updateTimelinePreview === 'function') updateTimelinePreview();
+      if (typeof renderRunbookTable === 'function') renderRunbookTable();
+      if (typeof updateTimeline === 'function') updateTimeline();
+    } catch (err) {
+      console.error('Failed to apply local realtime state', err);
+    }
+  });
+
+  if (localPresenceUnsubscribe) localPresenceUnsubscribe();
+  localPresenceUnsubscribe = LocalRealtime.subscribePresence(function(entries) {
+    handlePresenceEntries(entries);
+  });
+}
 
 function bindLocalRealtimeBridges() {
   if (!LocalRealtime) return;
@@ -8286,22 +8028,6 @@ async function pushState(reason = "update", forcedState) {
     OfflineQueue.enqueue(currentState, reason, e && e.message ? e.message : 'push failed');
   } finally {
     writing = false;
-  }
-}
-
-async function flushOfflineQueue(options = {}) {
-  if (!navigator.onLine) return;
-  if (!uid) return;
-  if (!options.force && typeof window.canWrite === 'function' && !window.canWrite()) return;
-  writing = true;
-  try {
-    await OfflineQueue.flush(async function(queuedState, queuedReason) {
-      await transmitState(queuedState, queuedReason);
-      lastSentState = JSON.stringify(queuedState);
-    });
-  } finally {
-    writing = false;
-    renderOfflineQueueState();
   }
 }
 
@@ -9174,8 +8900,6 @@ function subscribeToSession() {
     updateConnectionIndicator('offline', 'Realtime session disconnected');
   });
 }
-
-subscribeToSession();
 
 async function requestHostControl() {
   if (typeof window.canWrite === 'function' && window.canWrite()) {

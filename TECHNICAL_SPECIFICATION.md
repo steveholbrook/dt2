@@ -20,9 +20,9 @@ This document enumerates the functional features that currently ship with the do
    *Description:* Each tab writes a presence document containing its role. Active entries (45-second heartbeat) are tallied to surface the number of viewers and total participants in the header and share overlay, while the active host’s display name stays mirrored in viewer panels. A local `LocalRealtimeBridge` fallback mirrors presence updates across browser tabs when Firestore is slow or unreachable, so the viewer count never drops to zero during transient outages.
    *Key Implementation:* `bindPresenceListeners()`, `updatePresence()`, `handlePresenceEntries()` (updates viewer/host rosters and `rt-host-name`), `LocalRealtimeBridge.emitPresenceEntry()`, and DOM nodes `viewerCountHeader`, `viewerCountMeta`, and `rt-online`.
 
-5. **F5 – Host Authentication Bootstrap**  
-   *Description:* The application auto-initializes authenticated flows on load—no password prompt—while waiting for Firebase anonymous sign-in to complete before binding realtime listeners.  
-   *Key Implementation:* `runAuthenticatedStartup()` and the `DOMContentLoaded` listener that immediately triggers it.
+5. **F5 – Host Authentication Bootstrap**
+   *Description:* The application auto-initializes authenticated flows on load—no password prompt—while waiting for Firebase anonymous sign-in to complete before binding realtime listeners. Presence and session subscriptions only attach after a UID is issued so connection failures surface immediately and controller claims always run with the authenticated identity.
+   *Key Implementation:* `runAuthenticatedStartup()`, `initializeRealtime()` (which now resets controller state, binds `bindPresenceListeners()` post-auth, and then calls `subscribeToSession()`), and the `DOMContentLoaded` listener that triggers the startup.
 
 6. **F6 – Downtime Session Lifecycle**
    *Description:* Hosts can start, pause, resume, and stop downtime sessions. Elapsed duration, start timestamps, and reset state synchronize to viewers and persist in Firestore, with host-side mutations deferred into the offline queue until Firebase authentication finishes so handshake races never drop the first update.
