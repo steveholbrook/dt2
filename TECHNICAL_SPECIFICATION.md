@@ -26,7 +26,7 @@ This document enumerates the functional features that currently ship with the do
 
 6. **F6 – Downtime Session Lifecycle**
    *Description:* Hosts can start, pause, resume, and stop downtime sessions. Elapsed duration, start timestamps, and reset state synchronize to viewers and persist in Firestore, with host-side mutations deferred into the offline queue until Firebase authentication finishes so handshake races never drop the first update.
-   *Key Implementation:* `startDowntime()`, `pauseDowntime()`, `resumeDowntime()`, `stopDowntime()`, shared serialization in `serialize()`, and helpers `computeDowntimeDuration()` plus `updateDowntimeStatus()`.
+   *Key Implementation:* `startDowntime()` (delegates to `StateCore.startDowntime()` to normalize state mutations), `pauseDowntime()`, `resumeDowntime()`, `stopDowntime()`, shared serialization in `serialize()`, and helpers `computeDowntimeDuration()` plus `updateDowntimeStatus()`.
 
 7. **F7 – Pause Reason Capture & Display**  
    *Description:* When pausing, hosts provide a reason that propagates to viewer overlays and timeline tooltips so stakeholders understand stoppages.  
@@ -54,11 +54,11 @@ This document enumerates the functional features that currently ship with the do
 
 13. **F13 – Focus Mode & Fullscreen Sync**
    *Description:* The focus button triggers the Fullscreen API, hides non-tracker panels, and shares focus status with viewers, including start timestamps and exit controls. Offline queueing and the realtime bridge ensure focus transitions initiated while disconnected replay locally and propagate once connectivity returns. Viewer clients receive read-only updates while hosts retain exclusive control of the toggle.
-   *Key Implementation:* `toggleFullscreenMode()` (host guard), `setFocusMode()` (central state writer), `applyFocusState()`, `renderFocusIndicators()`, `updateFocusExitControl()`, `schedulePush('focus-toggle')`, and viewer field `rt-focus-time`.
+   *Key Implementation:* `toggleFullscreenMode()` (host guard), `setFocusMode()` (central state writer), `applyFocusState()` (now calling `StateCore.ensureFocusState()` for normalized state handling), `renderFocusIndicators()`, `updateFocusExitControl()`, `schedulePush('focus-toggle')`, and viewer field `rt-focus-time`.
 
 14. **F14 – Dark Mode Synchronization**
    *Description:* Dark mode is a shared session preference—toggling it updates Firestore, re-applies palette tokens locally, and informs viewers so the UI stays consistent. The resilient offline queue plus `LocalRealtimeBridge.emitState()` record toggles made without a network connection and replay them instantly across tabs. Viewer clicks are blocked with guidance so only the controlling host can change the theme.
-   *Key Implementation:* `toggleDarkMode()` (host guard), `setDarkMode()` (persists shared preference and writes local storage), shared state serialization, Firestore field `darkMode`, DOM class `body.dark-mode`, and the realtime bridge state channel.
+   *Key Implementation:* `toggleDarkMode()` (host guard), `setDarkMode()` (persists shared preference via `StateCore.ensureDarkMode()` and writes local storage), shared state serialization, Firestore field `darkMode`, DOM class `body.dark-mode`, and the realtime bridge state channel.
 
 15. **F15 – Audio & Toast Notifications**  
     *Description:* Pause/resume events trigger toast notifications and optional audio cues to alert distributed teams. Viewers receive mirrored alerts.  
@@ -78,14 +78,14 @@ This document enumerates the functional features that currently ship with the do
 
 19. **F19 – Messaging & Announcement Framework**
    *Description:* Hosts can craft structured messages that appear in the timeline with validation, scheduling, and default muted states until explicitly enabled. Use the Messages toggle beside the runbook grid to enable announcements only after validation. The diagnostics drawer (`Diagnostics` button in the realtime overlay) surfaces step-by-step guidance and the command palette (`Ctrl+K`) exposes “Messaging framework instructions” for quick reference. Local realtime mirroring keeps message visibility synchronized even when offline, and viewer clicks are rejected with guidance so the host remains the single source of truth.
-   *Key Implementation:* `createMessageRow()`, message validation helpers, timeline rendering in `renderTimelineMessages()`, host-only control wiring via `bindMessageToggleButton()` and `setMessagesEnabled(enabled, options)`, support content wired through `showMessagingInstructions()`, and `LocalRealtimeBridge.emitState()`.
+   *Key Implementation:* `createMessageRow()`, message validation helpers, timeline rendering in `renderTimelineMessages()`, host-only control wiring via `bindMessageToggleButton()` and `setMessagesEnabled(enabled, options)` (delegating to `StateCore.ensureMessagingState()`), support content wired through `showMessagingInstructions()`, and `LocalRealtimeBridge.emitState()`.
 
-20. **F20 – Testing & Mocking Harness**  
-    *Description:* A Node-based mock harness (`tests/host_viewer_mock.test.js`) simulates Firebase interactions, verifying pause/resume math, host enforcement, and template toggles without live services.  
-    *Key Implementation:* Test suite definitions and exported utilities under `tests/host_viewer_mock.test.js`.
+20. **F20 – Testing & Mocking Harness**
+    *Description:* A Node-based mock harness (`tests/host_viewer_mock.test.js`) simulates Firebase interactions, verifying pause/resume math, host enforcement, and template toggles without live services.
+    *Key Implementation:* Test suite definitions and exported utilities under `tests/host_viewer_mock.test.js`, plus reducer coverage in `tests/state_core.test.js` for focus, dark-mode, messaging, and downtime lifecycle logic.
 
 ## 3. Data & Realtime Dependencies
-- **Firebase Firestore & Auth:** Anonymous authentication is used to persist sessions, runbooks, templates, and presence records. Collections include `sessions`, nested `presence`, `runbooks`, and `templates` paths.  
+- **Firebase Firestore & Auth:** Anonymous authentication is used to persist sessions, runbooks, templates, and presence records. Collections include `sessions`, nested `presence`, `runbooks`, and `templates` paths. `ensureFirebaseConnection()` validates connectivity (with retry backoff) before realtime listeners bind so degraded conditions show up immediately in diagnostics.
 - **Local Storage:** Persists recent customer selections, dark-mode defaults, focus preferences, and host acknowledgement flags for faster reloads.  
 - **Clipboard & Fullscreen APIs:** Provide sharing capabilities and presentation mode across desktop and mobile browsers.  
 - **Audio Assets:** Embedded base64 snippets support toast sounds without requiring separate asset downloads.
