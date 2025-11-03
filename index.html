@@ -437,14 +437,55 @@
     font-weight:600;
   }
 
-  .status-item .pending-request {
+  .pending-request {
     font-size:11px;
     color:var(--sap-warning);
     display:none;
   }
 
-  .status-item .pending-request.show {
+  .pending-request.show {
     display:block;
+  }
+
+  body.dark-mode .pending-request {
+    color:var(--sap-warning);
+  }
+
+  .host-control-panel {
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+
+  .host-control-body {
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+  }
+
+  .host-control-info {
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    min-width:180px;
+  }
+
+  .host-control-actions {
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    align-items:flex-end;
+    min-width:160px;
+  }
+
+  .host-control-actions .pending-request {
+    text-align:right;
+  }
+
+  body.dark-mode .host-control-panel {
+    background:var(--sap-panel);
   }
 
   .btn.subtle {
@@ -617,6 +658,10 @@
     height: calc(100vh - 32px);
     display: flex;
     flex-direction: column;
+  }
+
+  body.fullscreen-mode #progressPanel > :not(#focusExitControl):not(.timeline-container) {
+    display: none !important;
   }
 
   .fullscreen-kpi {
@@ -2263,10 +2308,6 @@ body.dark-mode #messageToggleBtn:hover{
       </div>
     </div>
     <div class="status-display">
-      <div class="status-item">
-        <span class="status-label">Current Time</span>
-        <span class="status-value" id="currentTime">--:--:--</span>
-      </div>
       <div class="status-item completion-progress">
         <span class="status-label">Completion</span>
         <span class="progress-percentage" id="completionPercentage">0%</span>
@@ -2277,13 +2318,6 @@ body.dark-mode #messageToggleBtn:hover{
       <div class="status-item">
         <span class="status-label">Status</span>
         <span class="status-value" id="statusText" style="color:var(--sap-warning);">Not Started</span>
-      </div>
-      <div class="status-item host-status">
-        <span class="status-label">Host</span>
-        <span class="status-value" id="hostStatusValue">Unassigned</span>
-        <span class="status-meta" id="hostStatusMeta">Awaiting first host</span>
-        <button class="btn subtle" id="requestControlBtn">Request control</button>
-        <div class="pending-request" id="pendingRequestStatus">Request sent…</div>
       </div>
       <div class="status-item viewers-status">
         <span class="status-label">Viewers</span>
@@ -2323,6 +2357,21 @@ body.dark-mode #messageToggleBtn:hover{
       </div>
     </div>
 
+    <div class="panel host-control-panel">
+      <h2>Host Control</h2>
+      <div class="host-control-body">
+        <div class="host-control-info">
+          <span class="status-label">Host</span>
+          <span class="status-value" id="hostStatusValue">Unassigned</span>
+          <span class="status-meta" id="hostStatusMeta">Awaiting first host</span>
+        </div>
+        <div class="host-control-actions">
+          <button class="btn subtle" id="requestControlBtn">Request control</button>
+          <div class="pending-request" id="pendingRequestStatus">Request sent…</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Customer Information -->
     <div class="panel customer-info-panel" style="margin-bottom:16px;padding:16px;">
       <div class="field-row">
@@ -2346,10 +2395,6 @@ body.dark-mode #messageToggleBtn:hover{
             <option value="Go Live Simulation">Go Live Simulation</option>
             <option value="Go-Live">Go-Live</option>
           </select>
-        </div>
-        <div class="field" style="flex:1;">
-          <label>Your Display Name</label>
-          <input type="text" id="operatorName" placeholder="e.g., Jane Doe (Host)">
         </div>
       </div>
     </div>
@@ -2746,25 +2791,6 @@ function runAuthenticatedStartup() {
       dismissControlRequest();
     });
     dismissBtn.__bound = true;
-  }
-
-  var operatorNameInput = document.getElementById('operatorName');
-  if (operatorNameInput && !operatorNameInput.__bound) {
-    operatorNameInput.addEventListener('change', function() {
-      persistOperatorProfile(this.value || '');
-      if (typeof updatePresence === 'function') {
-        setTimeout(updatePresence, 100);
-      }
-      if (typeof window.canWrite === 'function' && window.canWrite() && window.firestore && typeof window.firestore.setDoc === 'function') {
-        try {
-          window.firestore.setDoc(sessionRef, { controllerName: getOperatorName() }, { merge: true });
-        } catch (err) {
-          console.warn('Failed to persist controller name update', err);
-        }
-      }
-      renderHostStatus();
-    });
-    operatorNameInput.__bound = true;
   }
 
   var customerNameInput = document.getElementById('customerName');
@@ -4001,7 +4027,8 @@ function setupStartTimeInputs() {
     if (startDisplay) startDisplay.style.display = 'none';
     if (durationInput) durationInput.style.display = 'block';
     if (durationDisplay) durationDisplay.style.display = 'none';
-    
+    if (durationInput) durationInput.value = '00:00:00';
+
     // Set default start time
     var now = new Date();
     var hours = String(now.getHours()).padStart(2, '0');
@@ -5311,6 +5338,8 @@ window.stopDowntime = function() {
     document.getElementById('startTimeDisplay').textContent = '--:--:--';
     document.getElementById('endTimeDisplay').textContent = '--:--:--';
     document.getElementById('currentDurationDisplay').textContent = '00:00:00';
+    var durationInputField = document.getElementById('currentDurationInput');
+    if (durationInputField) durationInputField.value = '00:00:00';
     document.getElementById('statusText').textContent = 'Not Started';
     document.getElementById('statusText').style.color = 'var(--sap-warning)';
     
@@ -6340,7 +6369,7 @@ function getOperatorName() {
   const raw = (operatorInput && operatorInput.value) ? operatorInput.value.trim() : "";
   if (raw) return raw;
   const stored = readStoredOperatorName();
-  return stored || "Guest";
+  return stored || "Host";
 }
 
 function persistOperatorProfile(name) {

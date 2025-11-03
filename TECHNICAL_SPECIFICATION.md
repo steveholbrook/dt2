@@ -53,8 +53,8 @@ This document enumerates the functional features that currently ship with the do
     *Key Implementation:* `setMessagesEnabled()`, `bindMessageToggleButton()`, and control `#messageToggleBtn`.
 
 13. **F13 – Focus Mode & Fullscreen Sync**
-   *Description:* The focus button triggers the Fullscreen API, hides non-tracker panels, and shares focus status with viewers, including start timestamps and exit controls. Offline queueing and the realtime bridge ensure focus transitions initiated while disconnected replay locally and propagate once connectivity returns.
-   *Key Implementation:* `toggleFullscreenMode()`, `applyFocusState()`, `updateFocusExitControl()`, `schedulePush('focus-toggle')`, and viewer field `rt-focus-time`.
+   *Description:* The focus button triggers the Fullscreen API, collapses every panel except the timeline, and shares focus status with viewers, including start timestamps and exit controls. Offline queueing and the realtime bridge ensure focus transitions initiated while disconnected replay locally and propagate once connectivity returns.
+   *Key Implementation:* `toggleFullscreenMode()`, `applyFocusState()`, focus CSS rules (`body.fullscreen-mode #progressPanel > :not(#focusExitControl):not(.timeline-container)`), `updateFocusExitControl()`, `schedulePush('focus-toggle')`, and viewer field `rt-focus-time`.
 
 14. **F14 – Dark Mode Synchronization**
    *Description:* Dark mode is a shared session preference—toggling it updates Firestore, re-applies palette tokens locally, and informs viewers so the UI stays consistent. The resilient offline queue plus `LocalRealtimeBridge.emitState()` record toggles made without a network connection and replay them instantly across tabs.
@@ -72,9 +72,9 @@ This document enumerates the functional features that currently ship with the do
     *Description:* Frequently used customer/transform combinations can be bookmarked for quick selection. Recent session dropdowns accelerate setup and populate the share sheet.  
     *Key Implementation:* `bookmarkCurrentSession()`, `updateRecentCustomersDropdown()`, and storage helpers `persistRecentCustomers()`.
 
-18. **F18 – Operator Identity & Control Requests**
-    *Description:* Hosts specify their operator name, which propagates through presence data. Viewers can request control, and the host sees takeover prompts before claims execute. Local presence mirroring keeps the host display name visible to viewers even if Firestore briefly drops offline.
-    *Key Implementation:* `setOperatorName()`, `renderControlRequestBanner()`, Firestore field `requestedController`, and `LocalRealtimeBridge` presence snapshots.
+18. **F18 – Host Identity & Control Requests**
+   *Description:* The Host Control panel surfaces the active controller, automatically deriving the display name from the stored operator profile or realtime presence roster. Viewers request control from the same panel, and hosts receive takeover prompts before claims execute. Local presence mirroring keeps the host display name visible to viewers even if Firestore briefly drops offline.
+   *Key Implementation:* `renderHostStatus()`, `renderControlRequestBanner()`, Host Control markup `host-control-panel`, Firestore field `requestedController`, and `LocalRealtimeBridge` presence snapshots.
 
 19. **F19 – Messaging & Announcement Framework**
     *Description:* Hosts can craft structured messages that appear in the timeline with validation, scheduling, and default muted states until explicitly enabled. Use the Messages toggle beside the runbook grid to enable announcements only after validation. The diagnostics drawer (`Diagnostics` button in the realtime overlay) surfaces step-by-step guidance and the command palette (`Ctrl+K`) exposes “Messaging framework instructions” for quick reference. Local realtime mirroring keeps message visibility synchronized even when offline.
