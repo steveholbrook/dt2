@@ -2623,21 +2623,13 @@ body.dark-mode #messageToggleBtn:hover{
 'use strict';
 
 // Authentication state
-let isAuthenticated = false;
+let isAuthenticated = true;
 let authUiInitialized = false;
 let clockIntervalId = null;
 let realtimeInitPromise = null;
 
 function runAuthenticatedStartup() {
-  if (!isAuthenticated) {
-    console.log('⏳ Startup blocked: Waiting for Firebase authentication...');
-    return;
-  }
-  if (authUiInitialized) {
-    console.log('⏩ Startup already completed');
-    return;
-  }
-  console.log('✓ Starting authenticated UI initialization...');
+  if (!isAuthenticated || authUiInitialized) return;
   authUiInitialized = true;
 
   initializeApp();
@@ -2822,32 +2814,7 @@ function runAuthenticatedStartup() {
 
 // Initialize application when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-  console.log('📄 DOM Content Loaded');
-  
-  // Check if auth is already complete
-  if (isAuthenticated) {
-    console.log('✓ Auth already complete, running startup');
-    runAuthenticatedStartup();
-  } else {
-    console.log('⏳ Waiting for Firebase authentication to complete...');
-    // Wait up to 10 seconds for auth
-    var authCheckCount = 0;
-    var authCheckInterval = setInterval(function() {
-      authCheckCount++;
-      if (isAuthenticated) {
-        clearInterval(authCheckInterval);
-        console.log('✓ Auth completed, running startup');
-        runAuthenticatedStartup();
-      } else if (authCheckCount >= 100) {
-        clearInterval(authCheckInterval);
-        console.error('❌ Authentication timeout after 10 seconds');
-        if (typeof updateConnectionIndicator === 'function') {
-          updateConnectionIndicator('error', 'Auth timeout');
-        }
-        alert('Firebase authentication is taking too long. Please refresh the page.');
-      }
-    }, 100);
-  }
+  runAuthenticatedStartup();
 });
 
 // Initialize Microsoft Teams if running inside Teams
@@ -3326,8 +3293,7 @@ function updateFocusExitControl(isActive) {
   control.hidden = !isActive;
 }
 
-function applyFocusState(isActive, options) {
-  options = options || {};
+function applyFocusState(isActive, options = {}) {
   var state = window.AppState;
   var desired = !!isActive;
   var wasActive = !!state.fullscreenMode;
@@ -3381,10 +3347,6 @@ function applyFocusState(isActive, options) {
 }
 
 function toggleFullscreenMode(forceState) {
-  if (typeof window.canWrite !== 'function') {
-    console.warn('toggleFullscreenMode called before initialization complete');
-    return;
-  }
   var shouldEnable = typeof forceState === 'boolean' ? forceState : !window.AppState.fullscreenMode;
   var changed = applyFocusState(shouldEnable, { attemptFullscreen: true });
 
@@ -3621,26 +3583,9 @@ function toggleDarkMode() {
   var isDark = !window.AppState.darkMode;
   window.AppState.darkMode = isDark;
   document.body.classList.toggle('dark-mode', isDark);
-  try {
-    localStorage.setItem('darkMode', isDark);
-  } catch (err) {
-    console.warn('Failed to persist dark mode setting', err);
-  }
+  localStorage.setItem('darkMode', isDark);
   updateDarkModeButton(isDark);
-  
-  // Emit to local realtime bridge for immediate cross-tab sync
-  if (window.LocalRealtimeBridge && typeof window.LocalRealtimeBridge.emitState === 'function') {
-    try {
-      window.LocalRealtimeBridge.emitState({ darkMode: isDark });
-    } catch (err) {
-      console.warn('Failed to emit dark mode via LocalRealtimeBridge', err);
-    }
-  }
-  
-  // Notify external webhooks
-  if (NotificationHooks && typeof NotificationHooks.notify === 'function') {
-    NotificationHooks.notify('dark-mode', { enabled: isDark, at: new Date().toISOString() });
-  }
+  NotificationHooks.notify('dark-mode', { enabled: isDark, at: new Date().toISOString() });
   if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
     schedulePush('dark-mode');
   }
@@ -4032,32 +3977,8 @@ function setMessagesEnabled(enabled) {
 
 // Initialize application after authentication when needed
 document.addEventListener('DOMContentLoaded', function() {
-  console.log('📄 DOM Content Loaded');
-  
-  // Check if auth is already complete
   if (isAuthenticated) {
-    console.log('✓ Auth already complete, running startup');
     runAuthenticatedStartup();
-  } else {
-    console.log('⏳ Waiting for Firebase authentication to complete...');
-    // Wait up to 10 seconds for auth
-    var authCheckCount = 0;
-    var authCheckInterval = setInterval(function() {
-      authCheckCount++;
-      if (isAuthenticated) {
-        clearInterval(authCheckInterval);
-        console.log('✓ Auth completed, running startup');
-        runAuthenticatedStartup();
-      } else if (authCheckCount >= 100) {
-        clearInterval(authCheckInterval);
-        console.error('❌ Authentication timeout after 10 seconds');
-        if (typeof updateConnectionIndicator === 'function') {
-          updateConnectionIndicator('error', 'Auth timeout');
-        }
-        alert('Firebase authentication is taking too long. Please refresh the page.');
-      }
-    }, 100);
-  }
   }
 });
 
@@ -5225,18 +5146,7 @@ window.toggleCompleted = function(id, checked) {
 
 // Downtime Control Functions
 window.startDowntime = function() {
-  // Ensure Firebase is fully initialized
-  if (!isAuthenticated || !uid) {
-    alert("⏳ System is still initializing. Please wait a moment and try again.");
-    console.warn('startDowntime blocked: isAuthenticated=', isAuthenticated, 'uid=', uid);
-    return;
-  }
   // Check if user can actually control (is host)
-  if (typeof window.canWrite !== 'function') {
-    console.error('startDowntime called before canWrite was initialized');
-    alert("⚠️ System is still initializing. Please wait a moment and try again.");
-    return;
-  }
   if (!window.canWrite()) {
     alert("⚠️ You are in VIEWER mode and cannot start downtime.\n\nOnly the HOST can control the session.");
     return;
@@ -5960,99 +5870,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
-
-// Critical: Proper Firebase authentication initialization
-console.log('🔥 Initializing Firebase authentication...');
-let firebaseAuthComplete = false;
-
-// Sign in anonymously immediately
-signInAnonymously(auth).then(function(credential) {
-  console.log('✓ Firebase anonymous sign-in successful');
-  uid = credential.user.uid;
-  window.currentUid = uid;
-  firebaseAuthComplete = true;
-  isAuthenticated = true;
-  
-  // Update connection indicator
-  if (typeof updateConnectionIndicator === 'function') {
-    updateConnectionIndicator('connected', 'Connected');
-  }
-  
-  // Now trigger authenticated startup
-  console.log('✓ Firebase auth ready, triggering startup...');
-  runAuthenticatedStartup();
-  
-}).catch(function(error) {
-  console.error('❌ Firebase sign-in failed:', error);
-  if (typeof updateConnectionIndicator === 'function') {
-    updateConnectionIndicator('error', 'Auth failed');
-  }
-  
-  // Show user-friendly error
-  alert('Failed to connect to Firebase. Please refresh the page and try again.
-
-Error: ' + error.message);
-});
-
-// Monitor auth state changes
-onAuthStateChanged(auth, function(user) {
-  if (user) {
-    if (!uid) {
-      uid = user.uid;
-      window.currentUid = uid;
-      console.log('✓ Firebase user authenticated:', uid);
-    }
-    if (!isAuthenticated) {
-      isAuthenticated = true;
-      firebaseAuthComplete = true;
-      if (typeof updateConnectionIndicator === 'function') {
-        updateConnectionIndicator('connected', 'Connected');
-      }
-      // Trigger startup if not already triggered
-      if (!authUiInitialized) {
-        console.log('✓ Auth state change detected, triggering startup...');
-        runAuthenticatedStartup();
-      }
-    }
-  } else {
-    console.warn('⚠️ Firebase auth state changed to signed out');
-    if (isAuthenticated && !firebaseAuthComplete) {
-      // Re-authenticate
-      console.log('Attempting re-authentication...');
-      signInAnonymously(auth).catch(function(err) {
-        console.error('Re-authentication failed:', err);
-      });
-    }
-  }
-});
-
-// Enhanced connection status monitoring
-function updateConnectionIndicator(status, message) {
-  var indicator = document.getElementById('connectionIndicator');
-  if (!indicator) {
-    // Create indicator if it doesn't exist
-    indicator = document.createElement('div');
-    indicator.id = 'connectionIndicator';
-    indicator.style.cssText = 'position:fixed;top:10px;right:10px;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:600;z-index:10000;transition:all 0.3s ease;';
-    document.body.appendChild(indicator);
-  }
-  
-  var statusConfig = {
-    'connected': { bg: 'var(--sap-success)', text: '✓ Connected', color: '#fff' },
-    'pending': { bg: 'var(--sap-warning)', text: '⟳ ' + (message || 'Connecting...'), color: '#fff' },
-    'offline': { bg: 'var(--sap-error)', text: '✗ ' + (message || 'Offline'), color: '#fff' },
-    'error': { bg: 'var(--sap-error)', text: '✗ ' + (message || 'Error'), color: '#fff' }
-  };
-  
-  var config = statusConfig[status] || statusConfig['pending'];
-  indicator.style.background = config.bg;
-  indicator.style.color = config.color;
-  indicator.textContent = config.text;
-}
-
-// Initialize connection indicator
-updateConnectionIndicator('pending', 'Initializing...');
-
 let uid = null;
 window.currentUid = null;
 const sessionInstanceId = (() => {
@@ -6069,63 +5886,10 @@ const sessionInstanceId = (() => {
   }
 })();
 let presenceDocId = null;
-
-// Monitor authentication state
-onAuthStateChanged(auth, function(user) {
-  if (user) {
-    uid = user.uid;
-    window.currentUid = uid;
-    console.log('✓ Firebase authenticated:', uid);
-    updateConnectionIndicator('connected', 'Connected');
-    
-    // Enable controls after successful auth
-    var startBtn = document.getElementById('startDowntimeBtn');
-    if (startBtn) {
-      startBtn.disabled = false;
-      startBtn.title = 'Start downtime tracking';
-    }
-  } else {
-    console.warn('⚠ Firebase authentication lost, re-authenticating...');
-    updateConnectionIndicator('pending', 'Re-authenticating...');
-    signInAnonymously(auth).catch(function(error) {
-      console.error('Re-authentication failed:', error);
-      updateConnectionIndicator('error', 'Auth failed');
-    });
-  }
-});
-
 let presenceRef = null;
 window.getCurrentUid = function() {
   return uid;
 };
-
-// Enhanced Firebase error handling
-function handleFirebaseError(error, operation) {
-  console.error('Firebase error during ' + operation + ':', error);
-  
-  var message = 'Operation failed: ' + operation;
-  if (error.code === 'permission-denied') {
-    message = 'Permission denied. Please check your access rights.';
-  } else if (error.code === 'unavailable') {
-    message = 'Firebase temporarily unavailable. Retrying...';
-    updateConnectionIndicator('offline', 'Retrying...');
-  } else if (error.code === 'unauthenticated') {
-    message = 'Authentication required. Re-authenticating...';
-    // Trigger re-auth
-    if (typeof runAuthenticatedStartup === 'function') {
-      setTimeout(runAuthenticatedStartup, 1000);
-    }
-  }
-  
-  if (typeof showToast === 'function') {
-    showToast('⚠️ ' + message);
-  }
-  
-  return message;
-}
-
-window.handleFirebaseError = handleFirebaseError;
-
 
 window.firestore = {
   setDoc,
@@ -6958,23 +6722,12 @@ function initializeRealtime() {
     }
 
     let credential = null;
-    // Auth should already be complete from initial startup
-    if (!uid && auth.currentUser) {
-      uid = auth.currentUser.uid;
-      window.currentUid = uid;
-      console.log('✓ Using existing auth:', uid);
-    } else if (!uid) {
-      console.warn('⚠️ No UID available, attempting sign-in...');
-      try {
-        credential = await signInAnonymously(auth);
-        uid = credential.user.uid;
-        window.currentUid = uid;
-        console.log('✓ Late auth successful:', uid);
-      } catch (err) {
-        console.error('❌ Sign-in failed:', err);
-        updateConnectionIndicator('error', 'Auth failed');
-        throw err;
-      }
+    try {
+      credential = await signInAnonymously(auth);
+    } catch (err) {
+      console.error('Anonymous sign-in failed', err);
+      updateConnectionIndicator('offline', 'Authentication failed');
+      throw err;
     }
 
     uid = (credential && credential.user && credential.user.uid) || (auth.currentUser && auth.currentUser.uid) || uid;
@@ -8280,183 +8033,9 @@ function toggleDiagnosticsDrawer(forceState) {
 }
 
 function showMessagingInstructions() {
-  var overlay = document.createElement('div');
-  overlay.id = 'messagingInstructionsOverlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:100005;padding:20px;';
-  
-  var panel = document.createElement('div');
-  panel.style.cssText = 'background:var(--sap-panel);border-radius:12px;max-width:800px;max-height:90vh;overflow-y:auto;padding:24px;box-shadow:0 24px 48px rgba(0,0,0,0.3);';
-  
-  panel.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:2px solid var(--sap-border);padding-bottom:12px;">
-      <h2 style="margin:0;font-size:24px;color:var(--sap-accent);">📢 Messaging Framework Guide</h2>
-      <button onclick="this.closest('#messagingInstructionsOverlay').remove()" style="background:var(--sap-error);color:white;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-weight:600;">Close</button>
-    </div>
-    
-    <div style="line-height:1.6;color:var(--sap-text);">
-      <h3 style="color:var(--sap-accent);margin-top:0;">Quick Start</h3>
-      <p>The messaging framework lets you create timeline announcements that appear at specific times during downtime.</p>
-      
-      <h3 style="color:var(--sap-accent);margin-top:24px;">5-Step Workflow</h3>
-      
-      <div style="background:var(--sap-shell-bg);padding:16px;border-radius:8px;margin:12px 0;border-left:4px solid var(--sap-accent);">
-        <h4 style="margin:0 0 8px 0;color:var(--sap-accent);">Step 1: Create Message Rows</h4>
-        <ul style="margin:8px 0;padding-left:24px;">
-          <li>Click "<strong>+ Add Message</strong>" button below runbook table</li>
-          <li>Each message has: Time, Type, Content fields</li>
-          <li>Create as many messages as needed</li>
-        </ul>
-      </div>
-      
-      <div style="background:var(--sap-shell-bg);padding:16px;border-radius:8px;margin:12px 0;border-left:4px solid var(--sap-warning);">
-        <h4 style="margin:0 0 8px 0;color:var(--sap-warning);">Step 2: Configure Each Message</h4>
-        <ul style="margin:8px 0;padding-left:24px;">
-          <li><strong>Time:</strong> Format HH:MM (24-hour), e.g., 02:30, 14:00</li>
-          <li><strong>Type:</strong> Info (ℹ️), Warning (⚠️), Success (✅), Error (❌)</li>
-          <li><strong>Content:</strong> Your message text (keep under 80 chars)</li>
-        </ul>
-        <div style="background:var(--sap-panel);padding:8px;border-radius:4px;margin-top:8px;font-family:monospace;font-size:12px;">
-          <strong>Example:</strong><br>
-          Time: 02:30 | Type: Warning | Content: "Database freeze in progress"
-        </div>
-      </div>
-      
-      <div style="background:var(--sap-shell-bg);padding:16px;border-radius:8px;margin:12px 0;border-left:4px solid var(--sap-success);">
-        <h4 style="margin:0 0 8px 0;color:var(--sap-success);">Step 3: Validate Messages</h4>
-        <ul style="margin:8px 0;padding-left:24px;">
-          <li>Messages auto-validate on creation/edit</li>
-          <li>Look for ✅ green checkmark = valid</li>
-          <li>Look for ❌ red X = needs fixing</li>
-          <li>Hover over icon to see specific error</li>
-          <li>Common errors: invalid time format, empty content, duplicate times</li>
-        </ul>
-      </div>
-      
-      <div style="background:var(--sap-shell-bg);padding:16px;border-radius:8px;margin:12px 0;border-left:4px solid #9333ea;">
-        <h4 style="margin:0 0 8px 0;color:#9333ea;"><strong>Step 4: Enable Message Display (CRITICAL!)</strong></h4>
-        <div style="background:rgba(147,51,234,0.1);padding:12px;border-radius:6px;margin:8px 0;border:2px solid #9333ea;">
-          <p style="margin:0;font-weight:600;color:var(--sap-text);">⚠️ Messages are DISABLED by default!</p>
-        </div>
-        <ul style="margin:8px 0;padding-left:24px;">
-          <li>Find "<strong>Messages</strong>" toggle button beside runbook grid</li>
-          <li>Button shows: "Messages: <strong>OFF</strong>" or "Messages: <strong>ON</strong>"</li>
-          <li>Click to toggle state</li>
-          <li>Only enabled messages appear on timeline</li>
-          <li>Toggle syncs to all viewers instantly</li>
-        </ul>
-        <div style="background:var(--sap-panel);padding:8px;border-radius:4px;margin-top:8px;">
-          <strong>Why disabled by default?</strong><br>
-          • Prevents premature display during setup<br>
-          • Allows template loading without messages<br>
-          • Gives time to validate before viewers see them<br>
-          • Reduces noise during planning phase
-        </div>
-      </div>
-      
-      <div style="background:var(--sap-shell-bg);padding:16px;border-radius:8px;margin:12px 0;border-left:4px solid var(--sap-accent-2);">
-        <h4 style="margin:0 0 8px 0;color:var(--sap-accent-2);">Step 5: Monitor Timeline Display</h4>
-        <ul style="margin:8px 0;padding-left:24px;">
-          <li>Messages appear as colored blocks on timeline</li>
-          <li>Color indicates type (blue/yellow/green/red)</li>
-          <li>Hover to see full message content</li>
-          <li>Invalid messages never appear (even if toggle is ON)</li>
-        </ul>
-      </div>
-      
-      <h3 style="color:var(--sap-accent);margin-top:24px;">Message Types Guide</h3>
-      <table style="width:100%;border-collapse:collapse;margin:12px 0;">
-        <tr style="background:var(--sap-shell-bg);">
-          <th style="padding:8px;text-align:left;border:1px solid var(--sap-border);">Type</th>
-          <th style="padding:8px;text-align:left;border:1px solid var(--sap-border);">When to Use</th>
-          <th style="padding:8px;text-align:left;border:1px solid var(--sap-border);">Example</th>
-        </tr>
-        <tr>
-          <td style="padding:8px;border:1px solid var(--sap-border);"><strong>Info</strong> ℹ️</td>
-          <td style="padding:8px;border:1px solid var(--sap-border);">Status updates, general information</td>
-          <td style="padding:8px;border:1px solid var(--sap-border);font-family:monospace;font-size:11px;">"Data transfer 50% complete"</td>
-        </tr>
-        <tr style="background:var(--sap-shell-bg);">
-          <td style="padding:8px;border:1px solid var(--sap-border);"><strong>Warning</strong> ⚠️</td>
-          <td style="padding:8px;border:1px solid var(--sap-border);">Cautions, upcoming critical operations</td>
-          <td style="padding:8px;border:1px solid var(--sap-border);font-family:monospace;font-size:11px;">"Database freeze in 10 minutes"</td>
-        </tr>
-        <tr>
-          <td style="padding:8px;border:1px solid var(--sap-border);"><strong>Success</strong> ✅</td>
-          <td style="padding:8px;border:1px solid var(--sap-border);">Confirmations, milestone achievements</td>
-          <td style="padding:8px;border:1px solid var(--sap-border);font-family:monospace;font-size:11px;">"Migration complete - all checks passed"</td>
-        </tr>
-        <tr style="background:var(--sap-shell-bg);">
-          <td style="padding:8px;border:1px solid var(--sap-border);"><strong>Error</strong> ❌</td>
-          <td style="padding:8px;border:1px solid var(--sap-border);">Problems, failures, urgent issues</td>
-          <td style="padding:8px;border:1px solid var(--sap-border);font-family:monospace;font-size:11px;">"Transport failed - manual intervention required"</td>
-        </tr>
-      </table>
-      
-      <h3 style="color:var(--sap-accent);margin-top:24px;">Best Practices</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0;">
-        <div style="background:rgba(16,126,62,0.1);padding:12px;border-radius:6px;border-left:3px solid var(--sap-success);">
-          <h4 style="margin:0 0 8px 0;color:var(--sap-success);">✅ DO</h4>
-          <ul style="margin:0;padding-left:20px;font-size:13px;">
-            <li>Keep messages concise (&lt;80 chars)</li>
-            <li>Use clear, actionable language</li>
-            <li>Space messages 15+ minutes apart</li>
-            <li>Validate before enabling</li>
-            <li>Test in non-production first</li>
-          </ul>
-        </div>
-        <div style="background:rgba(187,0,0,0.1);padding:12px;border-radius:6px;border-left:3px solid var(--sap-error);">
-          <h4 style="margin:0 0 8px 0;color:var(--sap-error);">❌ DON'T</h4>
-          <ul style="margin:0;padding-left:20px;font-size:13px;">
-            <li>Use jargon or abbreviations</li>
-            <li>Cluster too many messages</li>
-            <li>Forget to enable toggle</li>
-            <li>Set times beyond downtime window</li>
-            <li>Leave messages unvalidated</li>
-          </ul>
-        </div>
-      </div>
-      
-      <h3 style="color:var(--sap-accent);margin-top:24px;">Quick Tips</h3>
-      <ul style="line-height:1.8;">
-        <li>🔹 <strong>After loading template:</strong> Messages are OFF - review and customize before enabling</li>
-        <li>🔹 <strong>Time format:</strong> Use 24-hour time - 14:30 not 2:30 PM</li>
-        <li>🔹 <strong>Validation errors:</strong> Hover over ❌ icon to see what's wrong</li>
-        <li>🔹 <strong>Duplicate messages:</strong> Click duplicate icon for quick copies</li>
-        <li>🔹 <strong>Keyboard shortcut:</strong> Ctrl+M to toggle messages ON/OFF</li>
-      </ul>
-      
-      <div style="background:rgba(10,110,209,0.1);padding:16px;border-radius:8px;margin-top:24px;border:1px solid var(--sap-accent);">
-        <h4 style="margin:0 0 8px 0;color:var(--sap-accent);">📚 Need More Help?</h4>
-        <p style="margin:0;">
-          • Press <kbd style="background:var(--sap-shell-bg);padding:2px 6px;border-radius:3px;border:1px solid var(--sap-border);">Ctrl+K</kbd> to open Command Palette<br>
-          • Click "<strong>Diagnostics</strong>" button for system status<br>
-          • Check browser console for detailed errors<br>
-          • Reference the complete MESSAGING_FRAMEWORK_GUIDE.md document
-        </p>
-      </div>
-    </div>
-  `;
-  
-  overlay.appendChild(panel);
-  document.body.appendChild(overlay);
-  
-  // Close on overlay click
-  overlay.addEventListener('click', function(e) {
-    if (e.target === overlay) {
-      overlay.remove();
-    }
-  });
-  
-  // Close on ESC key
-  document.addEventListener('keydown', function escHandler(e) {
-    if (e.key === 'Escape' && document.getElementById('messagingInstructionsOverlay')) {
-      document.getElementById('messagingInstructionsOverlay').remove();
-      document.removeEventListener('keydown', escHandler);
-    }
-  });
+  toggleDiagnosticsDrawer(true);
+  showToast('ℹ️ Diagnostics drawer includes messaging & announcement guidance.');
 }
-
-window.showMessagingInstructions = showMessagingInstructions;
 
 const CommandPalette = (function() {
   let overlay = null;
