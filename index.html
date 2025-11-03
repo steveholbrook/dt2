@@ -2619,7 +2619,6 @@ body.dark-mode #messageToggleBtn:hover{
   </div>
 </div>
 
-<script src="state-core.js"></script>
 <script>
 'use strict';
 
@@ -2673,9 +2672,9 @@ function runAuthenticatedStartup() {
   }
 
   bindMessageToggleButton();
-  window.setMessagesEnabled(window.AppState && typeof window.AppState.messagesOn === 'boolean' ? window.AppState.messagesOn : false, { source: 'init', skipSync: true });
+  window.setMessagesEnabled(window.AppState && typeof window.AppState.messagesOn === 'boolean' ? window.AppState.messagesOn : false);
   updateFocusExitControl(window.AppState.fullscreenMode);
-  setFocusMode(window.AppState.fullscreenMode, { forceRefresh: true, skipTimelineRefresh: true });
+  applyFocusState(window.AppState.fullscreenMode, { forceRefresh: true, skipTimelineRefresh: true });
 
   updateClock();
   if (!clockIntervalId) {
@@ -3294,33 +3293,20 @@ function updateFocusExitControl(isActive) {
   control.hidden = !isActive;
 }
 
-function applyFocusState(isActive, options = {}) {
+function applyFocusState(isActive, options) {
+  options = options || {};
   var state = window.AppState;
   var desired = !!isActive;
+  var wasActive = !!state.fullscreenMode;
+  var changed = wasActive !== desired;
   var sinceValue = options.since instanceof Date ? options.since : (options.since ? new Date(options.since) : null);
-  var focusResult = null;
 
-  if (window.StateCore && typeof window.StateCore.ensureFocusState === 'function') {
-    focusResult = window.StateCore.ensureFocusState(state, desired, {
-      since: sinceValue || undefined,
-      now: options.now instanceof Date ? options.now : new Date()
-    });
+  state.fullscreenMode = desired;
+  if (state.fullscreenMode) {
+    state.fullscreenSince = sinceValue || state.fullscreenSince || new Date();
   } else {
-    var previous = !!state.fullscreenMode;
-    state.fullscreenMode = desired;
-    if (desired) {
-      state.fullscreenSince = sinceValue || state.fullscreenSince || new Date();
-    } else {
-      state.fullscreenSince = null;
-    }
-    focusResult = { changed: previous !== desired, since: state.fullscreenSince };
+    state.fullscreenSince = null;
   }
-
-  if (desired && focusResult && focusResult.since) {
-    state.fullscreenSince = focusResult.since instanceof Date ? focusResult.since : new Date(focusResult.since);
-  }
-
-  var changed = !!(focusResult && focusResult.changed);
 
   document.body.classList.toggle('fullscreen-mode', state.fullscreenMode);
 
@@ -3361,53 +3347,23 @@ function applyFocusState(isActive, options = {}) {
   return changed;
 }
 
-function renderFocusIndicators() {
-  if (!window.AppState) return;
-  var focusRow = document.getElementById('rt-focus-row');
-  var focusTime = document.getElementById('rt-focus-time');
-  if (!focusRow || !focusTime) return;
-
-  if (window.AppState.fullscreenMode && window.AppState.fullscreenSince) {
-    var since = window.AppState.fullscreenSince instanceof Date ? window.AppState.fullscreenSince : new Date(window.AppState.fullscreenSince);
-    focusRow.style.display = 'block';
-    focusTime.textContent = since.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  } else {
-    focusRow.style.display = 'none';
-  }
-}
-
-function setFocusMode(active, options) {
-  var opts = options || {};
-  var changed = applyFocusState(active, opts);
-  if (changed || opts.forceRefresh) {
-    renderFocusIndicators();
-  }
-  return changed;
-}
-
 function toggleFullscreenMode(forceState) {
-  if (typeof window.canWrite === 'function' && !window.canWrite()) {
-    showToast('Focus mode is controlled by the host in viewer mode.');
-    return false;
+  if (typeof window.canWrite !== 'function') {
+    console.warn('toggleFullscreenMode called before initialization complete');
+    return;
   }
-
   var shouldEnable = typeof forceState === 'boolean' ? forceState : !window.AppState.fullscreenMode;
-  var changed = setFocusMode(shouldEnable, { attemptFullscreen: true });
+  var changed = applyFocusState(shouldEnable, { attemptFullscreen: true });
 
-  if (!changed) {
-    return false;
-  }
-
-  if (window.canWrite && window.canWrite()) {
+  if (changed && window.canWrite && window.canWrite()) {
     recordStatusChange(shouldEnable ? 'focus-enter' : 'focus-exit', {
       message: shouldEnable ? 'Focus mode enabled' : 'Focus mode exited'
     });
-    if (typeof schedulePush === 'function') {
-      schedulePush('focus-toggle');
-    }
   }
 
-  return true;
+  if (changed && typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
+    schedulePush('focus-toggle');
+  }
 }
 
 function lazyLoadTimelineForFocus() {
@@ -3461,19 +3417,19 @@ window.toggleFullscreenMode = toggleFullscreenMode;
 document.addEventListener('fullscreenchange', function() {
   var isFullscreen = !!document.fullscreenElement;
   if (!isFullscreen && window.AppState.fullscreenMode) {
-    var exited = setFocusMode(false, { forceRefresh: true });
+    var exited = applyFocusState(false, { forceRefresh: true });
     if (exited && window.canWrite && window.canWrite()) {
       recordStatusChange('focus-exit', { message: 'Focus mode exited' });
       if (typeof schedulePush === 'function') {
-        schedulePush('focus-toggle');
+        schedulePush();
       }
     }
   } else if (isFullscreen && !window.AppState.fullscreenMode) {
-    var entered = setFocusMode(true, { forceRefresh: true, since: new Date() });
+    var entered = applyFocusState(true, { forceRefresh: true, since: new Date() });
     if (entered && window.canWrite && window.canWrite()) {
       recordStatusChange('focus-enter', { message: 'Focus mode enabled' });
       if (typeof schedulePush === 'function') {
-        schedulePush('focus-toggle');
+        schedulePush();
       }
     }
   }
@@ -3621,65 +3577,40 @@ setInterval(function() {
 
 // NEW: Dark Mode Functions
 function initDarkMode() {
-  var stored = null;
-  try {
-    stored = localStorage.getItem('darkMode');
-  } catch (err) {
-    console.warn('Unable to read stored dark mode preference', err);
-  }
+  var stored = localStorage.getItem('darkMode');
   var darkMode = stored === 'true';
-  setDarkMode(darkMode, { source: 'init', skipSync: true, skipStorage: true, force: true });
+  window.AppState.darkMode = darkMode;
+  document.body.classList.toggle('dark-mode', darkMode);
+  updateDarkModeButton(darkMode);
 }
 
-function setDarkMode(enabled, options) {
-  var opts = options || {};
-  var desired = !!enabled;
-  window.AppState = window.AppState || {};
-  var result = null;
-
-  if (window.StateCore && typeof window.StateCore.ensureDarkMode === 'function') {
-    result = window.StateCore.ensureDarkMode(window.AppState, desired);
-  } else {
-    var previous = !!window.AppState.darkMode;
-    window.AppState.darkMode = desired;
-    result = { changed: previous !== desired };
+function toggleDarkMode() {
+  var isDark = !window.AppState.darkMode;
+  window.AppState.darkMode = isDark;
+  document.body.classList.toggle('dark-mode', isDark);
+  try {
+    localStorage.setItem('darkMode', isDark);
+  } catch (err) {
+    console.warn('Failed to persist dark mode setting', err);
   }
-
-  if (!opts.force && result && result.changed === false) {
-    return false;
-  }
-
-  document.body.classList.toggle('dark-mode', desired);
-  updateDarkModeButton(desired);
-
-  if (!opts.skipStorage) {
+  updateDarkModeButton(isDark);
+  
+  // Emit to local realtime bridge for immediate cross-tab sync
+  if (window.LocalRealtimeBridge && typeof window.LocalRealtimeBridge.emitState === 'function') {
     try {
-      localStorage.setItem('darkMode', desired);
+      window.LocalRealtimeBridge.emitState({ darkMode: isDark });
     } catch (err) {
-      console.warn('Unable to persist dark mode preference', err);
+      console.warn('Failed to emit dark mode via LocalRealtimeBridge', err);
     }
   }
-
-  return true;
-}
-
-function toggleDarkMode(forceState) {
-  if (typeof window.canWrite === 'function' && !window.canWrite()) {
-    showToast('Dark mode is controlled by the host in viewer mode.');
-    return false;
+  
+  // Notify external webhooks
+  if (NotificationHooks && typeof NotificationHooks.notify === 'function') {
+    NotificationHooks.notify('dark-mode', { enabled: isDark, at: new Date().toISOString() });
   }
-
-  var desired = typeof forceState === 'boolean' ? forceState : !window.AppState.darkMode;
-  var changed = setDarkMode(desired, { source: 'host' });
-  if (!changed) {
-    return false;
-  }
-
-  NotificationHooks.notify('dark-mode', { enabled: desired, at: new Date().toISOString() });
   if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
     schedulePush('dark-mode');
   }
-  return true;
 }
 
 function updateDarkModeButton(isDark) {
@@ -4001,50 +3932,20 @@ function bindMessageToggleButton() {
   if (!toggleBtn) return;
   messageToggleBound = true;
   toggleBtn.addEventListener('click', function() {
-    if (typeof window.canWrite === 'function' && !window.canWrite()) {
-      showToast('Messaging visibility is controlled by the host in viewer mode.');
-      return;
-    }
-    window.setMessagesEnabled(!window.AppState.messagesOn, { source: 'host' });
+    window.setMessagesEnabled(!window.AppState.messagesOn);
   });
   applyMessageToggleState();
 }
 
-function setMessagesEnabled(enabled, options) {
+function setMessagesEnabled(enabled) {
   window.AppState = window.AppState || {};
-  var opts = options || {};
-  var desired = !!enabled;
-  var result = null;
-
-  if (window.StateCore && typeof window.StateCore.ensureMessagingState === 'function') {
-    result = window.StateCore.ensureMessagingState(window.AppState, desired);
-  } else {
-    var previous = !!window.AppState.messagesOn;
-    window.AppState.messagesOn = desired;
-    result = { changed: previous !== desired };
-  }
-
-  if (!opts.force && result && result.changed === false) {
-    applyMessageToggleState();
-    return desired;
-  }
-
+  window.AppState.messagesOn = !!enabled;
   applyMessageToggleState();
-
-  if (!opts.skipRender) {
-    if (typeof renderRunbookTable === 'function') renderRunbookTable();
-    if (typeof updateTimeline === 'function') updateTimeline();
-  }
-
-  if (opts.source === 'remote' || opts.skipSync) {
-    return desired;
-  }
-
+  if (typeof renderRunbookTable === 'function') renderRunbookTable();
+  if (typeof updateTimeline === 'function') updateTimeline();
   if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
-    schedulePush('messages-toggle');
+    schedulePush();
   }
-
-  return desired;
 }
 
 window.setMessagesEnabled = setMessagesEnabled;
@@ -4071,6 +3972,28 @@ window.selectRecentCustomer = function(name, transform) {
   // Update fullscreen info if in fullscreen mode
   if (window.AppState.fullscreenMode) {
     updateFullscreenCustomerInfo();
+  }
+}
+
+function bindMessageToggleButton() {
+  if (messageToggleBound) return;
+  var toggleBtn = document.getElementById('messageToggleBtn');
+  if (!toggleBtn) return;
+  messageToggleBound = true;
+  toggleBtn.addEventListener('click', function() {
+    window.setMessagesEnabled(!window.AppState.messagesOn);
+  });
+  applyMessageToggleState();
+}
+
+function setMessagesEnabled(enabled) {
+  window.AppState = window.AppState || {};
+  window.AppState.messagesOn = !!enabled;
+  applyMessageToggleState();
+  if (typeof renderRunbookTable === 'function') renderRunbookTable();
+  if (typeof updateTimeline === 'function') updateTimeline();
+  if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
+    schedulePush();
   }
 }
 
@@ -5246,39 +5169,27 @@ window.toggleCompleted = function(id, checked) {
 // Downtime Control Functions
 window.startDowntime = function() {
   // Check if user can actually control (is host)
+  if (typeof window.canWrite !== 'function') {
+    console.error('startDowntime called before canWrite was initialized');
+    alert("⚠️ System is still initializing. Please wait a moment and try again.");
+    return;
+  }
   if (!window.canWrite()) {
     alert("⚠️ You are in VIEWER mode and cannot start downtime.\n\nOnly the HOST can control the session.");
     return;
   }
   
+  // Always use current system time when starting
+  window.AppState.downtimeStartTime = new Date();
+  
+  window.AppState.downtimeStarted = true;
+  window.AppState.downtimePaused = false;
+  window.AppState.pausedDuration = 0;
+  window.AppState.pauseStartTime = null;
+  
   var downtimeDuration = parseInt(document.getElementById('downtimeDuration').value) || 24;
-  var startResult = null;
-  var startMoment = new Date();
-
-  if (window.StateCore && typeof window.StateCore.startDowntime === 'function') {
-    startResult = window.StateCore.startDowntime(window.AppState, {
-      now: startMoment,
-      durationHours: downtimeDuration
-    });
-  } else {
-    window.AppState.downtimeStartTime = startMoment;
-    window.AppState.downtimeStarted = true;
-    window.AppState.downtimePaused = false;
-    window.AppState.pausedDuration = 0;
-    window.AppState.pauseStartTime = null;
-    window.AppState.downtimeDuration = downtimeDuration;
-    startResult = { startTime: startMoment, durationHours: downtimeDuration };
-  }
-
-  if (startResult && startResult.durationHours) {
-    window.AppState.downtimeDuration = startResult.durationHours;
-  }
-  if (startResult && startResult.startTime) {
-    window.AppState.downtimeStartTime = startResult.startTime instanceof Date
-      ? startResult.startTime
-      : new Date(startResult.startTime);
-  }
-
+  window.AppState.downtimeDuration = downtimeDuration;
+  
   // Lock customer name and transform cycle inputs
   var customerNameInput = document.getElementById('customerName');
   var transformCycleInput = document.getElementById('transformCycle');
@@ -5304,10 +5215,9 @@ window.startDowntime = function() {
   document.getElementById('currentDurationInput').style.display = 'none';
   document.getElementById('currentDurationDisplay').style.display = 'block';
   
-  var startTime = window.AppState.downtimeStartTime instanceof Date ? window.AppState.downtimeStartTime : new Date(window.AppState.downtimeStartTime);
-  var startTimeStr = startTime.toLocaleTimeString('en-US',
+  var startTimeStr = window.AppState.downtimeStartTime.toLocaleTimeString('en-US', 
     { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-
+  
   document.getElementById('startTimeDisplay').textContent = startTimeStr;
   
   // Set current duration to 00:00:00
@@ -5334,9 +5244,6 @@ window.startDowntime = function() {
 
   if (typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
     schedulePush('downtime-start');
-    if (typeof pushState === 'function') {
-      pushState('downtime-start');
-    }
   }
   recordStatusChange('downtime-start', { message: 'Downtime started' });
 };
@@ -5990,6 +5897,34 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+
+// Enhanced connection status monitoring
+function updateConnectionIndicator(status, message) {
+  var indicator = document.getElementById('connectionIndicator');
+  if (!indicator) {
+    // Create indicator if it doesn't exist
+    indicator = document.createElement('div');
+    indicator.id = 'connectionIndicator';
+    indicator.style.cssText = 'position:fixed;top:10px;right:10px;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:600;z-index:10000;transition:all 0.3s ease;';
+    document.body.appendChild(indicator);
+  }
+  
+  var statusConfig = {
+    'connected': { bg: 'var(--sap-success)', text: '✓ Connected', color: '#fff' },
+    'pending': { bg: 'var(--sap-warning)', text: '⟳ ' + (message || 'Connecting...'), color: '#fff' },
+    'offline': { bg: 'var(--sap-error)', text: '✗ ' + (message || 'Offline'), color: '#fff' },
+    'error': { bg: 'var(--sap-error)', text: '✗ ' + (message || 'Error'), color: '#fff' }
+  };
+  
+  var config = statusConfig[status] || statusConfig['pending'];
+  indicator.style.background = config.bg;
+  indicator.style.color = config.color;
+  indicator.textContent = config.text;
+}
+
+// Initialize connection indicator
+updateConnectionIndicator('pending', 'Initializing...');
+
 let uid = null;
 window.currentUid = null;
 const sessionInstanceId = (() => {
@@ -6006,10 +5941,63 @@ const sessionInstanceId = (() => {
   }
 })();
 let presenceDocId = null;
+
+// Monitor authentication state
+onAuthStateChanged(auth, function(user) {
+  if (user) {
+    uid = user.uid;
+    window.currentUid = uid;
+    console.log('✓ Firebase authenticated:', uid);
+    updateConnectionIndicator('connected', 'Connected');
+    
+    // Enable controls after successful auth
+    var startBtn = document.getElementById('startDowntimeBtn');
+    if (startBtn) {
+      startBtn.disabled = false;
+      startBtn.title = 'Start downtime tracking';
+    }
+  } else {
+    console.warn('⚠ Firebase authentication lost, re-authenticating...');
+    updateConnectionIndicator('pending', 'Re-authenticating...');
+    signInAnonymously(auth).catch(function(error) {
+      console.error('Re-authentication failed:', error);
+      updateConnectionIndicator('error', 'Auth failed');
+    });
+  }
+});
+
 let presenceRef = null;
 window.getCurrentUid = function() {
   return uid;
 };
+
+// Enhanced Firebase error handling
+function handleFirebaseError(error, operation) {
+  console.error('Firebase error during ' + operation + ':', error);
+  
+  var message = 'Operation failed: ' + operation;
+  if (error.code === 'permission-denied') {
+    message = 'Permission denied. Please check your access rights.';
+  } else if (error.code === 'unavailable') {
+    message = 'Firebase temporarily unavailable. Retrying...';
+    updateConnectionIndicator('offline', 'Retrying...');
+  } else if (error.code === 'unauthenticated') {
+    message = 'Authentication required. Re-authenticating...';
+    // Trigger re-auth
+    if (typeof runAuthenticatedStartup === 'function') {
+      setTimeout(runAuthenticatedStartup, 1000);
+    }
+  }
+  
+  if (typeof showToast === 'function') {
+    showToast('⚠️ ' + message);
+  }
+  
+  return message;
+}
+
+window.handleFirebaseError = handleFirebaseError;
+
 
 window.firestore = {
   setDoc,
@@ -6820,8 +6808,6 @@ function createRealtimeOverlay() {
   if (typeof updateViewerPanel === 'function') {
     setTimeout(() => updateViewerPanel(), 0);
   }
-
-  renderFocusIndicators();
 }
 
 createRealtimeOverlay();
@@ -6874,23 +6860,6 @@ function initializeRealtime() {
     presenceRef = doc(db, "sessions", sessionContext.sessionKey, "presence", presenceDocId);
     sessionRef = doc(db, "sessions", sessionContext.sessionKey);
 
-    remoteController = null;
-    controllerName = null;
-    attemptedControllerClaim = false;
-    initialSync = true;
-
-    try {
-      await ensureFirebaseConnection();
-    } catch (err) {
-      console.error('Firebase connectivity degraded', err);
-    }
-
-    try {
-      await ensureFirebaseConnection();
-    } catch (err) {
-      console.error('Firebase connectivity degraded', err);
-    }
-
     try {
       await bindPresenceListeners();
     } catch (err) {
@@ -6898,8 +6867,6 @@ function initializeRealtime() {
     }
 
     subscribeToSession();
-    await flushOfflineQueue({ force: true });
-    renderOfflineQueueState();
   })();
 
   realtimeInitPromise = realtimeInitPromise.catch(function(err) {
@@ -7125,12 +7092,6 @@ function handlePresenceEntries(entries) {
 
   renderControlRequestBanner();
   renderDiagnosticsPanel();
-  if (typeof renderHostStatus === 'function') {
-    try { renderHostStatus(); } catch (err) { console.warn('Host status render failed', err); }
-  }
-  if (typeof updateViewerPanel === 'function') {
-    try { updateViewerPanel(); } catch (err) { console.warn('Viewer panel update failed', err); }
-  }
 }
 
 async function bindPresenceListeners() {
@@ -7160,33 +7121,7 @@ async function bindPresenceListeners() {
   });
 }
 
-function bindLocalRealtimeBridges() {
-  if (!LocalRealtime) return;
-
-  if (localStateUnsubscribe) localStateUnsubscribe();
-  localStateUnsubscribe = LocalRealtime.subscribeState(function(state, meta) {
-    const currentUid = uid;
-    if (meta && meta.uid && currentUid && meta.uid === currentUid && typeof window.canWrite === 'function' && window.canWrite()) {
-      return;
-    }
-    try {
-      applyRemoteState(state);
-      renderControlRequestBanner();
-      renderHostStatus();
-      if (typeof updateViewerPanel === 'function') updateViewerPanel();
-      if (typeof updateTimelinePreview === 'function') updateTimelinePreview();
-      if (typeof renderRunbookTable === 'function') renderRunbookTable();
-      if (typeof updateTimeline === 'function') updateTimeline();
-    } catch (err) {
-      console.error('Failed to apply local realtime state', err);
-    }
-  });
-
-  if (localPresenceUnsubscribe) localPresenceUnsubscribe();
-  localPresenceUnsubscribe = LocalRealtime.subscribePresence(function(entries) {
-    handlePresenceEntries(entries);
-  });
-}
+await bindPresenceListeners();
 
 function bindLocalRealtimeBridges() {
   if (!LocalRealtime) return;
@@ -7224,24 +7159,6 @@ remoteDowntimeActive = false;
 attemptedControllerClaim = false;
 let lastSentState = null;
 let writing = false;
-
-async function ensureFirebaseConnection(maxAttempts = 3) {
-  const attempts = Math.max(1, maxAttempts || 1);
-  for (let i = 0; i < attempts; i++) {
-    try {
-      await window.firestore.getDoc(sessionRef);
-      updateConnectionIndicator('online', 'Firebase connected');
-      return true;
-    } catch (err) {
-      console.warn('Firebase connection attempt failed', err);
-      updateConnectionIndicator('degraded', 'Retrying Firebase connection…');
-      const delay = Math.min(2000 * (i + 1), 6000);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-  updateConnectionIndicator('offline', 'Unable to reach Firebase');
-  throw new Error('Firebase connection failed');
-}
 
 // Check if can write - PROPERLY OVERRIDE THE EARLY INIT
 window.canWrite = function() {
@@ -7316,20 +7233,27 @@ function applyRemoteState(remoteState) {
   state.downtimeStartTime = remoteState.downtimeStartTime ? new Date(remoteState.downtimeStartTime) : null;
   state.completionTimes = remoteState.completionTimes || {};
   state.syncedTimelinePosition = remoteState.syncedTimelinePosition || 0;
-  if (remoteState.messagesOn !== undefined) {
-    setMessagesEnabled(!!remoteState.messagesOn, { source: 'remote', skipSync: true });
-  }
+  state.messagesOn = !!remoteState.messagesOn;
   state.lastPauseReason = remoteState.lastPauseReason || '';
   state.lastResetAt = remoteState.lastResetAt ? new Date(remoteState.lastResetAt) : null;
 
   // Sync dark mode across clients
   if (remoteState.darkMode !== undefined) {
-    setDarkMode(!!remoteState.darkMode, { source: 'remote', force: true });
+    state.darkMode = !!remoteState.darkMode;
+    document.body.classList.toggle('dark-mode', state.darkMode);
+    updateDarkModeButton(state.darkMode);
+    try {
+      localStorage.setItem('darkMode', state.darkMode);
+    } catch (err) {
+      console.warn('Unable to persist dark mode preference', err);
+    }
   }
+
+  applyMessageToggleState();
 
   if (remoteState.fullscreenMode !== undefined) {
     const remoteFocusSince = remoteState.fullscreenSince ? new Date(remoteState.fullscreenSince) : null;
-    setFocusMode(!!remoteState.fullscreenMode, {
+    applyFocusState(!!remoteState.fullscreenMode, {
       attemptFullscreen: false,
       since: remoteFocusSince,
       forceRefresh: !window.canWrite() && !!remoteState.fullscreenMode
@@ -7574,7 +7498,17 @@ function updateViewerPanel() {
       }
     }
 
-    renderFocusIndicators();
+    const focusRow = document.getElementById('rt-focus-row');
+    const focusTime = document.getElementById('rt-focus-time');
+    if (focusRow && focusTime) {
+      if (state.fullscreenMode && state.fullscreenSince) {
+        focusRow.style.display = 'block';
+        const since = new Date(state.fullscreenSince);
+        focusTime.textContent = since.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      } else {
+        focusRow.style.display = 'none';
+      }
+    }
 
     // Update start time
     const startEl = document.getElementById("rt-start");
@@ -7584,392 +7518,96 @@ function updateViewerPanel() {
       startEl.textContent = "—";
     }
 
-  function update(partial) {
-    config = { ...config, ...partial };
-    persist();
-  }
-
-  function get() {
-    return { ...config };
-  }
-
-  function shouldTrigger(varianceMinutes, variancePercent) {
-    if (!config.enabled) return false;
-    const exceedsPercent = Math.abs(variancePercent) >= config.variancePercent;
-    const exceedsMinutes = Math.abs(varianceMinutes) >= config.varianceMinutes;
-    const signature = `${Math.round(varianceMinutes)}:${Math.round(variancePercent)}`;
-    if (exceedsPercent || exceedsMinutes) {
-      if (lastSignature === signature) return false;
-      lastSignature = signature;
-      return true;
+    // Update ETA
+    const etaEl = document.getElementById("rt-eta");
+    if (etaEl && state.downtimeStartTime) {
+      const endTime = new Date(state.downtimeStartTime.getTime() + state.downtimeDuration * 3600000);
+      etaEl.textContent = endTime.toLocaleString();
+    } else if (etaEl) {
+      etaEl.textContent = "—";
     }
-    lastSignature = null;
-    return false;
-  }
 
-  return { update, get, shouldTrigger };
-})();
-
-function renderAutomationConfig() {
-  const form = document.getElementById('automationForm');
-  if (!form) return;
-  const config = KpiAutomation.get();
-  const percentInput = document.getElementById('automationPercent');
-  const minutesInput = document.getElementById('automationMinutes');
-  const enabledInput = document.getElementById('automationEnabled');
-  if (percentInput) percentInput.value = config.variancePercent;
-  if (minutesInput) minutesInput.value = config.varianceMinutes;
-  if (enabledInput) enabledInput.checked = !!config.enabled;
-}
-
-let lastAutomationToastAt = 0;
-
-function handleKpiAutomation(plannedMinutes, actualMinutes) {
-  const varianceMinutes = actualMinutes - plannedMinutes;
-  const variancePercent = plannedMinutes ? (varianceMinutes / plannedMinutes) * 100 : 0;
-  if (!KpiAutomation.shouldTrigger(varianceMinutes, variancePercent)) return;
-
-  const message = `Variance ${variancePercent.toFixed(1)}% (${formatHoursShort(Math.abs(varianceMinutes))})`; 
-  if (Date.now() - lastAutomationToastAt > 5000 && typeof showToast === 'function') {
-    showToast('📈 KPI automation alert – ' + message);
-    lastAutomationToastAt = Date.now();
-  }
-  NotificationHooks.notify('kpi-threshold', {
-    varianceMinutes,
-    variancePercent,
-    plannedMinutes,
-    actualMinutes
-  });
-}
-
-function renderSnapshotStatus() {
-  const statusEl = document.getElementById('snapshotStatus');
-  if (!statusEl) return;
-  try {
-    const snapshot = JSON.parse(localStorage.getItem('dt2-mobile-snapshot') || 'null');
-    if (snapshot && snapshot.generatedAt) {
-      const when = new Date(snapshot.generatedAt).toLocaleString();
-      statusEl.textContent = `Snapshot from ${when} · ${snapshot.runbooks ? snapshot.runbooks.length : 0} tasks`;
-    } else {
-      statusEl.textContent = 'No snapshot generated.';
-    }
-  } catch (err) {
-    statusEl.textContent = 'Snapshot unavailable';
-  }
-}
-
-function generateMobileSnapshot() {
-  const state = window.AppState || {};
-  const snapshot = {
-    generatedAt: new Date().toISOString(),
-    customer: nameInput?.value || '',
-    transform: phaseInput?.value || '',
-    downtime: {
-      started: !!state.downtimeStarted,
-      startTime: state.downtimeStartTime || null,
-      duration: state.downtimeDuration || null,
-      paused: !!state.downtimePaused
-    },
-    runbooks: (state.runbooks || []).map(function(r) {
-      return {
-        sequence: r.sequence,
-        runblock: r.runblock,
-        responsibility: r.responsibility,
-        status: r.status,
-        planned: `${String(r.scheduleHours || 0).padStart(2,'0')}:${String(r.scheduleMinutes || 0).padStart(2,'0')}`,
-        duration: `${String(r.durationHours || 0).padStart(2,'0')}:${String(r.durationMinutes || 0).padStart(2,'0')}`,
-        predecessor: r.predecessor || null
-      };
-    })
-  };
-  try {
-    localStorage.setItem('dt2-mobile-snapshot', JSON.stringify(snapshot));
-    renderSnapshotStatus();
-    showToast('📱 Mobile snapshot cached for offline access.');
-  } catch (err) {
-    console.error('Failed to persist mobile snapshot', err);
-    alert('Unable to generate snapshot – storage full?');
-  }
-  return snapshot;
-}
-
-function ensureDiagnosticsDrawer() {
-  if (document.getElementById('diagnosticsDrawer')) return;
-  const drawer = document.createElement('div');
-  drawer.id = 'diagnosticsDrawer';
-  drawer.innerHTML = `
-    <header>
-      <h3>Health Diagnostics</h3>
-      <button id="diagnosticsClose" class="btn small danger" type="button">Close</button>
-    </header>
-    <div class="diagnostics-body">
-      <dl>
-        <dt>Status</dt><dd id="diag-connection">—</dd>
-        <dt>Auth</dt><dd id="diag-auth">—</dd>
-        <dt>Last Sync</dt><dd id="diag-last-snapshot">—</dd>
-        <dt>Presence</dt><dd id="diag-presence">—</dd>
-      </dl>
-      <div class="offline-queue">
-        <h4>Offline Queue <span id="offlineQueueCount" style="display:none;background:var(--sap-accent);color:#fff;padding:0 6px;border-radius:999px;font-size:10px;"></span></h4>
-        <ul id="offlineQueueList"><li style="color:var(--sap-muted)">Queue empty</li></ul>
-      </div>
-      <div class="hooks">
-        <h4>Notification Hooks</h4>
-        <form id="hookForm" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;">
-          <input type="url" id="hookUrl" placeholder="https://hooks.slack.com/..." required>
-          <select id="hookEvent">
-            <option value="all">All events</option>
-            <option value="downtime-start">Downtime started</option>
-            <option value="downtime-stop">Downtime stopped</option>
-            <option value="focus-enter">Focus entered</option>
-            <option value="focus-exit">Focus exited</option>
-            <option value="dark-mode">Dark mode toggled</option>
-            <option value="kpi-threshold">KPI threshold exceeded</option>
-          </select>
-          <button class="btn small primary" type="submit">Add hook</button>
-        </form>
-        <ul id="hooksList"></ul>
-      </div>
-      <div class="automation">
-        <h4>KPI Automation</h4>
-        <form id="automationForm" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;">
-          <label style="font-size:11px;display:flex;justify-content:space-between;gap:8px;">Variance %
-            <input type="number" min="1" max="100" id="automationPercent" style="width:90px;">
-          </label>
-          <label style="font-size:11px;display:flex;justify-content:space-between;gap:8px;">Variance minutes
-            <input type="number" min="1" max="360" id="automationMinutes" style="width:90px;">
-          </label>
-          <label style="font-size:11px;display:flex;align-items:center;gap:6px;"><input type="checkbox" id="automationEnabled"> Enable automation</label>
-          <button class="btn small primary" type="submit">Save thresholds</button>
-        </form>
-      </div>
-      <div class="snapshot">
-        <h4>Mobile Snapshot</h4>
-        <p id="snapshotStatus" style="font-size:11px;color:var(--sap-muted);margin:4px 0;">No snapshot generated.</p>
-        <button id="snapshotGenerate" class="btn small" type="button">Generate snapshot</button>
-      </div>
-      <div class="messaging-help" style="margin-top:12px;">
-        <h4>Messaging Tips</h4>
-        <p style="font-size:11px;color:var(--sap-muted);">Use the <strong>Messages</strong> toggle to surface announcements. Each message row supports scheduling via planned time, responsibility, and status badges. Enable messages only after validating content so viewers are not spammed.</p>
-      </div>
-      <div class="tour-controls" style="margin-top:12px;">
-        <h4>Onboarding</h4>
-        <button id="tourRestart" class="btn small primary" type="button">Run host tour</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(drawer);
-
-  const closeBtn = drawer.querySelector('#diagnosticsClose');
-  if (closeBtn) {
-    closeBtn.addEventListener('click', function() {
-      drawer.classList.remove('open');
-    });
-  }
-
-  const hookForm = drawer.querySelector('#hookForm');
-  if (hookForm) {
-    hookForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      const urlInput = drawer.querySelector('#hookUrl');
-      const eventInput = drawer.querySelector('#hookEvent');
-      const urlValue = urlInput?.value.trim();
-      const eventValue = eventInput?.value || 'all';
-      if (urlValue) {
-        NotificationHooks.addHook(urlValue, [eventValue]);
-        urlInput.value = '';
+    // Update progress bar
+    if (state.downtimeStarted && state.downtimeStartTime) {
+      const now = Date.now();
+      const start = new Date(state.downtimeStartTime).getTime();
+      const duration = state.downtimeDuration * 3600000;
+      let pausedOffset = state.pausedDuration || 0;
+      if (state.downtimePaused && state.pauseStartTime) {
+        const pauseStart = new Date(state.pauseStartTime).getTime();
+        if (!isNaN(pauseStart)) {
+          pausedOffset += Math.max(0, now - pauseStart);
+        }
       }
-    });
-  }
+      const elapsed = now - start - pausedOffset;
+      const percent = Math.min(100, Math.max(0, (elapsed / duration) * 100));
 
-  const automationForm = drawer.querySelector('#automationForm');
-  if (automationForm) {
-    automationForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      const percent = parseInt(document.getElementById('automationPercent').value, 10) || 0;
-      const minutes = parseInt(document.getElementById('automationMinutes').value, 10) || 0;
-      const enabled = document.getElementById('automationEnabled').checked;
-      KpiAutomation.update({ variancePercent: Math.max(1, percent), varianceMinutes: Math.max(1, minutes), enabled });
-      showToast('⚙️ KPI automation thresholds updated');
-    });
-  }
-
-  const snapshotBtn = drawer.querySelector('#snapshotGenerate');
-  if (snapshotBtn) {
-    snapshotBtn.addEventListener('click', function() {
-      generateMobileSnapshot();
-    });
-  }
-
-  const tourBtn = drawer.querySelector('#tourRestart');
-  if (tourBtn) {
-    tourBtn.addEventListener('click', function() {
-      OnboardingTour.start(true);
-    });
-  }
-}
-
-function renderDiagnosticsPanel() {
-  const statusEl = document.getElementById('diag-connection');
-  if (statusEl) statusEl.textContent = connectionStatus || '—';
-  const authEl = document.getElementById('diag-auth');
-  if (authEl) authEl.textContent = auth?.currentUser?.uid ? auth.currentUser.uid.slice(-6) : 'anon';
-  const lastEl = document.getElementById('diag-last-snapshot');
-  if (lastEl) {
-    if (lastSnapshotAt) {
-      const seconds = Math.round((Date.now() - lastSnapshotAt) / 1000);
-      lastEl.textContent = seconds <= 1 ? 'Realtime' : `${seconds}s ago`;
+      const bar = document.getElementById("rt-bar");
+      const label = document.getElementById("rt-bar-label");
+      if (bar) bar.style.width = `${percent}%`;
+      if (label) label.textContent = `${Math.round(percent)}%`;
     } else {
-      lastEl.textContent = 'Pending';
+      const bar = document.getElementById("rt-bar");
+      const label = document.getElementById("rt-bar-label");
+      if (bar) bar.style.width = '0%';
+      if (label) label.textContent = '0%';
     }
-  }
-  const presenceEl = document.getElementById('diag-presence');
-  if (presenceEl) presenceEl.textContent = Object.keys(presenceRoster || {}).length;
-
-  renderOfflineQueueState();
-  renderNotificationHooks();
-  renderAutomationConfig();
-  renderSnapshotStatus();
-}
-
-function toggleDiagnosticsDrawer(forceState) {
-  ensureDiagnosticsDrawer();
-  const drawer = document.getElementById('diagnosticsDrawer');
-  if (!drawer) return;
-  if (typeof forceState === 'boolean') {
-    drawer.classList.toggle('open', forceState);
   } else {
-    drawer.classList.toggle('open');
+    document.body.classList.remove('viewer-mode');
   }
-  if (drawer.classList.contains('open')) {
-    renderDiagnosticsPanel();
-  }
+
+  updateTimelinePreview();
+  renderHostStatus();
 }
 
-function showMessagingInstructions() {
-  toggleDiagnosticsDrawer(true);
-  showToast('ℹ️ Diagnostics drawer includes messaging & announcement guidance.');
+function updateTimelinePreview() {
+  const previewContainer = document.getElementById('rt-timeline-preview');
+  const list = document.getElementById('rt-timeline-list');
+  if (!previewContainer || !list) return;
+
+  const state = window.AppState || {};
+  const runbooks = Array.isArray(state.runbooks) ? state.runbooks.slice() : [];
+  if (runbooks.length === 0) {
+    previewContainer.style.display = 'none';
+    list.innerHTML = '';
+    return;
+  }
+
+  runbooks.sort(function(a, b) {
+    const aStart = (a.scheduleHours || 0) * 60 + (a.scheduleMinutes || 0);
+    const bStart = (b.scheduleHours || 0) * 60 + (b.scheduleMinutes || 0);
+    return aStart - bStart;
+  });
+
+  const activeItems = runbooks.filter(function(runbook) {
+    return !runbook.completed && (runbook.status !== 'completed');
+  }).slice(0, 5);
+
+  if (activeItems.length === 0) {
+    previewContainer.style.display = 'none';
+    list.innerHTML = '';
+    return;
+  }
+
+  const downtimeStart = state.downtimeStartTime ? new Date(state.downtimeStartTime).getTime() : null;
+
+  list.innerHTML = activeItems.map(function(runbook) {
+    const offsetMinutes = (runbook.scheduleHours || 0) * 60 + (runbook.scheduleMinutes || 0);
+    let timeLabel = `${String(runbook.scheduleHours || 0).padStart(2,'0')}:${String(runbook.scheduleMinutes || 0).padStart(2,'0')}`;
+    if (downtimeStart) {
+      const scheduledMs = downtimeStart + offsetMinutes * 60000;
+      timeLabel = new Date(scheduledMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    const status = (runbook.status || 'not-started').replace(/-/g, ' ');
+    const name = escapeHtml(runbook.runblock || 'Unnamed task');
+    return `<li style="display:flex;gap:8px;justify-content:space-between;margin-bottom:4px;">` +
+      `<span style="font-family:monospace;color:#555;">${timeLabel}</span>` +
+      `<span style="flex:1;text-align:right;">${name}<span style="display:block;font-size:10px;color:#666;">${status}</span></span>` +
+    `</li>`;
+  }).join('');
+
+  previewContainer.style.display = 'block';
 }
-
-const CommandPalette = (function() {
-  let overlay = null;
-  let input = null;
-  let list = null;
-  let activeIndex = 0;
-
-  const commands = [
-    { id: 'toggle-focus', label: 'Toggle focus mode', action: () => toggleFullscreenMode(), shortcut: 'F' },
-    { id: 'toggle-dark', label: 'Toggle dark mode', action: () => toggleDarkMode(), shortcut: 'D' },
-    { id: 'start-downtime', label: 'Start downtime session', action: () => { if (typeof startDowntime === 'function') startDowntime(); }, shortcut: 'Ctrl+Enter' },
-    { id: 'pause-downtime', label: 'Pause downtime', action: () => { if (typeof pauseDowntime === 'function') pauseDowntime(); } },
-    { id: 'resume-downtime', label: 'Resume downtime', action: () => { if (typeof resumeDowntime === 'function') resumeDowntime(); } },
-    { id: 'open-diagnostics', label: 'Open diagnostics drawer', action: () => toggleDiagnosticsDrawer(true) },
-    { id: 'messages-help', label: 'Messaging framework instructions', action: showMessagingInstructions },
-    { id: 'save-template', label: 'Save current template', action: () => { if (typeof window.saveTemplate === 'function') window.saveTemplate(); }, shortcut: 'Ctrl+S' },
-    { id: 'generate-snapshot', label: 'Generate mobile snapshot', action: generateMobileSnapshot }
-  ];
-
-  function ensure() {
-    if (overlay) return;
-    overlay = document.createElement('div');
-    overlay.className = 'command-palette-overlay';
-    overlay.innerHTML = `
-      <div class="command-palette">
-        <input type="text" placeholder="Type a command…" aria-label="Command search" />
-        <ul></ul>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-    input = overlay.querySelector('input');
-    list = overlay.querySelector('ul');
-
-    overlay.addEventListener('click', function(e) {
-      if (e.target === overlay) {
-        close();
-      }
-    });
-
-    input.addEventListener('input', function() {
-      renderList(input.value);
-    });
-
-    input.addEventListener('keydown', function(e) {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        activeIndex = Math.min(activeIndex + 1, filteredCommands.length - 1);
-        highlight();
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        activeIndex = Math.max(activeIndex - 1, 0);
-        highlight();
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        invoke(activeIndex);
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        close();
-      }
-    });
-  }
-
-  let filteredCommands = commands.slice();
-
-  function renderList(filterValue) {
-    const query = (filterValue || '').toLowerCase();
-    filteredCommands = commands.filter(function(cmd) {
-      return !query || cmd.label.toLowerCase().includes(query);
-    });
-    if (!filteredCommands.length) {
-      list.innerHTML = '<li style="color:var(--sap-muted);">No commands</li>';
-      return;
-    }
-    list.innerHTML = filteredCommands.map(function(cmd, idx) {
-      const shortcut = cmd.shortcut ? `<span class="shortcut">${cmd.shortcut}</span>` : '';
-      return `<li data-index="${idx}" class="${idx === activeIndex ? 'active' : ''}">${cmd.label}${shortcut}</li>`;
-    }).join('');
-    list.querySelectorAll('li').forEach(function(item) {
-      item.addEventListener('click', function() {
-        const idx = parseInt(item.getAttribute('data-index'), 10);
-        invoke(idx);
-      });
-    });
-    highlight();
-  }
-
-  function highlight() {
-    if (!list) return;
-    list.querySelectorAll('li').forEach(function(li) {
-      li.classList.remove('active');
-    });
-    const active = list.querySelector(`li[data-index="${activeIndex}"]`);
-    if (active) {
-      active.classList.add('active');
-      active.scrollIntoView({ block: 'nearest' });
-    }
-  }
-
-  function invoke(idx) {
-    const command = filteredCommands[idx];
-    if (!command) return;
-    close();
-    try {
-      command.action();
-    } catch (err) {
-      console.error('Command execution failed', err);
-    }
-  }
-
-  function open() {
-    ensure();
-    overlay.classList.add('show');
-    filteredCommands = commands.slice();
-    activeIndex = 0;
-    renderList('');
-    setTimeout(function() {
-      input.focus();
-      input.select();
-    }, 0);
-  }
 
 // Push state to Firebase (host only)
 async function transmitState(statePayload, reason) {
@@ -8006,13 +7644,6 @@ async function pushState(reason = "update", forcedState) {
     console.warn('Local realtime state emit failed', err);
   }
 
-  if (!uid) {
-    OfflineQueue.enqueue(currentState, reason, 'auth-pending');
-    updateConnectionIndicator('pending', 'Waiting for Firebase authentication…');
-    renderOfflineQueueState();
-    return;
-  }
-
   if (!navigator.onLine) {
     OfflineQueue.enqueue(currentState, reason, 'offline');
     updateConnectionIndicator('offline', 'Browser is offline – queued updates');
@@ -8031,10 +7662,8 @@ async function pushState(reason = "update", forcedState) {
   }
 }
 
-async function flushOfflineQueue(options = {}) {
+async function flushOfflineQueue() {
   if (!navigator.onLine) return;
-  if (!uid) return;
-  if (!options.force && typeof window.canWrite === 'function' && !window.canWrite()) return;
   writing = true;
   try {
     await OfflineQueue.flush(async function(queuedState, queuedReason) {
@@ -8512,9 +8141,183 @@ function toggleDiagnosticsDrawer(forceState) {
 }
 
 function showMessagingInstructions() {
-  toggleDiagnosticsDrawer(true);
-  showToast('ℹ️ Diagnostics drawer includes messaging & announcement guidance.');
+  var overlay = document.createElement('div');
+  overlay.id = 'messagingInstructionsOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:100005;padding:20px;';
+  
+  var panel = document.createElement('div');
+  panel.style.cssText = 'background:var(--sap-panel);border-radius:12px;max-width:800px;max-height:90vh;overflow-y:auto;padding:24px;box-shadow:0 24px 48px rgba(0,0,0,0.3);';
+  
+  panel.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:2px solid var(--sap-border);padding-bottom:12px;">
+      <h2 style="margin:0;font-size:24px;color:var(--sap-accent);">📢 Messaging Framework Guide</h2>
+      <button onclick="this.closest('#messagingInstructionsOverlay').remove()" style="background:var(--sap-error);color:white;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-weight:600;">Close</button>
+    </div>
+    
+    <div style="line-height:1.6;color:var(--sap-text);">
+      <h3 style="color:var(--sap-accent);margin-top:0;">Quick Start</h3>
+      <p>The messaging framework lets you create timeline announcements that appear at specific times during downtime.</p>
+      
+      <h3 style="color:var(--sap-accent);margin-top:24px;">5-Step Workflow</h3>
+      
+      <div style="background:var(--sap-shell-bg);padding:16px;border-radius:8px;margin:12px 0;border-left:4px solid var(--sap-accent);">
+        <h4 style="margin:0 0 8px 0;color:var(--sap-accent);">Step 1: Create Message Rows</h4>
+        <ul style="margin:8px 0;padding-left:24px;">
+          <li>Click "<strong>+ Add Message</strong>" button below runbook table</li>
+          <li>Each message has: Time, Type, Content fields</li>
+          <li>Create as many messages as needed</li>
+        </ul>
+      </div>
+      
+      <div style="background:var(--sap-shell-bg);padding:16px;border-radius:8px;margin:12px 0;border-left:4px solid var(--sap-warning);">
+        <h4 style="margin:0 0 8px 0;color:var(--sap-warning);">Step 2: Configure Each Message</h4>
+        <ul style="margin:8px 0;padding-left:24px;">
+          <li><strong>Time:</strong> Format HH:MM (24-hour), e.g., 02:30, 14:00</li>
+          <li><strong>Type:</strong> Info (ℹ️), Warning (⚠️), Success (✅), Error (❌)</li>
+          <li><strong>Content:</strong> Your message text (keep under 80 chars)</li>
+        </ul>
+        <div style="background:var(--sap-panel);padding:8px;border-radius:4px;margin-top:8px;font-family:monospace;font-size:12px;">
+          <strong>Example:</strong><br>
+          Time: 02:30 | Type: Warning | Content: "Database freeze in progress"
+        </div>
+      </div>
+      
+      <div style="background:var(--sap-shell-bg);padding:16px;border-radius:8px;margin:12px 0;border-left:4px solid var(--sap-success);">
+        <h4 style="margin:0 0 8px 0;color:var(--sap-success);">Step 3: Validate Messages</h4>
+        <ul style="margin:8px 0;padding-left:24px;">
+          <li>Messages auto-validate on creation/edit</li>
+          <li>Look for ✅ green checkmark = valid</li>
+          <li>Look for ❌ red X = needs fixing</li>
+          <li>Hover over icon to see specific error</li>
+          <li>Common errors: invalid time format, empty content, duplicate times</li>
+        </ul>
+      </div>
+      
+      <div style="background:var(--sap-shell-bg);padding:16px;border-radius:8px;margin:12px 0;border-left:4px solid #9333ea;">
+        <h4 style="margin:0 0 8px 0;color:#9333ea;"><strong>Step 4: Enable Message Display (CRITICAL!)</strong></h4>
+        <div style="background:rgba(147,51,234,0.1);padding:12px;border-radius:6px;margin:8px 0;border:2px solid #9333ea;">
+          <p style="margin:0;font-weight:600;color:var(--sap-text);">⚠️ Messages are DISABLED by default!</p>
+        </div>
+        <ul style="margin:8px 0;padding-left:24px;">
+          <li>Find "<strong>Messages</strong>" toggle button beside runbook grid</li>
+          <li>Button shows: "Messages: <strong>OFF</strong>" or "Messages: <strong>ON</strong>"</li>
+          <li>Click to toggle state</li>
+          <li>Only enabled messages appear on timeline</li>
+          <li>Toggle syncs to all viewers instantly</li>
+        </ul>
+        <div style="background:var(--sap-panel);padding:8px;border-radius:4px;margin-top:8px;">
+          <strong>Why disabled by default?</strong><br>
+          • Prevents premature display during setup<br>
+          • Allows template loading without messages<br>
+          • Gives time to validate before viewers see them<br>
+          • Reduces noise during planning phase
+        </div>
+      </div>
+      
+      <div style="background:var(--sap-shell-bg);padding:16px;border-radius:8px;margin:12px 0;border-left:4px solid var(--sap-accent-2);">
+        <h4 style="margin:0 0 8px 0;color:var(--sap-accent-2);">Step 5: Monitor Timeline Display</h4>
+        <ul style="margin:8px 0;padding-left:24px;">
+          <li>Messages appear as colored blocks on timeline</li>
+          <li>Color indicates type (blue/yellow/green/red)</li>
+          <li>Hover to see full message content</li>
+          <li>Invalid messages never appear (even if toggle is ON)</li>
+        </ul>
+      </div>
+      
+      <h3 style="color:var(--sap-accent);margin-top:24px;">Message Types Guide</h3>
+      <table style="width:100%;border-collapse:collapse;margin:12px 0;">
+        <tr style="background:var(--sap-shell-bg);">
+          <th style="padding:8px;text-align:left;border:1px solid var(--sap-border);">Type</th>
+          <th style="padding:8px;text-align:left;border:1px solid var(--sap-border);">When to Use</th>
+          <th style="padding:8px;text-align:left;border:1px solid var(--sap-border);">Example</th>
+        </tr>
+        <tr>
+          <td style="padding:8px;border:1px solid var(--sap-border);"><strong>Info</strong> ℹ️</td>
+          <td style="padding:8px;border:1px solid var(--sap-border);">Status updates, general information</td>
+          <td style="padding:8px;border:1px solid var(--sap-border);font-family:monospace;font-size:11px;">"Data transfer 50% complete"</td>
+        </tr>
+        <tr style="background:var(--sap-shell-bg);">
+          <td style="padding:8px;border:1px solid var(--sap-border);"><strong>Warning</strong> ⚠️</td>
+          <td style="padding:8px;border:1px solid var(--sap-border);">Cautions, upcoming critical operations</td>
+          <td style="padding:8px;border:1px solid var(--sap-border);font-family:monospace;font-size:11px;">"Database freeze in 10 minutes"</td>
+        </tr>
+        <tr>
+          <td style="padding:8px;border:1px solid var(--sap-border);"><strong>Success</strong> ✅</td>
+          <td style="padding:8px;border:1px solid var(--sap-border);">Confirmations, milestone achievements</td>
+          <td style="padding:8px;border:1px solid var(--sap-border);font-family:monospace;font-size:11px;">"Migration complete - all checks passed"</td>
+        </tr>
+        <tr style="background:var(--sap-shell-bg);">
+          <td style="padding:8px;border:1px solid var(--sap-border);"><strong>Error</strong> ❌</td>
+          <td style="padding:8px;border:1px solid var(--sap-border);">Problems, failures, urgent issues</td>
+          <td style="padding:8px;border:1px solid var(--sap-border);font-family:monospace;font-size:11px;">"Transport failed - manual intervention required"</td>
+        </tr>
+      </table>
+      
+      <h3 style="color:var(--sap-accent);margin-top:24px;">Best Practices</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0;">
+        <div style="background:rgba(16,126,62,0.1);padding:12px;border-radius:6px;border-left:3px solid var(--sap-success);">
+          <h4 style="margin:0 0 8px 0;color:var(--sap-success);">✅ DO</h4>
+          <ul style="margin:0;padding-left:20px;font-size:13px;">
+            <li>Keep messages concise (&lt;80 chars)</li>
+            <li>Use clear, actionable language</li>
+            <li>Space messages 15+ minutes apart</li>
+            <li>Validate before enabling</li>
+            <li>Test in non-production first</li>
+          </ul>
+        </div>
+        <div style="background:rgba(187,0,0,0.1);padding:12px;border-radius:6px;border-left:3px solid var(--sap-error);">
+          <h4 style="margin:0 0 8px 0;color:var(--sap-error);">❌ DON'T</h4>
+          <ul style="margin:0;padding-left:20px;font-size:13px;">
+            <li>Use jargon or abbreviations</li>
+            <li>Cluster too many messages</li>
+            <li>Forget to enable toggle</li>
+            <li>Set times beyond downtime window</li>
+            <li>Leave messages unvalidated</li>
+          </ul>
+        </div>
+      </div>
+      
+      <h3 style="color:var(--sap-accent);margin-top:24px;">Quick Tips</h3>
+      <ul style="line-height:1.8;">
+        <li>🔹 <strong>After loading template:</strong> Messages are OFF - review and customize before enabling</li>
+        <li>🔹 <strong>Time format:</strong> Use 24-hour time - 14:30 not 2:30 PM</li>
+        <li>🔹 <strong>Validation errors:</strong> Hover over ❌ icon to see what's wrong</li>
+        <li>🔹 <strong>Duplicate messages:</strong> Click duplicate icon for quick copies</li>
+        <li>🔹 <strong>Keyboard shortcut:</strong> Ctrl+M to toggle messages ON/OFF</li>
+      </ul>
+      
+      <div style="background:rgba(10,110,209,0.1);padding:16px;border-radius:8px;margin-top:24px;border:1px solid var(--sap-accent);">
+        <h4 style="margin:0 0 8px 0;color:var(--sap-accent);">📚 Need More Help?</h4>
+        <p style="margin:0;">
+          • Press <kbd style="background:var(--sap-shell-bg);padding:2px 6px;border-radius:3px;border:1px solid var(--sap-border);">Ctrl+K</kbd> to open Command Palette<br>
+          • Click "<strong>Diagnostics</strong>" button for system status<br>
+          • Check browser console for detailed errors<br>
+          • Reference the complete MESSAGING_FRAMEWORK_GUIDE.md document
+        </p>
+      </div>
+    </div>
+  `;
+  
+  overlay.appendChild(panel);
+  document.body.appendChild(overlay);
+  
+  // Close on overlay click
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) {
+      overlay.remove();
+    }
+  });
+  
+  // Close on ESC key
+  document.addEventListener('keydown', function escHandler(e) {
+    if (e.key === 'Escape' && document.getElementById('messagingInstructionsOverlay')) {
+      document.getElementById('messagingInstructionsOverlay').remove();
+      document.removeEventListener('keydown', escHandler);
+    }
+  });
 }
+
+window.showMessagingInstructions = showMessagingInstructions;
 
 const CommandPalette = (function() {
   let overlay = null;
@@ -8808,14 +8611,6 @@ function subscribeToSession() {
 
   renderControlRequestBanner();
 
-  if (typeof flushOfflineQueue === 'function' && uid && remoteController === uid) {
-    try {
-      await flushOfflineQueue();
-    } catch (err) {
-      console.warn('Offline queue flush after snapshot failed', err);
-    }
-  }
-
   if (remoteController === uid && viewerForced) {
     viewerForced = false;
     viewerParam = "0";
@@ -8900,6 +8695,8 @@ function subscribeToSession() {
     updateConnectionIndicator('offline', 'Realtime session disconnected');
   });
 }
+
+subscribeToSession();
 
 async function requestHostControl() {
   if (typeof window.canWrite === 'function' && window.canWrite()) {
