@@ -2623,13 +2623,21 @@ body.dark-mode #messageToggleBtn:hover{
 'use strict';
 
 // Authentication state
-let isAuthenticated = true;
+let isAuthenticated = false;
 let authUiInitialized = false;
 let clockIntervalId = null;
 let realtimeInitPromise = null;
 
 function runAuthenticatedStartup() {
-  if (!isAuthenticated || authUiInitialized) return;
+  if (!isAuthenticated) {
+    console.log('⏳ Startup blocked: Waiting for Firebase authentication...');
+    return;
+  }
+  if (authUiInitialized) {
+    console.log('⏩ Startup already completed');
+    return;
+  }
+  console.log('✓ Starting authenticated UI initialization...');
   authUiInitialized = true;
 
   initializeApp();
@@ -2814,7 +2822,32 @@ function runAuthenticatedStartup() {
 
 // Initialize application when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-  runAuthenticatedStartup();
+  console.log('📄 DOM Content Loaded');
+  
+  // Check if auth is already complete
+  if (isAuthenticated) {
+    console.log('✓ Auth already complete, running startup');
+    runAuthenticatedStartup();
+  } else {
+    console.log('⏳ Waiting for Firebase authentication to complete...');
+    // Wait up to 10 seconds for auth
+    var authCheckCount = 0;
+    var authCheckInterval = setInterval(function() {
+      authCheckCount++;
+      if (isAuthenticated) {
+        clearInterval(authCheckInterval);
+        console.log('✓ Auth completed, running startup');
+        runAuthenticatedStartup();
+      } else if (authCheckCount >= 100) {
+        clearInterval(authCheckInterval);
+        console.error('❌ Authentication timeout after 10 seconds');
+        if (typeof updateConnectionIndicator === 'function') {
+          updateConnectionIndicator('error', 'Auth timeout');
+        }
+        alert('Firebase authentication is taking too long. Please refresh the page.');
+      }
+    }, 100);
+  }
 });
 
 // Initialize Microsoft Teams if running inside Teams
@@ -3999,8 +4032,32 @@ function setMessagesEnabled(enabled) {
 
 // Initialize application after authentication when needed
 document.addEventListener('DOMContentLoaded', function() {
+  console.log('📄 DOM Content Loaded');
+  
+  // Check if auth is already complete
   if (isAuthenticated) {
+    console.log('✓ Auth already complete, running startup');
     runAuthenticatedStartup();
+  } else {
+    console.log('⏳ Waiting for Firebase authentication to complete...');
+    // Wait up to 10 seconds for auth
+    var authCheckCount = 0;
+    var authCheckInterval = setInterval(function() {
+      authCheckCount++;
+      if (isAuthenticated) {
+        clearInterval(authCheckInterval);
+        console.log('✓ Auth completed, running startup');
+        runAuthenticatedStartup();
+      } else if (authCheckCount >= 100) {
+        clearInterval(authCheckInterval);
+        console.error('❌ Authentication timeout after 10 seconds');
+        if (typeof updateConnectionIndicator === 'function') {
+          updateConnectionIndicator('error', 'Auth timeout');
+        }
+        alert('Firebase authentication is taking too long. Please refresh the page.');
+      }
+    }, 100);
+  }
   }
 });
 
@@ -5168,6 +5225,12 @@ window.toggleCompleted = function(id, checked) {
 
 // Downtime Control Functions
 window.startDowntime = function() {
+  // Ensure Firebase is fully initialized
+  if (!isAuthenticated || !uid) {
+    alert("⏳ System is still initializing. Please wait a moment and try again.");
+    console.warn('startDowntime blocked: isAuthenticated=', isAuthenticated, 'uid=', uid);
+    return;
+  }
   // Check if user can actually control (is host)
   if (typeof window.canWrite !== 'function') {
     console.error('startDowntime called before canWrite was initialized');
@@ -5897,6 +5960,71 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+
+// Critical: Proper Firebase authentication initialization
+console.log('🔥 Initializing Firebase authentication...');
+let firebaseAuthComplete = false;
+
+// Sign in anonymously immediately
+signInAnonymously(auth).then(function(credential) {
+  console.log('✓ Firebase anonymous sign-in successful');
+  uid = credential.user.uid;
+  window.currentUid = uid;
+  firebaseAuthComplete = true;
+  isAuthenticated = true;
+  
+  // Update connection indicator
+  if (typeof updateConnectionIndicator === 'function') {
+    updateConnectionIndicator('connected', 'Connected');
+  }
+  
+  // Now trigger authenticated startup
+  console.log('✓ Firebase auth ready, triggering startup...');
+  runAuthenticatedStartup();
+  
+}).catch(function(error) {
+  console.error('❌ Firebase sign-in failed:', error);
+  if (typeof updateConnectionIndicator === 'function') {
+    updateConnectionIndicator('error', 'Auth failed');
+  }
+  
+  // Show user-friendly error
+  alert('Failed to connect to Firebase. Please refresh the page and try again.
+
+Error: ' + error.message);
+});
+
+// Monitor auth state changes
+onAuthStateChanged(auth, function(user) {
+  if (user) {
+    if (!uid) {
+      uid = user.uid;
+      window.currentUid = uid;
+      console.log('✓ Firebase user authenticated:', uid);
+    }
+    if (!isAuthenticated) {
+      isAuthenticated = true;
+      firebaseAuthComplete = true;
+      if (typeof updateConnectionIndicator === 'function') {
+        updateConnectionIndicator('connected', 'Connected');
+      }
+      // Trigger startup if not already triggered
+      if (!authUiInitialized) {
+        console.log('✓ Auth state change detected, triggering startup...');
+        runAuthenticatedStartup();
+      }
+    }
+  } else {
+    console.warn('⚠️ Firebase auth state changed to signed out');
+    if (isAuthenticated && !firebaseAuthComplete) {
+      // Re-authenticate
+      console.log('Attempting re-authentication...');
+      signInAnonymously(auth).catch(function(err) {
+        console.error('Re-authentication failed:', err);
+      });
+    }
+  }
+});
 
 // Enhanced connection status monitoring
 function updateConnectionIndicator(status, message) {
@@ -6830,12 +6958,23 @@ function initializeRealtime() {
     }
 
     let credential = null;
-    try {
-      credential = await signInAnonymously(auth);
-    } catch (err) {
-      console.error('Anonymous sign-in failed', err);
-      updateConnectionIndicator('offline', 'Authentication failed');
-      throw err;
+    // Auth should already be complete from initial startup
+    if (!uid && auth.currentUser) {
+      uid = auth.currentUser.uid;
+      window.currentUid = uid;
+      console.log('✓ Using existing auth:', uid);
+    } else if (!uid) {
+      console.warn('⚠️ No UID available, attempting sign-in...');
+      try {
+        credential = await signInAnonymously(auth);
+        uid = credential.user.uid;
+        window.currentUid = uid;
+        console.log('✓ Late auth successful:', uid);
+      } catch (err) {
+        console.error('❌ Sign-in failed:', err);
+        updateConnectionIndicator('error', 'Auth failed');
+        throw err;
+      }
     }
 
     uid = (credential && credential.user && credential.user.uid) || (auth.currentUser && auth.currentUser.uid) || uid;
