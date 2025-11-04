@@ -2314,7 +2314,7 @@ body.dark-mode #messageToggleBtn:hover{
         <span class="status-value" id="statusText" style="color:var(--sap-warning);">Not Started</span>
       </div>
       <div class="status-actions">
-        <button type="button" class="fullscreen-toggle" id="fullscreenToggle" title="Toggle full screen mode" aria-pressed="false">
+        <button type="button" class="fullscreen-toggle" id="fullscreenToggle" data-focus-toggle="true" title="Toggle full screen mode" aria-pressed="false">
           <span id="fullscreenIcon">⛶</span>
           <span id="fullscreenText">Focus</span>
         </button>
@@ -2691,6 +2691,7 @@ function runAuthenticatedStartup() {
   }
 
   bindMessageToggleButton();
+  initializeFocusToggle();
   window.setMessagesEnabled(window.AppState && typeof window.AppState.messagesOn === 'boolean' ? window.AppState.messagesOn : false);
   updateFocusExitControl(window.AppState.fullscreenMode);
   applyFocusState(window.AppState.fullscreenMode, { forceRefresh: true, skipTimelineRefresh: true });
@@ -2704,36 +2705,6 @@ function runAuthenticatedStartup() {
   if (darkModeToggle && !darkModeToggle.__bound) {
     darkModeToggle.addEventListener('click', toggleDarkMode);
     darkModeToggle.__bound = true;
-  }
-
-  var fullscreenToggle = document.getElementById('fullscreenToggle');
-  if (fullscreenToggle && !fullscreenToggle.__bound) {
-    var handleFocusToggle = function(e) {
-      if (e) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-
-      toggleFullscreenMode();
-
-      if (window.AppState && window.AppState.fullscreenMode && !document.fullscreenElement) {
-        var panel = document.getElementById('progressPanel') || document.documentElement;
-        if (panel && panel.requestFullscreen) {
-          panel.requestFullscreen().catch(function(err) {
-            console.warn('Fullscreen request retry failed:', err);
-          });
-        }
-      }
-    };
-
-    fullscreenToggle.addEventListener('click', handleFocusToggle);
-    fullscreenToggle.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' || e.key === ' ') {
-        handleFocusToggle(e);
-      }
-    });
-
-    fullscreenToggle.__bound = true;
   }
 
   var focusExitBtn = document.getElementById('focusExitButton');
@@ -3253,6 +3224,53 @@ window.showTemplateChangelog = function(encodedName, version, encodedLog) {
 };
 
 // NEW: Keyboard Shortcuts Handler
+function handleFocusToggleEvent(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  toggleFullscreenMode();
+
+  if (window.AppState && window.AppState.fullscreenMode && !document.fullscreenElement) {
+    var panel = document.getElementById('progressPanel') || document.documentElement;
+    if (panel && typeof panel.requestFullscreen === 'function') {
+      panel.requestFullscreen().catch(function(err) {
+        console.warn('Fullscreen request retry failed:', err);
+      });
+    }
+  }
+}
+
+function initializeFocusToggle() {
+  if (document.__focusToggleBound) {
+    return;
+  }
+
+  var clickHandler = function(e) {
+    var toggle = e.target && e.target.closest ? e.target.closest('#fullscreenToggle, [data-focus-toggle="true"]') : null;
+    if (!toggle) {
+      return;
+    }
+    handleFocusToggleEvent(e);
+  };
+
+  var keyHandler = function(e) {
+    if (!e || (e.key !== 'Enter' && e.key !== ' ')) {
+      return;
+    }
+    var toggle = e.target && e.target.closest ? e.target.closest('#fullscreenToggle, [data-focus-toggle="true"]') : null;
+    if (!toggle) {
+      return;
+    }
+    handleFocusToggleEvent(e);
+  };
+
+  document.addEventListener('click', clickHandler);
+  document.addEventListener('keydown', keyHandler);
+  document.__focusToggleBound = { clickHandler: clickHandler, keyHandler: keyHandler };
+}
+
 document.addEventListener('keydown', function(e) {
   // Don't trigger shortcuts when typing in inputs
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
@@ -4121,6 +4139,34 @@ function getEffectivePausedDuration(now) {
   return pausedTotal;
 }
 
+function captureCurrentDurationStamp(referenceTime) {
+  if (!window.AppState || !window.AppState.downtimeStarted || !window.AppState.downtimeStartTime) {
+    return null;
+  }
+
+  var display = document.getElementById('currentDurationDisplay');
+  if (display) {
+    var text = (display.textContent || '').trim();
+    if (text && text !== '--:--:--' && /^\d{2,}:\d{2}:\d{2}$/.test(text)) {
+      return text;
+    }
+  }
+
+  var startTime = resolveDowntimeStartTime();
+  if (!startTime) {
+    return null;
+  }
+
+  var now = referenceTime instanceof Date ? referenceTime : new Date();
+  var pausedOffset = getEffectivePausedDuration(now);
+  var elapsed = Math.max(0, now - startTime - pausedOffset);
+  var hours = Math.floor(elapsed / 3600000);
+  var minutes = Math.floor((elapsed % 3600000) / 60000);
+  var seconds = Math.floor((elapsed % 60000) / 1000);
+
+  return String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+}
+
 function updateDuration() {
   var durationDisplay = document.getElementById('currentDurationDisplay');
   if (!durationDisplay) return;
@@ -4426,26 +4472,20 @@ window.updateStatus = function(id, value) {
     // Auto-update completed flag
     if (value === 'completed') {
       runbook.completed = true;
-      // Calculate actual duration if downtime is running
-        if (window.AppState.downtimeStarted && window.AppState.downtimeStartTime && !runbook.actualDuration) {
-          var now = new Date();
-          var startTime = resolveDowntimeStartTime();
-          if (startTime) {
-            var pausedOffset = getEffectivePausedDuration(now);
-            var scheduledOffset = runbook.scheduleHours * 3600000 + runbook.scheduleMinutes * 60000;
-            var taskStart = new Date(startTime.getTime() + scheduledOffset);
-
-            var actualMs = now - taskStart - pausedOffset;
-            var actualHours = Math.floor(actualMs / 3600000);
-            var actualMinutes = Math.floor((actualMs % 3600000) / 60000);
-
-            runbook.actualDuration = String(Math.max(0, actualHours)).padStart(2,'0') + ':' + String(Math.max(0, actualMinutes)).padStart(2,'0');
-          }
+      if (window.AppState.downtimeStarted && window.AppState.downtimeStartTime && !runbook.actualDuration) {
+        var now = new Date();
+        var stamp = captureCurrentDurationStamp(now);
+        if (stamp) {
+          runbook.actualDuration = stamp;
+          window.AppState.completionTimes[id] = now.toISOString();
         }
+      }
     } else {
       runbook.completed = false;
+      runbook.actualDuration = null;
+      delete window.AppState.completionTimes[id];
     }
-    
+
     updateCompletionPercentage();
     setTimeout(function() { updateTimeline(); }, 100);
   }
@@ -4838,7 +4878,7 @@ function createTimelineControlRow(runbook) {
   var actualSpan = document.createElement('span');
   actualSpan.style.fontSize = '11px';
   actualSpan.style.color = runbook.actualDuration ? '#107e3e' : '#999';
-  actualSpan.textContent = runbook.actualDuration || '--:--';
+  actualSpan.textContent = runbook.actualDuration || '--:--:--';
   actualSpan.dataset.runbookId = runbook.id;
   actualCell.appendChild(actualSpan);
   row.appendChild(actualCell);
@@ -4887,7 +4927,7 @@ function updateTimelineControlRow(row, runbook) {
   // Update ACTUAL display
   var actualSpan = cells[3].querySelector('span');
   if (actualSpan) {
-    actualSpan.textContent = runbook.actualDuration || '--:--';
+    actualSpan.textContent = runbook.actualDuration || '--:--:--';
     actualSpan.style.color = runbook.actualDuration ? '#107e3e' : '#999';
   }
 }
@@ -5132,18 +5172,9 @@ window.toggleCompleted = function(id, checked) {
     
       if (checked && window.AppState.downtimeStartTime) {
         var now = new Date();
-        var startTime = resolveDowntimeStartTime();
-        if (startTime) {
-          var pausedOffset = getEffectivePausedDuration(now);
-          var scheduledOffset = runbook.scheduleHours * 3600000 + runbook.scheduleMinutes * 60000;
-          var taskStart = new Date(startTime.getTime() + scheduledOffset);
-
-          var actualMs = now - taskStart - pausedOffset;
-          var actualHours = Math.floor(actualMs / 3600000);
-          var actualMinutes = Math.floor((actualMs % 3600000) / 60000);
-
-          // Store the actual duration permanently
-          runbook.actualDuration = String(Math.max(0, actualHours)).padStart(2,'0') + ':' + String(Math.max(0, actualMinutes)).padStart(2,'0');
+        var stamp = captureCurrentDurationStamp(now);
+        if (stamp) {
+          runbook.actualDuration = stamp;
           window.AppState.completionTimes[id] = now.toISOString();
 
           // Force immediate update to timeline to show actual duration
@@ -5648,7 +5679,7 @@ window.generatePDFReport = async function() {
       runbook.critical ? 'Yes' : 'No',
       String(runbook.scheduleHours).padStart(2,'0') + ':' + String(runbook.scheduleMinutes).padStart(2,'0'),
       String(runbook.durationHours).padStart(2,'0') + ':' + String(runbook.durationMinutes).padStart(2,'0'),
-      runbook.actualDuration || '--:--',
+      runbook.actualDuration || '--:--:--',
       runbook.completed ? 'Yes' : 'No'
     ];
     
