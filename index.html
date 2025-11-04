@@ -456,20 +456,6 @@
     font-weight:600;
   }
 
-  .pending-request {
-    font-size:11px;
-    color:var(--sap-warning);
-    display:none;
-  }
-
-  .pending-request.show {
-    display:block;
-  }
-
-  body.dark-mode .pending-request {
-    color:var(--sap-warning);
-  }
-
   .btn.subtle {
     background:transparent;
     border:1px solid var(--sap-border);
@@ -2328,7 +2314,7 @@ body.dark-mode #messageToggleBtn:hover{
         <span class="status-value" id="statusText" style="color:var(--sap-warning);">Not Started</span>
       </div>
       <div class="status-actions">
-        <button class="fullscreen-toggle" id="fullscreenToggle" title="Toggle full screen mode">
+        <button type="button" class="fullscreen-toggle" id="fullscreenToggle" title="Toggle full screen mode" aria-pressed="false">
           <span id="fullscreenIcon">⛶</span>
           <span id="fullscreenText">Focus</span>
         </button>
@@ -2722,7 +2708,31 @@ function runAuthenticatedStartup() {
 
   var fullscreenToggle = document.getElementById('fullscreenToggle');
   if (fullscreenToggle && !fullscreenToggle.__bound) {
-    fullscreenToggle.addEventListener('click', toggleFullscreenMode);
+    var handleFocusToggle = function(e) {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      toggleFullscreenMode();
+
+      if (window.AppState && window.AppState.fullscreenMode && !document.fullscreenElement) {
+        var panel = document.getElementById('progressPanel') || document.documentElement;
+        if (panel && panel.requestFullscreen) {
+          panel.requestFullscreen().catch(function(err) {
+            console.warn('Fullscreen request retry failed:', err);
+          });
+        }
+      }
+    };
+
+    fullscreenToggle.addEventListener('click', handleFocusToggle);
+    fullscreenToggle.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        handleFocusToggle(e);
+      }
+    });
+
     fullscreenToggle.__bound = true;
   }
 
@@ -3400,6 +3410,7 @@ function updateFullscreenButton(isFullscreen) {
   if (icon) icon.textContent = isFullscreen ? '⛶' : '⛶';
   if (text) text.textContent = isFullscreen ? 'Exit Focus' : 'Focus';
   if (btn) {
+    btn.setAttribute('aria-pressed', isFullscreen ? 'true' : 'false');
     if (isFullscreen) {
       btn.classList.add('active');
     } else {
@@ -6501,15 +6512,10 @@ function renderHostStatus() {
     document.getElementById('rt-host-meta')
   ].filter(Boolean);
   const requestButtons = [
-    document.getElementById('requestControlBtn'),
-    document.getElementById('rt-request-control')
+    document.getElementById('requestControlBtn')
   ].filter(Boolean);
   const pendingNodes = [
-    document.getElementById('pendingRequestStatus'),
-    document.getElementById('rt-request-pending')
-  ].filter(Boolean);
-  const requestContainers = [
-    document.getElementById('rt-request-controls')
+    document.getElementById('pendingRequestStatus')
   ].filter(Boolean);
 
   const activeName = controllerName || resolveControllerName();
@@ -6534,11 +6540,6 @@ function renderHostStatus() {
     } else {
       metaEl.textContent = 'Host connection pending';
     }
-  });
-
-  requestContainers.forEach(function(container) {
-    if (!container) return;
-    container.style.display = isViewer ? 'flex' : 'none';
   });
 
   const pendingForUser = controlRequest && controlRequest.uid === uid;
@@ -6760,10 +6761,6 @@ function createRealtimeOverlay() {
       <button id="rt-open-diagnostics" style="padding:2px 8px;border:1px solid #ccc;border-radius:999px;background:#f3f5f8;font-size:11px;cursor:pointer;">Diagnostics</button>
     </div>
     <div id="rt-host-meta" style="margin-top:4px;font-size:11px;color:#666;">Awaiting first host</div>
-    <div id="rt-request-controls" style="margin-top:6px;display:none;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap;">
-      <button id="rt-request-control" class="btn subtle" style="padding:4px 10px;font-size:11px;">Request control</button>
-      <div class="pending-request" id="rt-request-pending">Request sent…</div>
-    </div>
     <div id="rt-engagement" style="margin-top:6px;padding:6px 8px;background:#f7f9fc;border:1px solid #e1e6f0;border-radius:6px;font-size:11px;line-height:1.4;">
       <div style="display:flex;justify-content:space-between;">
         <span>Peak viewers</span>
