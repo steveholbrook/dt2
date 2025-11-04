@@ -358,11 +358,11 @@
   .app-header{
     background:linear-gradient(180deg,#0b74de 0%, #095cab 100%);
     color:#fff;
-    padding:12px 16px;
-    display:flex;
+    padding:16px 24px;
+    display:grid;
+    grid-template-columns:minmax(0, auto) minmax(0, 1fr) auto;
     align-items:center;
-    gap:12px;
-    justify-content:space-between;
+    gap:24px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     position: sticky;
     top: 0;
@@ -388,12 +388,13 @@
   }
   
   .status-display{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-    gap:var(--gap);
+    display:flex;
     align-items:stretch;
+    justify-content:flex-end;
+    gap:var(--gap);
     font-size:13px;
     width:100%;
+    flex-wrap:wrap;
   }
 
   .status-item {
@@ -403,15 +404,12 @@
     gap:4px;
     min-width:0;
     padding:6px 0;
+    flex:1 1 180px;
   }
 
   .status-item.host-status {
     align-items:flex-start;
     min-width:200px;
-  }
-
-  .status-item.viewers-status {
-    min-width:0;
   }
 
   .status-actions {
@@ -422,6 +420,27 @@
     align-self:stretch;
     padding:6px 0;
     min-width:180px;
+    flex:0 0 auto;
+  }
+
+  @media (max-width: 900px) {
+    .app-header {
+      grid-template-columns: 1fr;
+      text-align: center;
+      gap:16px;
+    }
+
+    .brand {
+      justify-self: center;
+    }
+
+    .status-display {
+      justify-content: center;
+    }
+
+    .status-actions {
+      justify-content: center;
+    }
   }
 
   .status-actions button {
@@ -1584,6 +1603,32 @@
     flex-direction:column;
     gap:4px;
   }
+
+  #downtimeControls{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:center;
+  }
+
+  #downtimeControls .btn{
+    min-width:140px;
+    justify-content:center;
+  }
+
+  #downtimeControls .btn:hover:not(:disabled){
+    transform:none;
+    box-shadow:0 2px 4px rgba(0,0,0,0.12);
+  }
+
+  #downtimeControls .btn:active:not(:disabled){
+    transform:none;
+  }
+
+  #downtimeControls .downtime-host-message{
+    font-size:12px;
+    color:var(--sap-muted);
+  }
   
   .timeline-field label{
     font-size:11px;
@@ -2281,11 +2326,6 @@ body.dark-mode #messageToggleBtn:hover{
       <div class="status-item">
         <span class="status-label">Status</span>
         <span class="status-value" id="statusText" style="color:var(--sap-warning);">Not Started</span>
-      </div>
-      <div class="status-item viewers-status">
-        <span class="status-label">Viewers</span>
-        <span class="status-value" id="viewerCountHeader">0 viewers</span>
-        <span class="status-meta" id="viewerCountMeta">No active viewers</span>
       </div>
       <div class="status-actions">
         <button class="fullscreen-toggle" id="fullscreenToggle" title="Toggle full screen mode">
@@ -5133,24 +5173,36 @@ function renderDowntimeControls() {
 
   const canWrite = typeof window.canWrite === 'function' ? window.canWrite() : true;
   const state = window.AppState || {};
+  const hasStarted = !!(state.downtimeStarted && state.downtimeStartTime);
+  const isPaused = !!state.downtimePaused;
+
+  const modePrefix = canWrite ? 'host' : 'viewer';
+  const phaseState = hasStarted ? (isPaused ? 'paused' : 'running') : 'idle';
+  const nextState = modePrefix + '-' + phaseState;
+
+  if (controls.dataset.state === nextState) {
+    return;
+  }
+
+  controls.dataset.state = nextState;
 
   if (!canWrite) {
-    if (state.downtimeStarted && state.downtimeStartTime) {
-      controls.innerHTML = '<div style="color:#666;font-size:12px;">Controlled by host</div>';
+    if (hasStarted) {
+      controls.innerHTML = '<div class="downtime-host-message">Controlled by host</div>';
     } else {
       controls.innerHTML = '<button class="btn primary" id="startDowntimeBtn" onclick="startDowntime()" disabled title="Only the host can start downtime">Start Downtime</button>';
     }
     return;
   }
 
-  if (!state.downtimeStarted || !state.downtimeStartTime) {
+  if (!hasStarted) {
     controls.innerHTML = '<button class="btn primary" id="startDowntimeBtn" onclick="startDowntime()">Start Downtime</button>';
-  } else if (state.downtimePaused) {
-    controls.innerHTML = '<button class="btn primary" onclick="resumeDowntime()">▶ Resume</button>' +
-      '<button class="btn danger" onclick="stopDowntime()">⏹ Stop</button>';
+  } else if (isPaused) {
+    controls.innerHTML = '<button class="btn primary" id="resumeDowntimeBtn" onclick="resumeDowntime()">▶ Resume</button>' +
+      '<button class="btn danger" id="stopDowntimeBtn" onclick="stopDowntime()">⏹ Stop</button>';
   } else {
-    controls.innerHTML = '<button class="btn warning" onclick="pauseDowntime()">⏸ Pause</button>' +
-      '<button class="btn danger" onclick="stopDowntime()">⏹ Stop</button>';
+    controls.innerHTML = '<button class="btn warning" id="pauseDowntimeBtn" onclick="pauseDowntime()">⏸ Pause</button>' +
+      '<button class="btn danger" id="stopDowntimeBtn" onclick="stopDowntime()">⏹ Stop</button>';
   }
 }
 
