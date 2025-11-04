@@ -358,11 +358,11 @@
   .app-header{
     background:linear-gradient(180deg,#0b74de 0%, #095cab 100%);
     color:#fff;
-    padding:12px 16px;
-    display:flex;
+    padding:16px 24px;
+    display:grid;
+    grid-template-columns:minmax(0, auto) minmax(0, 1fr) auto;
     align-items:center;
-    gap:12px;
-    justify-content:space-between;
+    gap:24px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     position: sticky;
     top: 0;
@@ -388,12 +388,13 @@
   }
   
   .status-display{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-    gap:var(--gap);
+    display:flex;
     align-items:stretch;
+    justify-content:flex-end;
+    gap:var(--gap);
     font-size:13px;
     width:100%;
+    flex-wrap:wrap;
   }
 
   .status-item {
@@ -403,15 +404,12 @@
     gap:4px;
     min-width:0;
     padding:6px 0;
+    flex:1 1 180px;
   }
 
   .status-item.host-status {
     align-items:flex-start;
     min-width:200px;
-  }
-
-  .status-item.viewers-status {
-    min-width:0;
   }
 
   .status-actions {
@@ -422,6 +420,27 @@
     align-self:stretch;
     padding:6px 0;
     min-width:180px;
+    flex:0 0 auto;
+  }
+
+  @media (max-width: 900px) {
+    .app-header {
+      grid-template-columns: 1fr;
+      text-align: center;
+      gap:16px;
+    }
+
+    .brand {
+      justify-self: center;
+    }
+
+    .status-display {
+      justify-content: center;
+    }
+
+    .status-actions {
+      justify-content: center;
+    }
   }
 
   .status-actions button {
@@ -435,57 +454,6 @@
 
   .status-item .status-value {
     font-weight:600;
-  }
-
-  .pending-request {
-    font-size:11px;
-    color:var(--sap-warning);
-    display:none;
-  }
-
-  .pending-request.show {
-    display:block;
-  }
-
-  body.dark-mode .pending-request {
-    color:var(--sap-warning);
-  }
-
-  .host-control-panel {
-    display:flex;
-    flex-direction:column;
-    gap:12px;
-  }
-
-  .host-control-body {
-    display:flex;
-    align-items:flex-start;
-    justify-content:space-between;
-    gap:16px;
-    flex-wrap:wrap;
-  }
-
-  .host-control-info {
-    display:flex;
-    flex-direction:column;
-    gap:4px;
-    min-width:180px;
-  }
-
-  .host-control-actions {
-    display:flex;
-    flex-direction:column;
-    gap:6px;
-    align-items:flex-end;
-    min-width:160px;
-  }
-
-  .host-control-actions .pending-request {
-    text-align:right;
-  }
-
-  body.dark-mode .host-control-panel {
-    background:var(--sap-panel);
   }
 
   .btn.subtle {
@@ -1621,6 +1589,32 @@
     flex-direction:column;
     gap:4px;
   }
+
+  #downtimeControls{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:center;
+  }
+
+  #downtimeControls .btn{
+    min-width:140px;
+    justify-content:center;
+  }
+
+  #downtimeControls .btn:hover:not(:disabled){
+    transform:none;
+    box-shadow:0 2px 4px rgba(0,0,0,0.12);
+  }
+
+  #downtimeControls .btn:active:not(:disabled){
+    transform:none;
+  }
+
+  #downtimeControls .downtime-host-message{
+    font-size:12px;
+    color:var(--sap-muted);
+  }
   
   .timeline-field label{
     font-size:11px;
@@ -2319,13 +2313,8 @@ body.dark-mode #messageToggleBtn:hover{
         <span class="status-label">Status</span>
         <span class="status-value" id="statusText" style="color:var(--sap-warning);">Not Started</span>
       </div>
-      <div class="status-item viewers-status">
-        <span class="status-label">Viewers</span>
-        <span class="status-value" id="viewerCountHeader">0 viewers</span>
-        <span class="status-meta" id="viewerCountMeta">No active viewers</span>
-      </div>
       <div class="status-actions">
-        <button class="fullscreen-toggle" id="fullscreenToggle" title="Toggle full screen mode">
+        <button type="button" class="fullscreen-toggle" id="fullscreenToggle" title="Toggle full screen mode" aria-pressed="false">
           <span id="fullscreenIcon">⛶</span>
           <span id="fullscreenText">Focus</span>
         </button>
@@ -2354,21 +2343,6 @@ body.dark-mode #messageToggleBtn:hover{
       <div style="display:flex;gap:8px;">
         <button class="btn primary" id="approveControlBtn">Approve takeover</button>
         <button class="btn" id="dismissControlBtn">Dismiss</button>
-      </div>
-    </div>
-
-    <div class="panel host-control-panel">
-      <h2>Host Control</h2>
-      <div class="host-control-body">
-        <div class="host-control-info">
-          <span class="status-label">Host</span>
-          <span class="status-value" id="hostStatusValue">Unassigned</span>
-          <span class="status-meta" id="hostStatusMeta">Awaiting first host</span>
-        </div>
-        <div class="host-control-actions">
-          <button class="btn subtle" id="requestControlBtn">Request control</button>
-          <div class="pending-request" id="pendingRequestStatus">Request sent…</div>
-        </div>
       </div>
     </div>
 
@@ -2734,7 +2708,31 @@ function runAuthenticatedStartup() {
 
   var fullscreenToggle = document.getElementById('fullscreenToggle');
   if (fullscreenToggle && !fullscreenToggle.__bound) {
-    fullscreenToggle.addEventListener('click', toggleFullscreenMode);
+    var handleFocusToggle = function(e) {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      toggleFullscreenMode();
+
+      if (window.AppState && window.AppState.fullscreenMode && !document.fullscreenElement) {
+        var panel = document.getElementById('progressPanel') || document.documentElement;
+        if (panel && panel.requestFullscreen) {
+          panel.requestFullscreen().catch(function(err) {
+            console.warn('Fullscreen request retry failed:', err);
+          });
+        }
+      }
+    };
+
+    fullscreenToggle.addEventListener('click', handleFocusToggle);
+    fullscreenToggle.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        handleFocusToggle(e);
+      }
+    });
+
     fullscreenToggle.__bound = true;
   }
 
@@ -2895,28 +2893,25 @@ var TASK_STATUSES = ['not-started', 'in-progress', 'blocked', 'completed', 'skip
 // Enhanced Tooltip Functions
 let tooltipTimeout;
 
-function showEnhancedTooltip(runbook, event) {
+function showEnhancedTooltip(runbook, event, immediate) {
   clearTimeout(tooltipTimeout);
-  
-  tooltipTimeout = setTimeout(function() {
+
+  const displayTooltip = function() {
     const tooltip = document.getElementById('enhancedTooltip');
     if (!tooltip) return;
-    
-    // Update tooltip content
+
     document.getElementById('tooltipTitle').textContent = runbook.runblock || 'Unnamed Task';
     document.getElementById('tooltipResponsibility').textContent = runbook.responsibility || 'Not Assigned';
     document.getElementById('tooltipPhase').textContent = runbook.phase || '—';
     document.getElementById('tooltipStrategy').textContent = runbook.strategy || '—';
-    
-    // Update status with icon
+
     const status = runbook.status || 'not-started';
     const statusText = status.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     document.getElementById('tooltipStatusText').textContent = statusText;
-    
+
     const statusIcon = document.getElementById('tooltipStatusIcon');
     statusIcon.className = 'status-icon ' + status;
-    
-    // Update icon based on strategy
+
     const iconMap = {
       'Preparation': '🔧',
       'Export': '📤',
@@ -2926,18 +2921,24 @@ function showEnhancedTooltip(runbook, event) {
       'Validation': '✔️'
     };
     document.getElementById('tooltipIcon').textContent = iconMap[runbook.strategy] || '📦';
-    
-    // Position tooltip near cursor
+
     tooltip.style.left = (event.clientX + 20) + 'px';
     tooltip.style.top = (event.clientY + 20) + 'px';
-    
-    // Show tooltip
+
     tooltip.classList.add('show');
-  }, 300);
+    tooltipTimeout = null;
+  };
+
+  if (immediate) {
+    displayTooltip();
+  } else {
+    tooltipTimeout = setTimeout(displayTooltip, 150);
+  }
 }
 
 function hideEnhancedTooltip() {
   clearTimeout(tooltipTimeout);
+  tooltipTimeout = null;
   const tooltip = document.getElementById('enhancedTooltip');
   if (tooltip) tooltip.classList.remove('show');
 }
@@ -3409,6 +3410,7 @@ function updateFullscreenButton(isFullscreen) {
   if (icon) icon.textContent = isFullscreen ? '⛶' : '⛶';
   if (text) text.textContent = isFullscreen ? 'Exit Focus' : 'Focus';
   if (btn) {
+    btn.setAttribute('aria-pressed', isFullscreen ? 'true' : 'false');
     if (isFullscreen) {
       btn.classList.add('active');
     } else {
@@ -4014,6 +4016,7 @@ function initializeApp() {
   calculateEndTime();
   updateCompletionPercentage();
   refreshTemplates();
+  renderDowntimeControls();
 }
 
 function setupStartTimeInputs() {
@@ -4725,6 +4728,8 @@ function createTimelineRow(runbook, index) {
       if (tooltip && tooltip.classList.contains('show')) {
         tooltip.style.left = (e.clientX + 20) + 'px';
         tooltip.style.top = (e.clientY + 20) + 'px';
+      } else {
+        showEnhancedTooltip(runbook, e, true);
       }
     });
     diamond.addEventListener('mouseleave', hideEnhancedTooltip);
@@ -4962,6 +4967,8 @@ function createTimelineBlock(runbook) {
     if (tooltip && tooltip.classList.contains('show')) {
       tooltip.style.left = (e.clientX + 20) + 'px';
       tooltip.style.top = (e.clientY + 20) + 'px';
+    } else {
+      showEnhancedTooltip(runbook, e, true);
     }
   });
   block.addEventListener('mouseleave', hideEnhancedTooltip);
@@ -5171,6 +5178,45 @@ window.toggleCompleted = function(id, checked) {
   }
 };
 
+function renderDowntimeControls() {
+  const controls = document.getElementById('downtimeControls');
+  if (!controls) return;
+
+  const canWrite = typeof window.canWrite === 'function' ? window.canWrite() : true;
+  const state = window.AppState || {};
+  const hasStarted = !!(state.downtimeStarted && state.downtimeStartTime);
+  const isPaused = !!state.downtimePaused;
+
+  const modePrefix = canWrite ? 'host' : 'viewer';
+  const phaseState = hasStarted ? (isPaused ? 'paused' : 'running') : 'idle';
+  const nextState = modePrefix + '-' + phaseState;
+
+  if (controls.dataset.state === nextState) {
+    return;
+  }
+
+  controls.dataset.state = nextState;
+
+  if (!canWrite) {
+    if (hasStarted) {
+      controls.innerHTML = '<div class="downtime-host-message">Controlled by host</div>';
+    } else {
+      controls.innerHTML = '<button class="btn primary" id="startDowntimeBtn" onclick="startDowntime()" disabled title="Only the host can start downtime">Start Downtime</button>';
+    }
+    return;
+  }
+
+  if (!hasStarted) {
+    controls.innerHTML = '<button class="btn primary" id="startDowntimeBtn" onclick="startDowntime()">Start Downtime</button>';
+  } else if (isPaused) {
+    controls.innerHTML = '<button class="btn primary" id="resumeDowntimeBtn" onclick="resumeDowntime()">▶ Resume</button>' +
+      '<button class="btn danger" id="stopDowntimeBtn" onclick="stopDowntime()">⏹ Stop</button>';
+  } else {
+    controls.innerHTML = '<button class="btn warning" id="pauseDowntimeBtn" onclick="pauseDowntime()">⏸ Pause</button>' +
+      '<button class="btn danger" id="stopDowntimeBtn" onclick="stopDowntime()">⏹ Stop</button>';
+  }
+}
+
 // Downtime Control Functions
 window.startDowntime = function() {
   // Check if user can actually control (is host)
@@ -5178,10 +5224,20 @@ window.startDowntime = function() {
     alert("⚠️ You are in VIEWER mode and cannot start downtime.\n\nOnly the HOST can control the session.");
     return;
   }
-  
+
+  if (window.AppState.downtimeStarted && window.AppState.downtimeStartTime) {
+    renderDowntimeControls();
+    if (window.AppState.downtimePaused) {
+      alert('Downtime is currently paused. Resume or stop before starting a new session.');
+    } else {
+      alert('Downtime is already in progress. Use the pause or stop controls to manage the session.');
+    }
+    return;
+  }
+
   // Always use current system time when starting
   window.AppState.downtimeStartTime = new Date();
-  
+
   window.AppState.downtimeStarted = true;
   window.AppState.downtimePaused = false;
   window.AppState.pausedDuration = 0;
@@ -5228,9 +5284,7 @@ window.startDowntime = function() {
   document.getElementById('statusText').textContent = 'In Progress';
   document.getElementById('statusText').style.color = 'var(--sap-error)';
   
-  document.getElementById('downtimeControls').innerHTML = 
-    '<button class="btn warning" onclick="pauseDowntime()">⏸ Pause</button>' +
-    '<button class="btn danger" onclick="stopDowntime()">⏹ Stop</button>';
+  renderDowntimeControls();
   
   var currentLine = document.getElementById('currentTimeLine');
   if (currentLine) {
@@ -5260,9 +5314,7 @@ window.pauseDowntime = function() {
     document.getElementById('statusText').textContent = 'Paused';
     document.getElementById('statusText').style.color = 'var(--sap-warning)';
 
-    document.getElementById('downtimeControls').innerHTML =
-      '<button class="btn primary" onclick="resumeDowntime()">▶ Resume</button>' +
-      '<button class="btn danger" onclick="stopDowntime()">⏹ Stop</button>';
+    renderDowntimeControls();
 
     updateDuration();
     updateProgressIndicators();
@@ -5289,9 +5341,7 @@ window.resumeDowntime = function() {
     document.getElementById('statusText').textContent = 'In Progress';
     document.getElementById('statusText').style.color = 'var(--sap-error)';
 
-    document.getElementById('downtimeControls').innerHTML =
-      '<button class="btn warning" onclick="pauseDowntime()">⏸ Pause</button>' +
-      '<button class="btn danger" onclick="stopDowntime()">⏹ Stop</button>';
+    renderDowntimeControls();
 
     var currentLine = document.getElementById('currentTimeLine');
     if (currentLine) currentLine.style.display = 'block';
@@ -5319,6 +5369,7 @@ window.stopDowntime = function() {
     window.AppState.pauseStartTime = null;
     window.AppState.lastPauseReason = '';
     window.AppState.lastResetAt = new Date();
+    window.AppState.syncedTimelinePosition = 0;
 
     // Reset actual durations
     window.AppState.runbooks.forEach(function(r) {
@@ -5343,8 +5394,7 @@ window.stopDowntime = function() {
     document.getElementById('statusText').textContent = 'Not Started';
     document.getElementById('statusText').style.color = 'var(--sap-warning)';
     
-    document.getElementById('downtimeControls').innerHTML =
-      '<button class="btn primary" id="startDowntimeBtn" onclick="startDowntime()">Start Downtime</button>';
+    renderDowntimeControls();
 
     var currentLine = document.getElementById('currentTimeLine');
     if (currentLine) currentLine.style.display = 'none';
@@ -6457,9 +6507,16 @@ function resolveControllerName() {
 
 function renderHostStatus() {
   const hostValue = document.getElementById('hostStatusValue');
-  const hostMeta = document.getElementById('hostStatusMeta');
-  const requestBtn = document.getElementById('requestControlBtn');
-  const pendingText = document.getElementById('pendingRequestStatus');
+  const hostMetaNodes = [
+    document.getElementById('hostStatusMeta'),
+    document.getElementById('rt-host-meta')
+  ].filter(Boolean);
+  const requestButtons = [
+    document.getElementById('requestControlBtn')
+  ].filter(Boolean);
+  const pendingNodes = [
+    document.getElementById('pendingRequestStatus')
+  ].filter(Boolean);
 
   const activeName = controllerName || resolveControllerName();
   const canWrite = typeof window.canWrite === 'function' ? window.canWrite() : true;
@@ -6469,60 +6526,93 @@ function renderHostStatus() {
     hostValue.textContent = activeName || 'Unassigned';
   }
 
-  if (hostMeta) {
+  hostMetaNodes.forEach(function(metaEl) {
+    if (!metaEl) return;
     if (!remoteController) {
-      hostMeta.textContent = 'Awaiting first host';
+      metaEl.textContent = 'Awaiting first host';
     } else if (canWrite && remoteController === uid) {
-      hostMeta.textContent = 'You are controlling this session';
+      metaEl.textContent = 'You are controlling this session';
       if (typeof OnboardingTour !== 'undefined' && OnboardingTour) {
         OnboardingTour.maybeStart();
       }
     } else if (activeName) {
-      hostMeta.textContent = 'Controlled by ' + activeName;
+      metaEl.textContent = 'Controlled by ' + activeName;
     } else {
-      hostMeta.textContent = 'Host connection pending';
+      metaEl.textContent = 'Host connection pending';
+    }
+  });
+
+  const pendingForUser = controlRequest && controlRequest.uid === uid;
+  const requestBlocked = controlRequest && controlRequest.uid !== uid;
+  const offline = typeof navigator !== 'undefined' ? !navigator.onLine : false;
+
+  requestButtons.forEach(function(button) {
+    if (!button) return;
+    if (!isViewer) {
+      button.style.display = 'none';
+      button.disabled = false;
+      button.removeAttribute('title');
+    } else {
+      button.style.display = 'inline-flex';
+      button.disabled = !!requestBlocked || offline;
+      if (button.disabled) {
+        button.setAttribute('title', offline ? 'Reconnect to request host control' : 'Host is reviewing another request');
+      } else {
+        button.setAttribute('title', 'Ask the host to hand over control');
+      }
+    }
+  });
+
+  let pendingMessage = '';
+  let shouldAutoClearPending = false;
+  if (isViewer) {
+    if (pendingForUser) {
+      pendingMessage = 'Request sent to host';
+    } else if (!controlRequest && lastControlRequestUid === uid && remoteController === uid) {
+      pendingMessage = 'Request approved! Switching roles…';
+      shouldAutoClearPending = true;
     }
   }
 
-  if (requestBtn) {
-    if (!isViewer) {
-      requestBtn.style.display = 'none';
-      if (pendingText) {
-        pendingText.classList.remove('show');
-      }
+  pendingNodes.forEach(function(node) {
+    if (!node) return;
+    if (pendingMessage) {
+      node.textContent = pendingMessage;
+      node.classList.add('show');
     } else {
-      requestBtn.style.display = 'inline-flex';
-      const pendingForUser = controlRequest && controlRequest.uid === uid;
-      const requestBlocked = controlRequest && controlRequest.uid !== uid;
-      const offline = typeof navigator !== 'undefined' ? !navigator.onLine : false;
-      requestBtn.disabled = !!requestBlocked || offline;
-      if (requestBtn.disabled) {
-        requestBtn.setAttribute('title', offline ? 'Reconnect to request host control' : 'Host is reviewing another request');
-      } else {
-        requestBtn.setAttribute('title', 'Ask the host to hand over control');
-      }
-      if (pendingText) {
-        if (pendingForUser) {
-          pendingText.textContent = 'Request sent to host';
-          pendingText.classList.add('show');
-        } else if (!controlRequest && lastControlRequestUid === uid && remoteController === uid) {
-          pendingText.textContent = 'Request approved! Switching roles…';
-          pendingText.classList.add('show');
-          setTimeout(function() {
-            if (pendingText) pendingText.classList.remove('show');
-            lastControlRequestUid = null;
-          }, 4000);
-        } else {
-          pendingText.classList.remove('show');
-        }
-      }
+      node.classList.remove('show');
     }
+  });
+
+  if ((!isViewer || !pendingMessage) && shouldAutoClearPending) {
+    shouldAutoClearPending = false;
+  }
+
+  if (shouldAutoClearPending && pendingMessage) {
+    setTimeout(function() {
+      pendingNodes.forEach(function(node) {
+        if (node) {
+          node.classList.remove('show');
+        }
+      });
+      lastControlRequestUid = null;
+    }, 4000);
+  }
+
+  if (!pendingMessage) {
+    pendingNodes.forEach(function(node) {
+      if (node) {
+        node.classList.remove('show');
+      }
+    });
   }
 
   const overlayHost = document.getElementById('rt-host-name');
   if (overlayHost) {
     overlayHost.textContent = activeName || 'Unassigned';
   }
+
+  renderDowntimeControls();
 }
 
 function formatControlRequestTimestamp(requestedAt) {
@@ -6666,10 +6756,11 @@ function createRealtimeOverlay() {
       <span id="rt-online" style="display:inline-block;padding:2px 8px;border:1px solid #dcdcdc;border-radius:999px;">0 online</span>
       <span id="rt-mode" style="font-weight:600;color:#444">mode: —</span>
     </div>
-    <div style="margin-top:6px;font-size:12px;display:flex;gap:6px;align-items:center;justify-content:space-between;">
+    <div style="margin-top:6px;font-size:12px;display:flex;gap:6px;align-items:center;justify-content:space-between;flex-wrap:wrap;">
       <span><strong>Host:</strong> <span id="rt-host-name">—</span></span>
       <button id="rt-open-diagnostics" style="padding:2px 8px;border:1px solid #ccc;border-radius:999px;background:#f3f5f8;font-size:11px;cursor:pointer;">Diagnostics</button>
     </div>
+    <div id="rt-host-meta" style="margin-top:4px;font-size:11px;color:#666;">Awaiting first host</div>
     <div id="rt-engagement" style="margin-top:6px;padding:6px 8px;background:#f7f9fc;border:1px solid #e1e6f0;border-radius:6px;font-size:11px;line-height:1.4;">
       <div style="display:flex;justify-content:space-between;">
         <span>Peak viewers</span>
@@ -6728,6 +6819,10 @@ function createRealtimeOverlay() {
 
   if (typeof updateViewerPanel === 'function') {
     setTimeout(() => updateViewerPanel(), 0);
+  }
+
+  if (typeof renderHostStatus === 'function') {
+    setTimeout(() => renderHostStatus(), 0);
   }
 }
 
@@ -7231,20 +7326,14 @@ function applyRemoteState(remoteState) {
       }
     }
     
-    // Update controls for viewer
-    if (!window.canWrite()) {
-      const controls = document.getElementById('downtimeControls');
-      if (controls) {
-        controls.innerHTML = '<div style="color:#666;font-size:12px;">Controlled by host</div>';
-      }
-    }
-    
     // Show current time line
     const currentLine = document.getElementById('currentTimeLine');
     if (currentLine) {
       currentLine.style.display = state.downtimeStarted ? 'block' : 'none';
     }
   }
+
+  renderDowntimeControls();
   
   // Update fullscreen customer info
   if (state.fullscreenMode) {
