@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Technical Downtime Tracking App - Production</title>
+<title>DTracker v1 0</title>
   <!-- PWA manifest and theme color -->
   <link rel="manifest" href="./manifest.webmanifest">
   <meta name="theme-color" content="#0a6ed1">
@@ -152,6 +152,40 @@
     background: rgba(30, 37, 43, 0.95);
     border-color: rgba(255,255,255,0.08);
     color: #f5f7fa;
+  }
+
+  #realtimeStatusPanel {
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+
+  #realtimeStatusPanel .rt-panel-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  #realtimeStatusPanel .rt-panel-header-buttons {
+    display: inline-flex;
+    gap: 4px;
+  }
+
+  #realtimeStatusPanel .rt-collapse-btn {
+    padding: 4px 6px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #f9f9fb;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  #realtimeStatusPanel.collapsed {
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  }
+
+  #realtimeStatusPanel.collapsed .rt-body {
+    display: none;
   }
 
   #diagnosticsDrawer {
@@ -2289,7 +2323,7 @@ body.dark-mode #messageToggleBtn:hover{
         <rect width="100" height="28" fill="#fff" rx="4"/>
         <text x="50" y="20" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#0a6ed1">SNP</text>
       </svg>
-      <h1>Technical Downtime Tracking <span class="sync-indicator" id="syncIndicator"></span></h1>
+      <h1>DTracker v1 0 <span class="sync-indicator" id="syncIndicator"></span></h1>
     </div>
     <div class="fullscreen-customer-info" id="fullscreenCustomerInfo">
       <div class="info-item">
@@ -6778,45 +6812,52 @@ function createRealtimeOverlay() {
   statusPanel.id = 'realtimeStatusPanel';
   statusPanel.style.cssText = "position:fixed;right:10px;bottom:10px;background:#fff;border:1px solid #dcdcdc;border-radius:8px;padding:10px 12px;font:12px system-ui,-apple-system,sans-serif;box-shadow:0 2px 6px rgba(0,0,0,.08);z-index:100000;min-width:280px";
   statusPanel.innerHTML = `
-    <div style="display:flex;gap:6px;align-items:center;justify-content:space-between;margin-bottom:6px;">
-      <div><strong>Customer:</strong> <span id="rt-customer" style="font-family:monospace">${customerParam}</span></div>
-      <button id="rt-copy" style="padding:4px 8px;border:1px solid #ccc;border-radius:6px;cursor:pointer;background:#f9f9fb;">📋 Copy link</button>
-    </div>
-    <div style="font-size:12px;margin-bottom:6px;"><strong>Transform:</strong> <span id="rt-transform" style="font-family:monospace">${phaseParam}</span></div>
-    <div style="display:flex;gap:6px;align-items:center;justify-content:space-between;">
-      <span id="rt-online" style="display:inline-block;padding:2px 8px;border:1px solid #dcdcdc;border-radius:999px;">0 online</span>
-      <span id="rt-mode" style="font-weight:600;color:#444">mode: —</span>
-    </div>
-    <div style="margin-top:6px;font-size:12px;display:flex;gap:6px;align-items:center;justify-content:space-between;flex-wrap:wrap;">
-      <span><strong>Host:</strong> <span id="rt-host-name">—</span></span>
-      <button id="rt-open-diagnostics" style="padding:2px 8px;border:1px solid #ccc;border-radius:999px;background:#f3f5f8;font-size:11px;cursor:pointer;">Diagnostics</button>
-    </div>
-    <div id="rt-host-meta" style="margin-top:4px;font-size:11px;color:#666;">Awaiting first host</div>
-    <div id="rt-engagement" style="margin-top:6px;padding:6px 8px;background:#f7f9fc;border:1px solid #e1e6f0;border-radius:6px;font-size:11px;line-height:1.4;">
-      <div style="display:flex;justify-content:space-between;">
-        <span>Peak viewers</span>
-        <strong id="rt-peak-viewers">0</strong>
+    <div class="rt-panel-header">
+      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0;">
+        <div style="font-size:12px;"><strong>Customer:</strong> <span id="rt-customer" style="font-family:monospace">${customerParam}</span></div>
+        <div style="font-size:11px;color:#555;"><strong>Transform:</strong> <span id="rt-transform" style="font-family:monospace">${phaseParam}</span></div>
       </div>
-      <div style="display:flex;justify-content:space-between;margin-top:4px;">
-        <span>Avg session length</span>
-        <strong id="rt-avg-session">0m</strong>
+      <div class="rt-panel-header-buttons">
+        <button id="rt-collapse" class="rt-collapse-btn" type="button" aria-expanded="true" aria-controls="rt-body" title="Collapse panel">▾</button>
+        <button id="rt-copy" style="padding:4px 8px;border:1px solid #ccc;border-radius:6px;cursor:pointer;background:#f9f9fb;">📋 Copy link</button>
       </div>
-      <div id="rt-current-viewers" style="margin-top:4px;color:#556;"></div>
     </div>
-    <div id="rt-viewer-panel" style="display:none;margin-top:8px">
-      <div style="font-size:12px;margin-bottom:2px"><b>Status:</b> <span id="rt-status">—</span></div>
-      <div style="font-size:12px;margin-bottom:4px"><b>Start:</b> <span id="rt-start">—</span></div>
-      <div style="font-size:12px;margin-bottom:6px"><b>ETA:</b> <span id="rt-eta">—</span></div>
-      <div style="position:relative;height:10px;border:1px solid #dcdcdc;border-radius:999px;overflow:hidden;background:#f2f3f6">
-        <div id="rt-bar" style="position:absolute;left:0;top:0;bottom:0;width:0%;background:linear-gradient(90deg,#4CAF50,#2196F3)"></div>
+    <div class="rt-body" id="rt-body">
+      <div style="display:flex;gap:6px;align-items:center;justify-content:space-between;margin-top:8px;">
+        <span id="rt-online" style="display:inline-block;padding:2px 8px;border:1px solid #dcdcdc;border-radius:999px;">0 online</span>
+        <span id="rt-mode" style="font-weight:600;color:#444">mode: —</span>
       </div>
-      <div id="rt-bar-label" style="font-size:11px;margin-top:4px;text-align:right">0%</div>
-      <div id="rt-pause-reason-row" style="font-size:12px;margin-top:6px;display:none;"><b>Pause reason:</b> <span id="rt-pause-reason">—</span></div>
-      <div id="rt-last-reset-row" style="font-size:11px;margin-top:6px;color:#666;">Last reset: <span id="rt-last-reset">—</span></div>
-      <div id="rt-focus-row" style="font-size:11px;margin-top:4px;color:#666;display:none;">Focus mode since <span id="rt-focus-time">—</span></div>
-      <div id="rt-timeline-preview" style="margin-top:8px;display:none;">
-        <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Upcoming tasks</div>
-        <ul id="rt-timeline-list" style="list-style:none;padding:0;margin:0;font-size:11px;max-height:120px;overflow-y:auto;"></ul>
+      <div style="margin-top:6px;font-size:12px;display:flex;gap:6px;align-items:center;justify-content:space-between;flex-wrap:wrap;">
+        <span><strong>Host:</strong> <span id="rt-host-name">—</span></span>
+        <button id="rt-open-diagnostics" style="padding:2px 8px;border:1px solid #ccc;border-radius:999px;background:#f3f5f8;font-size:11px;cursor:pointer;">Diagnostics</button>
+      </div>
+      <div id="rt-host-meta" style="margin-top:4px;font-size:11px;color:#666;">Awaiting first host</div>
+      <div id="rt-engagement" style="margin-top:6px;padding:6px 8px;background:#f7f9fc;border:1px solid #e1e6f0;border-radius:6px;font-size:11px;line-height:1.4;">
+        <div style="display:flex;justify-content:space-between;">
+          <span>Peak viewers</span>
+          <strong id="rt-peak-viewers">0</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;">
+          <span>Avg session length</span>
+          <strong id="rt-avg-session">0m</strong>
+        </div>
+        <div id="rt-current-viewers" style="margin-top:4px;color:#556;"></div>
+      </div>
+      <div id="rt-viewer-panel" style="display:none;margin-top:8px;">
+        <div style="font-size:12px;margin-bottom:2px"><b>Status:</b> <span id="rt-status">—</span></div>
+        <div style="font-size:12px;margin-bottom:4px"><b>Start:</b> <span id="rt-start">—</span></div>
+        <div style="font-size:12px;margin-bottom:6px"><b>ETA:</b> <span id="rt-eta">—</span></div>
+        <div style="position:relative;height:10px;border:1px solid #dcdcdc;border-radius:999px;overflow:hidden;background:#f2f3f6;">
+          <div id="rt-bar" style="position:absolute;left:0;top:0;bottom:0;width:0%;background:linear-gradient(90deg,#4CAF50,#2196F3)"></div>
+        </div>
+        <div id="rt-bar-label" style="font-size:11px;margin-top:4px;text-align:right">0%</div>
+        <div id="rt-pause-reason-row" style="font-size:12px;margin-top:6px;display:none;"><b>Pause reason:</b> <span id="rt-pause-reason">—</span></div>
+        <div id="rt-last-reset-row" style="font-size:11px;margin-top:6px;color:#666;">Last reset: <span id="rt-last-reset">—</span></div>
+        <div id="rt-focus-row" style="font-size:11px;margin-top:4px;color:#666;display:none;">Focus mode since <span id="rt-focus-time">—</span></div>
+        <div id="rt-timeline-preview" style="margin-top:8px;display:none;">
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Upcoming tasks</div>
+          <ul id="rt-timeline-list" style="list-style:none;padding:0;margin:0;font-size:11px;max-height:120px;overflow-y:auto;"></ul>
+        </div>
       </div>
     </div>`;
   document.body.appendChild(statusPanel);
@@ -6833,6 +6874,31 @@ function createRealtimeOverlay() {
     btn.textContent = "✓ Copied";
     setTimeout(() => btn.textContent = prev, 1500);
   };
+
+  const collapseBtn = document.getElementById('rt-collapse');
+  if (collapseBtn && !collapseBtn.__bound) {
+    collapseBtn.__bound = true;
+    let collapsed = false;
+    const applyCollapsedState = () => {
+      statusPanel.classList.toggle('collapsed', collapsed);
+      collapseBtn.setAttribute('aria-expanded', (!collapsed).toString());
+      collapseBtn.textContent = collapsed ? '▸' : '▾';
+      collapseBtn.title = collapsed ? 'Expand panel' : 'Collapse panel';
+      collapseBtn.setAttribute('aria-label', collapsed ? 'Expand real-time status panel' : 'Collapse real-time status panel');
+      statusPanel.style.minWidth = collapsed ? '160px' : '280px';
+    };
+    collapseBtn.addEventListener('click', function() {
+      collapsed = !collapsed;
+      applyCollapsedState();
+    });
+    collapseBtn.addEventListener('keydown', function(evt) {
+      if (evt.key === 'Enter' || evt.key === ' ') {
+        evt.preventDefault();
+        collapseBtn.click();
+      }
+    });
+    applyCollapsedState();
+  }
 
   const diagnosticsBtn = document.getElementById('rt-open-diagnostics');
   if (diagnosticsBtn && !diagnosticsBtn.__bound) {
