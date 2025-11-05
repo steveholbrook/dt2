@@ -2098,7 +2098,7 @@
   .viewer-mode input:not(#rt-copy),
   .viewer-mode select,
   .viewer-mode textarea,
-  .viewer-mode button:not(#rt-copy):not(#rt-reset):not(#reportBtn):not(#fullscreenToggle):not(#darkModeToggle) {
+  .viewer-mode button:not(#rt-copy):not(#rt-reset):not(#reportBtn):not(#fullscreenToggle):not(#darkModeToggle):not(#rt-request-control) {
     pointer-events: none !important;
     opacity: 0.6 !important;
   }
@@ -6905,6 +6905,15 @@ function createRealtimeOverlay() {
     diagnosticsBtn.__bound = true;
     diagnosticsBtn.addEventListener('click', function() {
       toggleDiagnosticsDrawer();
+    });
+  }
+
+  const rtRequestBtn = document.getElementById('rt-request-control');
+  if (rtRequestBtn && !rtRequestBtn.__bound) {
+    rtRequestBtn.__bound = true;
+    rtRequestBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      requestHostControl();
     });
   }
 
