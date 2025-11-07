@@ -385,7 +385,7 @@
     color:#fff;
     padding:16px 24px;
     display:grid;
-    grid-template-columns:auto minmax(0, 1fr) auto;
+    grid-template-columns:auto minmax(0, 1fr) auto auto;
     align-items:center;
     gap:24px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
@@ -429,20 +429,155 @@
     text-align:right;
   }
 
+  .header-actions {
+    justify-self:flex-end;
+    display:flex;
+    align-items:center;
+  }
+
+  .header-focus-button {
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:8px 18px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,0.45);
+    background:rgba(255,255,255,0.18);
+    color:#fff;
+    font-size:13px;
+    font-weight:600;
+    letter-spacing:0.3px;
+    cursor:pointer;
+    transition:background 0.2s ease,border-color 0.2s ease,transform 0.2s ease;
+  }
+
+  .header-focus-button:hover {
+    background:rgba(255,255,255,0.28);
+    border-color:rgba(255,255,255,0.6);
+  }
+
+  .header-focus-button:focus-visible {
+    outline:2px solid rgba(255,255,255,0.75);
+    outline-offset:2px;
+  }
+
+  .header-focus-button.active {
+    background:rgba(255,255,255,0.34);
+    border-color:rgba(255,255,255,0.8);
+    box-shadow:0 0 0 2px rgba(10,116,222,0.4);
+  }
+
+  .header-focus-button .header-focus-icon {
+    font-size:14px;
+    line-height:1;
+  }
+
+  body.dark-mode .header-focus-button {
+    background:rgba(61,155,255,0.25);
+    border-color:rgba(61,155,255,0.5);
+  }
+
+  body.dark-mode .header-focus-button:hover {
+    background:rgba(61,155,255,0.35);
+    border-color:rgba(61,155,255,0.7);
+  }
+
+  @media (max-width: 1280px) {
+    .app-header {
+      grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+      row-gap: 16px;
+    }
+
+    .header-completion {
+      justify-self: flex-start;
+    }
+  }
+
   @media (max-width: 900px) {
     .app-header {
       grid-template-columns: 1fr;
-      text-align: center;
+      text-align: left;
       gap:16px;
+      padding: 16px;
     }
 
     .brand {
-      justify-self: center;
+      justify-self: flex-start;
     }
 
     .header-completion,
+    .header-status,
+    .header-actions {
+      justify-self:flex-start;
+    }
+
     .header-status {
-      justify-self:center;
+      align-items: flex-start;
+      text-align: left;
+    }
+
+    .header-focus-button {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .content {
+      padding: 12px;
+    }
+
+    .panel {
+      padding: 16px;
+    }
+
+    .search-filter-container {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 16px;
+    }
+
+    .filter-controls {
+      width: 100%;
+      justify-content: flex-start;
+      gap: 8px;
+    }
+
+    .filter-controls select,
+    .filter-controls .btn {
+      flex: 1 1 auto;
+      min-width: 140px;
+    }
+  }
+
+  @media (max-width: 600px) {
+    h1 {
+      font-size: 16px;
+    }
+
+    .brand svg {
+      height: 24px;
+    }
+
+    .panel-heading {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .panel-utilities {
+      width: 100%;
+      justify-content: flex-start;
+    }
+
+    .table-responsive table {
+      min-width: 640px;
+    }
+
+    .btn,
+    .header-focus-button,
+    .fullscreen-toggle,
+    .dark-mode-toggle {
+      touch-action: manipulation;
     }
   }
 
@@ -1445,6 +1580,22 @@
     overflow:hidden;
     box-shadow:0 2px 6px rgba(0,0,0,.1);
   }
+
+  .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+  }
+
+  .table-responsive:focus-visible {
+    outline: 2px solid var(--sap-accent);
+    outline-offset: 2px;
+  }
+
+  .table-responsive table {
+    min-width: 720px;
+  }
   
   .table th,
   .table td{
@@ -2335,6 +2486,12 @@ body.dark-mode #messageToggleBtn:hover{
       <span class="status-label">Status</span>
       <span class="status-value" id="statusText" style="color:var(--sap-warning);">Not Started</span>
     </div>
+    <div class="header-actions">
+      <button type="button" class="header-focus-button" id="headerFocusButton" data-focus-toggle="true" aria-pressed="false">
+        <span class="header-focus-icon" id="headerFocusIcon">⛶</span>
+        <span class="header-focus-text" id="headerFocusText">Focus</span>
+      </button>
+    </div>
   </div>
 
   <div class="context-switch-toast" id="contextSwitchToast" role="status" aria-live="polite">
@@ -2554,25 +2711,27 @@ body.dark-mode #messageToggleBtn:hover{
         </div>
       </div>
       
-      <table class="table" id="runbookTable">
-        <thead>
-          <tr>
-            <th style="width:40px;"></th>
-            <th style="width:60px;">Sequence</th>
-            <th style="width:120px;">Strategy</th>
-            <th style="width:120px;">Phase</th>
-            <th style="width:160px;">Runblock</th>
-            <th style="width:180px;">Responsibility</th>
-            <th style="width:80px;text-align:center;">Predecessor</th>
-            <th style="width:100px;text-align:center;">Status</th>
-            <th style="width:60px;text-align:center;">Critical</th>
-            <th style="width:120px;text-align:center;">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="runbookBody">
-          <!-- Dynamic rows will be added here -->
-        </tbody>
-      </table>
+      <div class="table-responsive" tabindex="0" aria-label="Runbook task table">
+        <table class="table" id="runbookTable">
+          <thead>
+            <tr>
+              <th style="width:40px;"></th>
+              <th style="width:60px;">Sequence</th>
+              <th style="width:120px;">Strategy</th>
+              <th style="width:120px;">Phase</th>
+              <th style="width:160px;">Runblock</th>
+              <th style="width:180px;">Responsibility</th>
+              <th style="width:80px;text-align:center;">Predecessor</th>
+              <th style="width:100px;text-align:center;">Status</th>
+              <th style="width:60px;text-align:center;">Critical</th>
+              <th style="width:120px;text-align:center;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="runbookBody">
+            <!-- Dynamic rows will be added here -->
+          </tbody>
+        </table>
+      </div>
       
       <div class="btnbar">
         <button class="btn primary" onclick="addRunbookRow()">➕ Add Line</button>
@@ -3291,6 +3450,39 @@ function initializeFocusToggle() {
 
   document.addEventListener('click', clickHandler);
   document.addEventListener('keydown', keyHandler);
+
+  var headerButton = document.getElementById('headerFocusButton');
+  if (headerButton && !headerButton.__focusBound) {
+    var headerActivate = function(evt) {
+      if (evt.type === 'keydown' && evt.key !== 'Enter' && evt.key !== ' ') {
+        return;
+      }
+      handleFocusToggleEvent(evt);
+    };
+    headerButton.addEventListener('click', headerActivate);
+    headerButton.addEventListener('keydown', headerActivate);
+    headerButton.addEventListener('touchend', function(evt) {
+      handleFocusToggleEvent(evt);
+    }, { passive: false });
+    headerButton.__focusBound = true;
+  }
+
+  var panelToggle = document.getElementById('fullscreenToggle');
+  if (panelToggle && !panelToggle.__focusBound) {
+    var panelActivate = function(evt) {
+      if (evt.type === 'keydown' && evt.key !== 'Enter' && evt.key !== ' ') {
+        return;
+      }
+      handleFocusToggleEvent(evt);
+    };
+    panelToggle.addEventListener('click', panelActivate);
+    panelToggle.addEventListener('keydown', panelActivate);
+    panelToggle.addEventListener('touchend', function(evt) {
+      handleFocusToggleEvent(evt);
+    }, { passive: false });
+    panelToggle.__focusBound = true;
+  }
+
   document.__focusToggleBound = { clickHandler: clickHandler, keyHandler: keyHandler };
 }
 
@@ -3447,7 +3639,10 @@ function updateFullscreenButton(isFullscreen) {
   var icon = document.getElementById('fullscreenIcon');
   var text = document.getElementById('fullscreenText');
   var btn = document.getElementById('fullscreenToggle');
-  
+  var headerBtn = document.getElementById('headerFocusButton');
+  var headerIcon = document.getElementById('headerFocusIcon');
+  var headerText = document.getElementById('headerFocusText');
+
   if (icon) icon.textContent = isFullscreen ? '⛶' : '⛶';
   if (text) text.textContent = isFullscreen ? 'Exit Focus' : 'Focus';
   if (btn) {
@@ -3456,6 +3651,17 @@ function updateFullscreenButton(isFullscreen) {
       btn.classList.add('active');
     } else {
       btn.classList.remove('active');
+    }
+  }
+
+  if (headerIcon) headerIcon.textContent = isFullscreen ? '⛶' : '⛶';
+  if (headerText) headerText.textContent = isFullscreen ? 'Exit Focus' : 'Focus';
+  if (headerBtn) {
+    headerBtn.setAttribute('aria-pressed', isFullscreen ? 'true' : 'false');
+    if (isFullscreen) {
+      headerBtn.classList.add('active');
+    } else {
+      headerBtn.classList.remove('active');
     }
   }
 }

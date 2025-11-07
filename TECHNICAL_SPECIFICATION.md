@@ -119,3 +119,24 @@ This document enumerates the functional features that currently ship with the do
 9. **N9 – Command Palette Shortcuts:** The `CommandPalette` overlay (`Ctrl+K`) exposes quick actions (focus toggle, dark mode, downtime controls, diagnostics, messaging help, template save, snapshot generation).
 10. **N10 – Health Diagnostics Panel:** `ensureDiagnosticsDrawer()` introduces a persistent diagnostics drawer that surfaces connection state, auth identifiers, presence counts, offline queue depth, automation thresholds, messaging tips, and onboarding controls.
 
+## 7. Focus Header & Responsive Layout (April 2024 Update)
+1. **FH1 – Header Focus Control Wiring**
+   *Description:* The dedicated "Focus" button in the masthead now routes directly into the fullscreen workflow used by the `F` keyboard shortcut. Desktop clicks, keyboard activation, and touch interactions all call `handleFocusToggleEvent()`, guaranteeing parity across input modes.
+   *Key Implementation:* `initializeFocusToggle()` binds listeners to `#headerFocusButton` and `#fullscreenToggle`, while `handleFocusToggleEvent()` drives `toggleFullscreenMode()`.
+
+2. **FH2 – Fullscreen State Synchronization**
+   *Description:* `updateFullscreenButton()` keeps header and panel buttons synchronized, ensuring `aria-pressed` attributes match the underlying `AppState.fullscreenMode`. Focus entry also auto-requests the Fullscreen API on the `#progressPanel` container with graceful fallbacks.
+   *Key Implementation:* `applyFocusState()` toggles `body.fullscreen-mode`, triggers timeline refreshes, and coordinates the exit control via `updateFocusExitControl()`.
+
+3. **FH3 – Mobile-Friendly Header Grid**
+   *Description:* Responsive breakpoints at 1280px, 900px, and 768px progressively collapse the four-column header into SAP Fiori-style stacks so customer metadata, completion metrics, and the focus control remain readable on phones.
+   *Key Implementation:* CSS media queries in `index.html` adjust `.app-header` grid templates, align `.header-status` left, and widen `.header-focus-button` for thumb reach.
+
+4. **FH4 – Adaptive Runbook Table Region**
+   *Description:* A focusable `.table-responsive` wrapper introduces horizontal scrolling with touch momentum, keeping the full runbook grid accessible on narrow screens without truncating columns.
+   *Key Implementation:* The wrapper surrounds `#runbookTable` and applies `min-width` thresholds plus `tabindex="0"` to support keyboard panning.
+
+5. **FH5 – Compact Panel Layout**
+   *Description:* Tablet and phone breakpoints reduce panel padding, stack search filters vertically, and normalize button touch targets so workflows comply with SAPUI5 compact density guidelines.
+   *Key Implementation:* Media queries tune `.content`, `.panel`, `.search-filter-container`, and `.filter-controls` spacing tokens.
+
