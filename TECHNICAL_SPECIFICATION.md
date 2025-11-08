@@ -80,9 +80,21 @@ This document enumerates the functional features that currently ship with the do
     *Description:* Hosts can craft structured messages that appear in the timeline with validation, scheduling, and default muted states until explicitly enabled. Use the Messages toggle beside the runbook grid to enable announcements only after validation. The diagnostics drawer (`Diagnostics` button in the realtime overlay) surfaces step-by-step guidance and the command palette (`Ctrl+K`) exposes “Messaging framework instructions” for quick reference. Local realtime mirroring keeps message visibility synchronized even when offline.
     *Key Implementation:* `createMessageRow()`, message validation helpers, timeline rendering in `renderTimelineMessages()`, messaging controls `setMessagesEnabled()`, support content wired through `showMessagingInstructions()`, and `LocalRealtimeBridge.emitState()`.
 
-20. **F20 – Testing & Mocking Harness**  
-    *Description:* A Node-based mock harness (`tests/host_viewer_mock.test.js`) simulates Firebase interactions, verifying pause/resume math, host enforcement, and template toggles without live services.  
+20. **F20 – Testing & Mocking Harness**
+    *Description:* A Node-based mock harness (`tests/host_viewer_mock.test.js`) simulates Firebase interactions, verifying pause/resume math, host enforcement, and template toggles without live services.
     *Key Implementation:* Test suite definitions and exported utilities under `tests/host_viewer_mock.test.js`.
+
+21. **F21 – Adaptive Density Toggle**
+    *Description:* Hosts can switch between compact and cozy spacing to mirror SAPUI5 density guidelines for desktops versus tablets or gloved operators. The preference propagates to viewers so teams share a consistent layout.
+    *Key Implementation:* Header control `#densityToggle`, `applyDensityPreference()` (stores `AppState.densityMode`, persists to `localStorage`, and emits realtime updates), and CSS tokens under `.density-compact`/`.density-cozy`.
+
+22. **F22 – Focus Mode Viewer Banner**
+    *Description:* Viewers see a persistent banner whenever hosts enable focus mode, including who initiated the mode and when it started. The banner auto-updates as focus persists and disappears when focus ends or the viewer becomes host.
+    *Key Implementation:* `renderFocusStatusBanner()`, updates issued from `applyFocusState()`, `toggleFullscreenMode()`, realtime state ingestion, and the shared `updateClock()` tick.
+
+23. **F23 – Offline Focus Reminder**
+    *Description:* If browsers block fullscreen (embedded kiosks, iOS web apps, restricted enterprise builds), hosts receive a remediation card with platform-specific recovery tips so they can unlock focus mode quickly.
+    *Key Implementation:* `handleFullscreenFailure()`, `showFocusFailureNotice()`, helper `getFullscreenRemediationTips()`, and dismiss control `#focusFailureDismiss`.
 
 ## 3. Data & Realtime Dependencies
 - **Firebase Firestore & Auth:** Anonymous authentication is used to persist sessions, runbooks, templates, and presence records. Collections include `sessions`, nested `presence`, `runbooks`, and `templates` paths.  
@@ -139,4 +151,8 @@ This document enumerates the functional features that currently ship with the do
 5. **FH5 – Compact Panel Layout**
    *Description:* Tablet and phone breakpoints reduce panel padding, stack search filters vertically, and normalize button touch targets so workflows comply with SAPUI5 compact density guidelines.
    *Key Implementation:* Media queries tune `.content`, `.panel`, `.search-filter-container`, and `.filter-controls` spacing tokens.
+
+6. **FH6 – Focus Reliability Guards**
+   *Description:* Fullscreen failures raise a reusable remediation notice with platform-specific tips while keeping CSS-only focus active. Viewers simultaneously receive a status banner highlighting the host and start time.
+   *Key Implementation:* `handleFullscreenFailure()`, `renderFocusStatusBanner()`, `updateClock()`, realtime state serialization of `focusInitiatedBy`/`focusInitiatedAt`, and banner markup `#focusStatusBanner`.
 

@@ -68,14 +68,17 @@
 2. **Adaptive Density Toggle**
    - Offer a SAPUI5-style compact/cozy switch so operators can expand touch targets further when using tablets with gloves or styluses.
    - Stores preference in `AppState` and synchronizes to viewers.
+   - **Status:** ✅ Delivered in May 2024 update (`#densityToggle`, `applyDensityPreference()`).
 
 3. **Focus Mode Status Banner**
    - Surface an always-on banner for viewers when hosts enable focus mode, including who initiated it and when it started.
    - Reduces confusion during live cutovers.
+   - **Status:** ✅ Delivered in May 2024 update (`renderFocusStatusBanner()`).
 
 4. **Offline Focus Reminder**
    - Detect if the Focus button fails due to Fullscreen API restrictions and present actionable remediation tips (e.g., "Add to Home Screen" on iOS).
    - Improves reliability in controlled enterprise browsers.
+   - **Status:** ✅ Delivered in May 2024 update (`handleFullscreenFailure()`, `showFocusFailureNotice()`).
 
 5. **Haptic Feedback Hooks**
    - Use the Vibration API on supported mobile devices to provide subtle confirmation when entering or exiting focus mode.
