@@ -433,49 +433,6 @@
     justify-self:flex-end;
     display:flex;
     align-items:center;
-    gap:12px;
-    flex-wrap:wrap;
-    justify-content:flex-end;
-  }
-
-  .density-toggle {
-    display:inline-flex;
-    align-items:center;
-    background:rgba(255,255,255,0.18);
-    border:1px solid rgba(255,255,255,0.45);
-    border-radius:999px;
-    overflow:hidden;
-  }
-
-  .density-toggle button {
-    background:transparent;
-    border:none;
-    color:#fff;
-    font-size:12px;
-    font-weight:600;
-    letter-spacing:0.3px;
-    padding:8px 14px;
-    cursor:pointer;
-    transition:background 0.2s ease, color 0.2s ease;
-  }
-
-  .density-toggle button.active,
-  .density-toggle button:hover {
-    background:rgba(255,255,255,0.28);
-    color:#0a1931;
-  }
-
-  .density-toggle button:focus-visible {
-    outline:2px solid rgba(255,255,255,0.75);
-    outline-offset:2px;
-  }
-
-  .density-toggle[aria-disabled="true"] {
-    opacity:0.6;
-  }
-
-  .density-toggle[aria-disabled="true"] button {
-    cursor:not-allowed;
   }
 
   .header-focus-button {
@@ -525,296 +482,21 @@
     border-color:rgba(61,155,255,0.7);
   }
 
-  body.dark-mode .density-toggle {
-    background:rgba(61,155,255,0.25);
-    border-color:rgba(61,155,255,0.5);
-  }
-
-  body.dark-mode .density-toggle button.active,
-  body.dark-mode .density-toggle button:hover {
-    color:#031121;
-  }
-
-  body.density-compact .btn {
-    padding:7px 12px;
-    font-size:13px;
-  }
-
-  body.density-cozy .btn {
-    padding:12px 18px;
-    font-size:15px;
-  }
-
-  body.density-compact input[type="text"],
-  body.density-compact input[type="time"],
-  body.density-compact input[type="number"],
-  body.density-compact input[type="password"],
-  body.density-compact select,
-  body.density-compact textarea {
-    padding:6px 10px;
-    min-height:32px;
-  }
-
-  body.density-cozy input[type="text"],
-  body.density-cozy input[type="time"],
-  body.density-cozy input[type="number"],
-  body.density-cozy input[type="password"],
-  body.density-cozy select,
-  body.density-cozy textarea {
-    padding:12px 14px;
-    min-height:44px;
-    font-size:15px;
-  }
-
-  body.density-compact .panel {
-    padding:16px;
-  }
-
-  body.density-cozy .panel {
-    padding:22px;
-  }
-
-  body.density-compact .field-row {
-    gap:12px;
-  }
-
-  body.density-cozy .field-row {
-    gap:18px;
-  }
-
-  body.density-compact .timeline-field label,
-  body.density-compact .field label {
-    font-size:12px;
-  }
-
-  body.density-cozy .timeline-field label,
-  body.density-cozy .field label {
-    font-size:14px;
-  }
-
-  body.density-compact .table th,
-  body.density-compact .table td {
-    padding:8px 10px;
-    font-size:13px;
-  }
-
-  body.density-cozy .table th,
-  body.density-cozy .table td {
-    padding:14px 16px;
-    font-size:15px;
-  }
-
-  .focus-status-banner {
-    position:fixed;
-    top:0;
-    left:0;
-    right:0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:12px;
-    padding:10px 18px;
-    background:linear-gradient(90deg, rgba(10,110,209,0.95) 0%, rgba(8,84,160,0.95) 100%);
-    color:#fff;
-    font-size:14px;
-    z-index:100006;
-    box-shadow:0 8px 20px rgba(5,22,44,0.25);
-  }
-
-  body.fullscreen-mode .focus-status-banner {
-    top:12px;
-  }
-
-  .focus-status-banner[hidden] {
-    display:none !important;
-  }
-
-  .focus-status-label {
-    font-weight:700;
-    letter-spacing:0.4px;
-    text-transform:uppercase;
-    font-size:12px;
-  }
-
-  .focus-status-meta {
-    font-weight:500;
-  }
-
-  .focus-failure-notice {
-    position:fixed;
-    right:24px;
-    bottom:24px;
-    max-width:360px;
-    background:var(--sap-panel);
-    border:1px solid var(--sap-border);
-    border-radius:12px;
-    box-shadow:0 16px 36px rgba(15,23,42,0.25);
-    padding:16px 18px;
-    display:flex;
-    flex-direction:column;
-    gap:12px;
-    z-index:100007;
-  }
-
-  .focus-failure-notice[hidden] {
-    display:none !important;
-  }
-
-  .focus-failure-body {
-    display:flex;
-    align-items:flex-start;
-    gap:12px;
-  }
-
-  .focus-failure-text p {
-    margin:4px 0 8px;
-    font-size:13px;
-    color:var(--sap-muted);
-  }
-
-  .focus-failure-text ul {
-    margin:0;
-    padding-left:18px;
-    font-size:12px;
-    color:var(--sap-text);
-  }
-
-  body.dark-mode .focus-failure-notice {
-    background:rgba(30,37,43,0.95);
-    border-color:rgba(255,255,255,0.08);
-    color:#f5f7fa;
-  }
-
-  body.dark-mode .focus-failure-text p {
-    color:#c6d4e3;
-  }
-
-  @media (max-width: 1280px) {
-    .app-header {
-      grid-template-columns: minmax(0,1fr) minmax(0,1fr);
-      row-gap: 16px;
-    }
-
-    .header-completion {
-      justify-self: flex-start;
-    }
-  }
-
   @media (max-width: 900px) {
     .app-header {
       grid-template-columns: 1fr;
-      text-align: left;
+      text-align: center;
       gap:16px;
-      padding: 16px;
     }
 
     .brand {
-      justify-self: flex-start;
+      justify-self: center;
     }
 
     .header-completion,
     .header-status,
     .header-actions {
-      justify-self:flex-start;
-    }
-
-    .header-status {
-      align-items: flex-start;
-      text-align: left;
-    }
-
-    .header-actions {
-      width:100%;
-      flex-direction:column;
-      align-items:stretch;
-      gap:8px;
-    }
-
-    .density-toggle {
-      width:100%;
-      justify-content:space-between;
-    }
-
-    .density-toggle button {
-      flex:1 1 50%;
-      text-align:center;
-    }
-
-    .header-focus-button {
-      width: 100%;
-      justify-content: center;
-    }
-  }
-
-  @media (max-width: 768px) {
-    .content {
-      padding: 12px;
-    }
-
-    .panel {
-      padding: 16px;
-    }
-
-    .search-filter-container {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 16px;
-    }
-
-    .filter-controls {
-      width: 100%;
-      justify-content: flex-start;
-      gap: 8px;
-    }
-
-    .filter-controls select,
-    .filter-controls .btn {
-      flex: 1 1 auto;
-      min-width: 140px;
-    }
-
-    .focus-status-banner {
-      flex-direction:column;
-      text-align:center;
-      gap:6px;
-      padding:12px 16px;
-    }
-  }
-
-  @media (max-width: 600px) {
-    h1 {
-      font-size: 16px;
-    }
-
-    .brand svg {
-      height: 24px;
-    }
-
-    .panel-heading {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-
-    .panel-utilities {
-      width: 100%;
-      justify-content: flex-start;
-    }
-
-    .focus-failure-notice {
-      left:16px;
-      right:16px;
-      bottom:16px;
-    }
-
-    .table-responsive table {
-      min-width: 640px;
-    }
-
-    .btn,
-    .header-focus-button,
-    .fullscreen-toggle,
-    .dark-mode-toggle {
-      touch-action: manipulation;
+      justify-self:center;
     }
   }
 
@@ -1817,22 +1499,6 @@
     overflow:hidden;
     box-shadow:0 2px 6px rgba(0,0,0,.1);
   }
-
-  .table-responsive {
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    border-radius: 8px;
-  }
-
-  .table-responsive:focus-visible {
-    outline: 2px solid var(--sap-accent);
-    outline-offset: 2px;
-  }
-
-  .table-responsive table {
-    min-width: 720px;
-  }
   
   .table th,
   .table td{
@@ -2724,30 +2390,10 @@ body.dark-mode #messageToggleBtn:hover{
       <span class="status-value" id="statusText" style="color:var(--sap-warning);">Not Started</span>
     </div>
     <div class="header-actions">
-      <div class="density-toggle" id="densityToggle" role="group" aria-label="Display density">
-        <button type="button" data-density-option="compact" aria-pressed="false">Compact</button>
-        <button type="button" data-density-option="cozy" aria-pressed="false">Cozy</button>
-      </div>
       <button type="button" class="header-focus-button" id="headerFocusButton" data-focus-toggle="true" aria-pressed="false">
         <span class="header-focus-icon" id="headerFocusIcon">⛶</span>
         <span class="header-focus-text" id="headerFocusText">Focus</span>
       </button>
-    </div>
-  </div>
-
-  <div id="focusStatusBanner" class="focus-status-banner" role="status" aria-live="polite" hidden>
-    <span class="focus-status-label">Focus mode</span>
-    <span class="focus-status-meta" id="focusStatusMeta">Active</span>
-  </div>
-
-  <div id="focusFailureNotice" class="focus-failure-notice" role="alert" hidden>
-    <div class="focus-failure-body">
-      <div class="focus-failure-text">
-        <strong id="focusFailureTitle">Focus mode blocked</strong>
-        <p id="focusFailureMessage">Your browser prevented the fullscreen experience.</p>
-        <ul id="focusFailureTips"></ul>
-      </div>
-      <button type="button" class="btn subtle" id="focusFailureDismiss">Dismiss</button>
     </div>
   </div>
 
@@ -2968,27 +2614,25 @@ body.dark-mode #messageToggleBtn:hover{
         </div>
       </div>
       
-      <div class="table-responsive" tabindex="0" aria-label="Runbook task table">
-        <table class="table" id="runbookTable">
-          <thead>
-            <tr>
-              <th style="width:40px;"></th>
-              <th style="width:60px;">Sequence</th>
-              <th style="width:120px;">Strategy</th>
-              <th style="width:120px;">Phase</th>
-              <th style="width:160px;">Runblock</th>
-              <th style="width:180px;">Responsibility</th>
-              <th style="width:80px;text-align:center;">Predecessor</th>
-              <th style="width:100px;text-align:center;">Status</th>
-              <th style="width:60px;text-align:center;">Critical</th>
-              <th style="width:120px;text-align:center;">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="runbookBody">
-            <!-- Dynamic rows will be added here -->
-          </tbody>
-        </table>
-      </div>
+      <table class="table" id="runbookTable">
+        <thead>
+          <tr>
+            <th style="width:40px;"></th>
+            <th style="width:60px;">Sequence</th>
+            <th style="width:120px;">Strategy</th>
+            <th style="width:120px;">Phase</th>
+            <th style="width:160px;">Runblock</th>
+            <th style="width:180px;">Responsibility</th>
+            <th style="width:80px;text-align:center;">Predecessor</th>
+            <th style="width:100px;text-align:center;">Status</th>
+            <th style="width:60px;text-align:center;">Critical</th>
+            <th style="width:120px;text-align:center;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="runbookBody">
+          <!-- Dynamic rows will be added here -->
+        </tbody>
+      </table>
       
       <div class="btnbar">
         <button class="btn primary" onclick="addRunbookRow()">➕ Add Line</button>
@@ -3091,7 +2735,6 @@ function runAuthenticatedStartup() {
   authUiInitialized = true;
 
   initializeApp();
-  initDensityMode();
   initDarkMode();
   updateRecentCustomersDropdown();
   renderHostStatus();
@@ -3132,12 +2775,9 @@ function runAuthenticatedStartup() {
 
   bindMessageToggleButton();
   initializeFocusToggle();
-  bindDensityToggle();
   window.setMessagesEnabled(window.AppState && typeof window.AppState.messagesOn === 'boolean' ? window.AppState.messagesOn : false);
   updateFocusExitControl(window.AppState.fullscreenMode);
   applyFocusState(window.AppState.fullscreenMode, { forceRefresh: true, skipTimelineRefresh: true });
-  renderFocusStatusBanner();
-  updateDensityToggleAvailability();
 
   updateClock();
   if (!clockIntervalId) {
@@ -3148,15 +2788,6 @@ function runAuthenticatedStartup() {
   if (darkModeToggle && !darkModeToggle.__bound) {
     darkModeToggle.addEventListener('click', toggleDarkMode);
     darkModeToggle.__bound = true;
-  }
-
-  var focusFailureDismiss = document.getElementById('focusFailureDismiss');
-  if (focusFailureDismiss && !focusFailureDismiss.__bound) {
-    focusFailureDismiss.addEventListener('click', function(e) {
-      e.preventDefault();
-      hideFocusFailureNotice();
-    });
-    focusFailureDismiss.__bound = true;
   }
 
   var focusExitBtn = document.getElementById('focusExitButton');
@@ -3303,16 +2934,12 @@ window.AppState = {
   lastPauseReason: '',
   lastResetAt: null,
   lastStatusChange: null,
-  lastStatusSeenAt: null,
-  densityMode: 'compact',
-  focusInitiatedBy: null,
-  focusInitiatedAt: null
+  lastStatusSeenAt: null
 };
 
 document.body.classList.add('messages-off');
 
 // Constants
-const DENSITY_STORAGE_KEY = 'dt2-density-mode';
 var STRATEGIES = ['Preparation', 'Export', 'Import', 'Quality Gate', 'Conversion', 'Validation'];
 var PHASES = ['Tables', 'Delta', 'Checkpoint', 'Finance', 'Logistics', 'PCA Tool', 'MPP', 'Support', 'Collector', 'NZD'];
 var TASK_STATUSES = ['not-started', 'in-progress', 'blocked', 'completed', 'skipped', 'in-error'];
@@ -3724,39 +3351,6 @@ function initializeFocusToggle() {
 
   document.addEventListener('click', clickHandler);
   document.addEventListener('keydown', keyHandler);
-
-  var headerButton = document.getElementById('headerFocusButton');
-  if (headerButton && !headerButton.__focusBound) {
-    var headerActivate = function(evt) {
-      if (evt.type === 'keydown' && evt.key !== 'Enter' && evt.key !== ' ') {
-        return;
-      }
-      handleFocusToggleEvent(evt);
-    };
-    headerButton.addEventListener('click', headerActivate);
-    headerButton.addEventListener('keydown', headerActivate);
-    headerButton.addEventListener('touchend', function(evt) {
-      handleFocusToggleEvent(evt);
-    }, { passive: false });
-    headerButton.__focusBound = true;
-  }
-
-  var panelToggle = document.getElementById('fullscreenToggle');
-  if (panelToggle && !panelToggle.__focusBound) {
-    var panelActivate = function(evt) {
-      if (evt.type === 'keydown' && evt.key !== 'Enter' && evt.key !== ' ') {
-        return;
-      }
-      handleFocusToggleEvent(evt);
-    };
-    panelToggle.addEventListener('click', panelActivate);
-    panelToggle.addEventListener('keydown', panelActivate);
-    panelToggle.addEventListener('touchend', function(evt) {
-      handleFocusToggleEvent(evt);
-    }, { passive: false });
-    panelToggle.__focusBound = true;
-  }
-
   document.__focusToggleBound = { clickHandler: clickHandler, keyHandler: keyHandler };
 }
 
@@ -3821,141 +3415,6 @@ document.addEventListener('keydown', function(e) {
 });
 
 // NEW: Full Screen Mode Functions
-function hideFocusFailureNotice() {
-  var notice = document.getElementById('focusFailureNotice');
-  if (!notice) return;
-  if (!notice.hidden) {
-    notice.hidden = true;
-  }
-  var tips = document.getElementById('focusFailureTips');
-  if (tips) {
-    tips.innerHTML = '';
-  }
-}
-
-function getFullscreenRemediationTips() {
-  var tips = [];
-  var ua = '';
-  try {
-    ua = navigator && navigator.userAgent ? navigator.userAgent : '';
-  } catch (err) {
-    ua = '';
-  }
-
-  if (/iPad|iPhone|iPod/.test(ua)) {
-    tips.push('Open the Share menu → Add to Home Screen and relaunch to allow fullscreen on iOS.');
-    tips.push('Disable “Request Desktop Website” for this site in Safari settings before retrying.');
-  } else if (/Android/.test(ua)) {
-    tips.push('Use Chrome → Add to Home screen and start the shortcut for reliable fullscreen.');
-    tips.push('Confirm Chrome has Fullscreen permission under Settings → Apps → Chrome → Permissions.');
-  } else if (/Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua)) {
-    tips.push('In Safari, open Settings → Websites → Full Screen and set this site to “Allow”.');
-  } else if (/Windows/.test(ua) && /Edg\//.test(ua)) {
-    tips.push('Enable “Let sites show me in full screen” under Edge Settings → Cookies and site permissions → Full screen.');
-  }
-
-  tips.push('Ensure this site is loaded over HTTPS and allow fullscreen access when prompted.');
-  tips.push('Try pressing F11 (Windows) or Control + Command + F (macOS) as a fallback.');
-
-  return tips.filter(function(tip, idx, arr) { return arr.indexOf(tip) === idx; });
-}
-
-function showFocusFailureNotice(details) {
-  if (typeof window.canWrite === 'function' && !window.canWrite()) {
-    return;
-  }
-
-  var notice = document.getElementById('focusFailureNotice');
-  var messageEl = document.getElementById('focusFailureMessage');
-  var titleEl = document.getElementById('focusFailureTitle');
-  var tipsEl = document.getElementById('focusFailureTips');
-  if (!notice || !messageEl || !titleEl || !tipsEl) return;
-
-  var message = details && details.message ? details.message : 'Your browser prevented the fullscreen experience.';
-  var title = details && details.title ? details.title : 'Focus mode blocked';
-  titleEl.textContent = title;
-  messageEl.textContent = message;
-
-  tipsEl.innerHTML = '';
-  var tips = details && Array.isArray(details.tips) && details.tips.length ? details.tips : getFullscreenRemediationTips();
-  tips.forEach(function(tip) {
-    var li = document.createElement('li');
-    li.textContent = tip;
-    tipsEl.appendChild(li);
-  });
-
-  if (!tips.length) {
-    var fallback = document.createElement('li');
-    fallback.textContent = 'Allow fullscreen access for this site in your browser settings and try again.';
-    tipsEl.appendChild(fallback);
-  }
-
-  notice.hidden = false;
-}
-
-function handleFullscreenFailure(error, context) {
-  var baseMessage = 'Your browser blocked the fullscreen request. Allow fullscreen permissions and try again.';
-  if (context && context.reason === 'unsupported') {
-    baseMessage = 'This environment does not expose the fullscreen API required for focus mode.';
-  } else if (error && error.name === 'NotAllowedError') {
-    baseMessage = 'Fullscreen was denied. Interact with the page first or enable fullscreen permissions in the browser.';
-  } else if (error && error.name === 'NotSupportedError') {
-    baseMessage = 'Fullscreen is not supported here. Launch the installed shortcut or a supported browser to retry focus mode.';
-  }
-
-  if (error) {
-    console.warn('Fullscreen request failed:', error);
-  }
-
-  showFocusFailureNotice({ message: baseMessage });
-}
-
-function renderFocusStatusBanner() {
-  var banner = document.getElementById('focusStatusBanner');
-  var meta = document.getElementById('focusStatusMeta');
-  if (!banner || !meta) return;
-
-  var isViewer = typeof window.canWrite === 'function' ? !window.canWrite() : false;
-  var state = window.AppState || {};
-  var focusActive = !!state.fullscreenMode;
-
-  if (!isViewer || !focusActive) {
-    banner.hidden = true;
-    return;
-  }
-
-  var initiator = state.focusInitiatedBy || 'Host';
-  var since = state.focusInitiatedAt ? new Date(state.focusInitiatedAt) : (state.fullscreenSince ? new Date(state.fullscreenSince) : null);
-  var parts = [];
-  if (initiator) {
-    parts.push('Started by ' + initiator);
-  }
-  if (since && !isNaN(since.getTime())) {
-    var timeDisplay = since.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    parts.push('at ' + timeDisplay);
-    var diffMs = Date.now() - since.getTime();
-    if (diffMs > 0) {
-      var minutes = Math.floor(diffMs / 60000);
-      var hours = Math.floor(minutes / 60);
-      var seconds = Math.floor((diffMs % 60000) / 1000);
-      var durationParts = [];
-      if (hours) durationParts.push(hours + 'h');
-      var remainingMinutes = minutes % 60;
-      if (remainingMinutes) {
-        durationParts.push(remainingMinutes + 'm');
-      } else if (!hours && seconds) {
-        durationParts.push(seconds + 's');
-      }
-      if (durationParts.length) {
-        parts.push('for ' + durationParts.join(' '));
-      }
-    }
-  }
-
-  meta.textContent = parts.length ? parts.join(' • ') : 'Focus mode active';
-  banner.hidden = false;
-}
-
 function updateFocusExitControl(isActive) {
   var control = document.getElementById('focusExitControl');
   if (!control) return;
@@ -3989,39 +3448,20 @@ function applyFocusState(isActive, options = {}) {
     if (state.fullscreenMode) {
       var panel = document.getElementById('progressPanel');
       var fullscreenTarget = panel && panel.requestFullscreen ? panel : document.documentElement;
-      if (document.fullscreenEnabled === false) {
-        handleFullscreenFailure(null, { reason: 'unsupported' });
-      } else if (!fullscreenTarget || typeof fullscreenTarget.requestFullscreen !== 'function') {
-        handleFullscreenFailure(null, { reason: 'unsupported' });
-      } else {
-        try {
-          var requestResult = fullscreenTarget.requestFullscreen();
-          if (requestResult && typeof requestResult.then === 'function') {
-            requestResult.then(function() {
-              hideFocusFailureNotice();
-            }).catch(function(err) {
-              handleFullscreenFailure(err, { reason: 'request-failed' });
-            });
-          } else {
-            hideFocusFailureNotice();
-          }
-        } catch (err) {
-          handleFullscreenFailure(err, { reason: 'request-failed' });
-        }
+      if (fullscreenTarget && fullscreenTarget.requestFullscreen) {
+        fullscreenTarget.requestFullscreen().catch(function(err) {
+          console.warn('Fullscreen request failed:', err);
+        });
       }
     } else if (document.fullscreenElement && document.exitFullscreen) {
       document.exitFullscreen().catch(function(err) {
         console.warn('Failed to exit fullscreen:', err);
       });
-      hideFocusFailureNotice();
-    } else {
-      hideFocusFailureNotice();
     }
   }
 
   updateFullscreenButton(state.fullscreenMode);
   updateFocusExitControl(state.fullscreenMode);
-  renderFocusStatusBanner();
 
   if ((changed || options.forceRefresh) && !options.skipTimelineRefresh) {
     setTimeout(function() {
@@ -4039,25 +3479,10 @@ function toggleFullscreenMode(forceState) {
   var changed = applyFocusState(shouldEnable, { attemptFullscreen: true });
 
   if (changed && window.canWrite && window.canWrite()) {
-    if (shouldEnable) {
-      try {
-        window.AppState.focusInitiatedBy = typeof getOperatorName === 'function' ? getOperatorName() : 'Host';
-      } catch (err) {
-        window.AppState.focusInitiatedBy = 'Host';
-      }
-      window.AppState.focusInitiatedAt = window.AppState.fullscreenSince ? new Date(window.AppState.fullscreenSince) : new Date();
-      hideFocusFailureNotice();
-    } else {
-      window.AppState.focusInitiatedBy = null;
-      window.AppState.focusInitiatedAt = null;
-      hideFocusFailureNotice();
-    }
     recordStatusChange(shouldEnable ? 'focus-enter' : 'focus-exit', {
       message: shouldEnable ? 'Focus mode enabled' : 'Focus mode exited'
     });
   }
-
-  renderFocusStatusBanner();
 
   if (changed && typeof schedulePush === 'function' && window.canWrite && window.canWrite()) {
     schedulePush('focus-toggle');
@@ -4131,10 +3556,6 @@ document.addEventListener('fullscreenchange', function() {
   var isFullscreen = !!document.fullscreenElement;
   if (!isFullscreen && window.AppState.fullscreenMode) {
     var exited = applyFocusState(false, { forceRefresh: true });
-    window.AppState.focusInitiatedBy = null;
-    window.AppState.focusInitiatedAt = null;
-    hideFocusFailureNotice();
-    renderFocusStatusBanner();
     if (exited && window.canWrite && window.canWrite()) {
       recordStatusChange('focus-exit', { message: 'Focus mode exited' });
       if (typeof schedulePush === 'function') {
@@ -4144,23 +3565,11 @@ document.addEventListener('fullscreenchange', function() {
   } else if (isFullscreen && !window.AppState.fullscreenMode) {
     var entered = applyFocusState(true, { forceRefresh: true, since: new Date() });
     if (entered && window.canWrite && window.canWrite()) {
-      try {
-        window.AppState.focusInitiatedBy = typeof getOperatorName === 'function' ? getOperatorName() : 'Host';
-      } catch (err) {
-        window.AppState.focusInitiatedBy = 'Host';
-      }
-      window.AppState.focusInitiatedAt = window.AppState.fullscreenSince ? new Date(window.AppState.fullscreenSince) : new Date();
-      hideFocusFailureNotice();
-    }
-    renderFocusStatusBanner();
-    if (entered && window.canWrite && window.canWrite()) {
       recordStatusChange('focus-enter', { message: 'Focus mode enabled' });
       if (typeof schedulePush === 'function') {
         schedulePush();
       }
     }
-  } else if (isFullscreen) {
-    hideFocusFailureNotice();
   }
 });
 
@@ -4332,89 +3741,6 @@ function updateDarkModeButton(isDark) {
   if (text) text.textContent = isDark ? 'Light' : 'Dark';
   var toggle = document.getElementById('darkModeToggle');
   if (toggle) toggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
-}
-
-function updateDensityToggle(mode) {
-  var normalized = mode === 'cozy' ? 'cozy' : 'compact';
-  var buttons = document.querySelectorAll('#densityToggle button[data-density-option]');
-  buttons.forEach(function(button) {
-    var isActive = button.getAttribute('data-density-option') === normalized;
-    button.classList.toggle('active', isActive);
-    button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-  });
-}
-
-function updateDensityToggleAvailability() {
-  var toggle = document.getElementById('densityToggle');
-  if (!toggle) return;
-  var isHost = typeof window.canWrite === 'function' ? window.canWrite() : true;
-  toggle.setAttribute('aria-disabled', isHost ? 'false' : 'true');
-  var buttons = toggle.querySelectorAll('button[data-density-option]');
-  buttons.forEach(function(button) {
-    button.disabled = !isHost;
-    button.setAttribute('tabindex', isHost ? '0' : '-1');
-  });
-}
-
-function applyDensityPreference(mode, options) {
-  options = options || {};
-  var normalized = mode === 'cozy' ? 'cozy' : 'compact';
-  var previous = window.AppState.densityMode || 'compact';
-  window.AppState.densityMode = normalized;
-
-  document.body.classList.remove('density-compact', 'density-cozy');
-  document.body.classList.add('density-' + normalized);
-  updateDensityToggle(normalized);
-
-  if (!options.skipPersist) {
-    try {
-      localStorage.setItem(DENSITY_STORAGE_KEY, normalized);
-    } catch (err) {
-      console.warn('Unable to persist density preference', err);
-    }
-  }
-
-  if (!options.skipNotification && typeof NotificationHooks !== 'undefined' && NotificationHooks && typeof NotificationHooks.notify === 'function') {
-    NotificationHooks.notify('density-change', { mode: normalized, at: new Date().toISOString() });
-  }
-
-  if (!options.skipBroadcast && typeof schedulePush === 'function' && typeof window.canWrite === 'function' && window.canWrite()) {
-    schedulePush('density-change');
-  }
-
-  if (!options.skipAvailabilityUpdate) {
-    updateDensityToggleAvailability();
-  }
-
-  return previous !== normalized;
-}
-
-function initDensityMode() {
-  var stored = null;
-  try {
-    stored = localStorage.getItem(DENSITY_STORAGE_KEY);
-  } catch (err) {
-    console.warn('Unable to read density preference', err);
-  }
-  var initial = stored === 'cozy' ? 'cozy' : stored === 'compact' ? 'compact' : (window.AppState.densityMode || 'compact');
-  applyDensityPreference(initial, { skipPersist: true, skipBroadcast: true, skipNotification: true, skipAvailabilityUpdate: true });
-  updateDensityToggleAvailability();
-}
-
-function bindDensityToggle() {
-  var toggle = document.getElementById('densityToggle');
-  if (!toggle || toggle.__bound) return;
-  toggle.addEventListener('click', function(evt) {
-    var button = evt.target && evt.target.closest ? evt.target.closest('button[data-density-option]') : null;
-    if (!button) return;
-    evt.preventDefault();
-    if (typeof window.canWrite === 'function' && !window.canWrite()) {
-      return;
-    }
-    var option = button.getAttribute('data-density-option');
-    applyDensityPreference(option);
-  });
-  toggle.__bound = true;
 }
 
 // NEW: Completion Percentage Functions
@@ -4890,8 +4216,6 @@ function updateClock() {
       durationDisplay.textContent = '00:00:00';
     }
   }
-
-  renderFocusStatusBanner();
 }
 
 function resolveDowntimeStartTime() {
@@ -8069,10 +7393,7 @@ function serialize() {
     darkMode: !!state.darkMode,
     lastPauseReason: state.lastPauseReason || '',
     lastResetAt: state.lastResetAt ? new Date(state.lastResetAt).toISOString() : null,
-    lastStatusChange: state.lastStatusChange || null,
-    densityMode: state.densityMode || 'compact',
-    focusInitiatedBy: state.focusInitiatedBy || null,
-    focusInitiatedAt: state.focusInitiatedAt ? new Date(state.focusInitiatedAt).toISOString() : null
+    lastStatusChange: state.lastStatusChange || null
   };
 }
 
@@ -8123,24 +7444,6 @@ function applyRemoteState(remoteState) {
       forceRefresh: !window.canWrite() && !!remoteState.fullscreenMode
     });
   }
-
-  if (remoteState.densityMode) {
-    applyDensityPreference(remoteState.densityMode, {
-      skipPersist: true,
-      skipBroadcast: true,
-      skipNotification: true
-    });
-  } else {
-    updateDensityToggleAvailability();
-  }
-
-  if (Object.prototype.hasOwnProperty.call(remoteState, 'focusInitiatedBy')) {
-    state.focusInitiatedBy = remoteState.focusInitiatedBy || null;
-  }
-  if (Object.prototype.hasOwnProperty.call(remoteState, 'focusInitiatedAt')) {
-    state.focusInitiatedAt = remoteState.focusInitiatedAt ? new Date(remoteState.focusInitiatedAt) : null;
-  }
-  renderFocusStatusBanner();
 
   // Only update UI fields if not currently being edited
   if (!state.inputLock) {
@@ -8257,9 +7560,6 @@ function applyRemoteState(remoteState) {
 function updateViewerPanel() {
   const state = window.AppState;
   const isViewer = !window.canWrite();
-
-  updateDensityToggleAvailability();
-  renderFocusStatusBanner();
 
   console.log("Updating viewer panel:", {
     isViewer: isViewer,
