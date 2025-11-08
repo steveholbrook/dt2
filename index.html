@@ -4380,21 +4380,23 @@ window.addRunbookRow = function() {
   updateCompletionPercentage();
 };
 
-function renderRunbookTable() {
+function renderRunbookTable(forceRender) {
+  forceRender = !!forceRender;
+
   if (window.AppState.renderLock) return;
-  
+
   var tbody = document.getElementById('runbookBody');
   if (!tbody) return;
-  
+
   // Don't re-render if user is actively editing ANY input
   var activeElement = document.activeElement;
-  if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'SELECT')) {
+  if (!forceRender && activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'SELECT')) {
     return;
   }
-  
+
   // Throttle renders to prevent flickering
   var now = Date.now();
-  if (now - window.AppState.lastRenderTime < 100) {
+  if (!forceRender && now - window.AppState.lastRenderTime < 100) {
     return;
   }
   window.AppState.lastRenderTime = now;
@@ -4653,7 +4655,10 @@ window.updateCritical = function(id, value) {
 
 window.removeRunbook = function(id) {
   window.AppState.runbooks = window.AppState.runbooks.filter(function(r) { return r.id !== id; });
-  renderRunbookTable();
+  if (window.AppState.selectedRunbookId === id) {
+    window.AppState.selectedRunbookId = null;
+  }
+  renderRunbookTable(true);
   updateTimeline();
   displayValidationWarnings();
   updateCompletionPercentage();
@@ -4662,7 +4667,8 @@ window.removeRunbook = function(id) {
 window.clearRunbook = function() {
   if (confirm('Are you sure you want to clear all runbook entries?')) {
     window.AppState.runbooks = [];
-    renderRunbookTable();
+    window.AppState.selectedRunbookId = null;
+    renderRunbookTable(true);
     updateTimeline();
     updateCompletionPercentage();
   }
