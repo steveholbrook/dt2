@@ -5691,6 +5691,7 @@ window.downloadExcel = function() {
       Phase: r.phase,
       Runblock: r.runblock || '',
       Responsibility: r.responsibility || '',
+      Predecessor: r.predecessor || '',
       Status: r.status || 'not-started',
       Critical: r.critical ? 'Yes' : 'No',
       ScheduleTime: String(r.scheduleHours).padStart(2,'0') + ':' + String(r.scheduleMinutes).padStart(2,'0'),
@@ -5699,8 +5700,8 @@ window.downloadExcel = function() {
       Completed: r.completed ? 'Yes' : 'No'
     };
   });
-  
-  var headers = ['Sequence','Strategy','Phase','Runblock','Responsibility','Status','Critical','ScheduleTime','PlannedDuration','ActualDuration','Completed'];
+
+  var headers = ['Sequence','Strategy','Phase','Runblock','Responsibility','Predecessor','Status','Critical','ScheduleTime','PlannedDuration','ActualDuration','Completed'];
   var csvContent = [
     headers.join(',')
   ].concat(data.map(function(row) {
@@ -5734,6 +5735,7 @@ window.uploadExcel = function(event) {
       var text = e.target.result;
       var lines = text.split('\n');
       var headers = lines[0].split(',').map(function(h) { return h.replace(/"/g, '').trim(); });
+      var predecessorIndex = headers.indexOf('Predecessor');
       
       window.AppState.runbooks = [];
       
@@ -5764,6 +5766,7 @@ window.uploadExcel = function(event) {
             phase: values[headers.indexOf('Phase')] || PHASES[0],
             runblock: values[headers.indexOf('Runblock')] || '',
             responsibility: values[headers.indexOf('Responsibility')] || '',
+            predecessor: predecessorIndex !== -1 ? (values[predecessorIndex] || '') : '',
             status: status,
             critical: values[headers.indexOf('Critical')] === 'Yes',
             scheduleHours: scheduleHours,
