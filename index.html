@@ -5112,6 +5112,8 @@ function updateTimelineControlRow(row, runbook) {
   if (cells.length < 4) return;
   
   // Update START input (only if not currently focused)
+  var downtimeActive = !!(window.AppState && window.AppState.downtimeStarted && !window.AppState.downtimePaused);
+
   var startInput = cells[0].querySelector('input[type="text"]');
   if (startInput && startInput !== window.AppState.focusedTimelineInput) {
     var newStartValue = String(runbook.scheduleHours).padStart(2,'0') + ':' + String(runbook.scheduleMinutes).padStart(2,'0');
