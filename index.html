@@ -4957,6 +4957,28 @@ function createTimelineRow(runbook, index) {
   return row;
 }
 
+function isDowntimeTrackerRunning() {
+  var state = window.AppState || {};
+  return !!(state.downtimeStarted && state.downtimeStartTime && !state.downtimePaused);
+}
+
+function shouldLockTimelineField(runbook) {
+  if (!runbook) return false;
+  return isDowntimeTrackerRunning() && !!runbook.completed;
+}
+
+function applyTimelineFieldLock(input, locked) {
+  if (!input) return;
+  var isLocked = !!locked;
+  input.readOnly = isLocked;
+  input.style.background = isLocked ? '#f8fafb' : '#fff';
+  if (isLocked) {
+    input.setAttribute('title', 'Locked while downtime tracking is active');
+  } else {
+    input.removeAttribute('title');
+  }
+}
+
 function createTimelineControlRow(runbook) {
   var row = document.createElement('div');
   row.className = 'timeline-control-row';
@@ -4972,10 +4994,8 @@ function createTimelineControlRow(runbook) {
   startInput.value = String(runbook.scheduleHours).padStart(2,'0') + ':' + String(runbook.scheduleMinutes).padStart(2,'0');
   startInput.dataset.runbookId = runbook.id;
   startInput.dataset.fieldType = 'start';
-  var downtimeActive = !!(window.AppState && window.AppState.downtimeStarted && !window.AppState.downtimePaused);
-  var startLocked = runbook.completed && downtimeActive;
-  startInput.readOnly = startLocked;
-  startInput.style.background = startLocked ? '#f8fafb' : '#fff';
+  var startLocked = shouldLockTimelineField(runbook);
+  applyTimelineFieldLock(startInput, startLocked);
   
   startInput.onfocus = function() { 
     window.AppState.timelineInputLock = true;
@@ -5002,9 +5022,8 @@ function createTimelineControlRow(runbook) {
   planInput.value = String(runbook.durationHours).padStart(2,'0') + ':' + String(runbook.durationMinutes).padStart(2,'0');
   planInput.dataset.runbookId = runbook.id;
   planInput.dataset.fieldType = 'plan';
-  var planLocked = runbook.completed && downtimeActive;
-  planInput.readOnly = planLocked;
-  planInput.style.background = planLocked ? '#f8fafb' : '#fff';
+  var planLocked = shouldLockTimelineField(runbook);
+  applyTimelineFieldLock(planInput, planLocked);
   
   planInput.onfocus = function() { 
     window.AppState.timelineInputLock = true;
@@ -5071,9 +5090,8 @@ function updateTimelineControlRow(row, runbook) {
     if (startInput.value !== newStartValue) {
       startInput.value = newStartValue;
     }
-    var startLocked = runbook.completed && downtimeActive;
-    startInput.readOnly = startLocked;
-    startInput.style.background = startLocked ? '#f8fafb' : '#fff';
+    var startLocked = shouldLockTimelineField(runbook);
+    applyTimelineFieldLock(startInput, startLocked);
   }
 
   // Update PLAN input (only if not currently focused)
@@ -5083,9 +5101,8 @@ function updateTimelineControlRow(row, runbook) {
     if (planInput.value !== newPlanValue) {
       planInput.value = newPlanValue;
     }
-    var planLocked = runbook.completed && downtimeActive;
-    planInput.readOnly = planLocked;
-    planInput.style.background = planLocked ? '#f8fafb' : '#fff';
+    var planLocked = shouldLockTimelineField(runbook);
+    applyTimelineFieldLock(planInput, planLocked);
   }
   
   // Update END checkbox
