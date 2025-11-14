@@ -1857,8 +1857,8 @@
     box-shadow:0 1px 2px rgba(0,0,0,0.2);
     user-select:none;
     white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
+    overflow:visible;
+    text-overflow:initial;
   }
   
   .timeline-block:hover{
@@ -2348,12 +2348,28 @@ body.dark-mode #messageToggleBtn:hover{
         </span>
       </div>
       <div class="tooltip-row">
+        <span class="tooltip-label">Sequence:</span>
+        <span class="tooltip-value" id="tooltipSequence">—</span>
+      </div>
+      <div class="tooltip-row">
         <span class="tooltip-label">Phase:</span>
         <span class="tooltip-value" id="tooltipPhase">—</span>
       </div>
       <div class="tooltip-row">
         <span class="tooltip-label">Strategy:</span>
         <span class="tooltip-value" id="tooltipStrategy">—</span>
+      </div>
+      <div class="tooltip-row">
+        <span class="tooltip-label">Predecessor:</span>
+        <span class="tooltip-value" id="tooltipPredecessor">—</span>
+      </div>
+      <div class="tooltip-row">
+        <span class="tooltip-label">Start:</span>
+        <span class="tooltip-value" id="tooltipStart">—</span>
+      </div>
+      <div class="tooltip-row">
+        <span class="tooltip-label">Plan:</span>
+        <span class="tooltip-value" id="tooltipPlan">—</span>
       </div>
     </div>
   </div>
@@ -2966,6 +2982,44 @@ function showEnhancedTooltip(runbook, event, immediate) {
 
     const statusIcon = document.getElementById('tooltipStatusIcon');
     statusIcon.className = 'status-icon ' + status;
+
+    const sequenceEl = document.getElementById('tooltipSequence');
+    if (sequenceEl) {
+      sequenceEl.textContent = runbook.sequence != null ? '#' + runbook.sequence : '—';
+    }
+
+    const predecessorEl = document.getElementById('tooltipPredecessor');
+    if (predecessorEl) {
+      if (runbook.predecessor || runbook.predecessor === 0) {
+        predecessorEl.textContent = '#' + runbook.predecessor;
+      } else {
+        predecessorEl.textContent = 'None';
+      }
+    }
+
+    const parseTimePart = function(value) {
+      if (value === null || value === undefined || value === '') return null;
+      const num = typeof value === 'number' ? value : parseInt(value, 10);
+      if (!Number.isFinite(num)) return null;
+      return Math.max(0, Math.trunc(num));
+    };
+
+    const formatHHMMTooltip = function(hours, minutes) {
+      const h = parseTimePart(hours);
+      const m = parseTimePart(minutes);
+      if (h === null || m === null) return '--:--';
+      return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+    };
+
+    const startEl = document.getElementById('tooltipStart');
+    if (startEl) {
+      startEl.textContent = formatHHMMTooltip(runbook.scheduleHours, runbook.scheduleMinutes);
+    }
+
+    const planEl = document.getElementById('tooltipPlan');
+    if (planEl) {
+      planEl.textContent = formatHHMMTooltip(runbook.durationHours, runbook.durationMinutes);
+    }
 
     const iconMap = {
       'Preparation': '🔧',
@@ -4918,7 +4972,7 @@ function createTimelineControlRow(runbook) {
   startInput.value = String(runbook.scheduleHours).padStart(2,'0') + ':' + String(runbook.scheduleMinutes).padStart(2,'0');
   startInput.dataset.runbookId = runbook.id;
   startInput.dataset.fieldType = 'start';
-  var downtimeActive = !!(window.AppState && window.AppState.downtimeStarted);
+  var downtimeActive = !!(window.AppState && window.AppState.downtimeStarted && !window.AppState.downtimePaused);
   var startLocked = runbook.completed && downtimeActive;
   startInput.readOnly = startLocked;
   startInput.style.background = startLocked ? '#f8fafb' : '#fff';
@@ -5009,7 +5063,7 @@ function updateTimelineControlRow(row, runbook) {
   if (cells.length < 4) return;
   
   // Update START input (only if not currently focused)
-  var downtimeActive = !!(window.AppState && window.AppState.downtimeStarted);
+  var downtimeActive = !!(window.AppState && window.AppState.downtimeStarted && !window.AppState.downtimePaused);
 
   var startInput = cells[0].querySelector('input[type="text"]');
   if (startInput && startInput !== window.AppState.focusedTimelineInput) {
@@ -5099,19 +5153,19 @@ function createTimelineBlock(runbook) {
   block.style.left = (position * pixelsPerHour) + 'px';
   block.style.width = Math.max(MIN_TIMELINE_BLOCK_WIDTH, duration * pixelsPerHour - 4) + 'px';
   
-  // Show sequence and phase inside with predecessor indicator
-  var labelText = '#' + runbook.sequence;
-  if (runbook.predecessor) {
-    labelText += ' (→' + runbook.predecessor + ')';
-  }
-  labelText += ' | ' + runbook.phase;
-  block.textContent = labelText;
-  block.title = runbook.runblock + ' - ' + runbook.phase + ' [' + status + ']';
+  // Show only the sequence number inside the block for a cleaner timeline
+  var sequenceLabel = runbook.sequence != null ? '#' + runbook.sequence : '#?';
+  var runblockName = runbook.runblock || 'Runblock';
+  block.textContent = sequenceLabel;
+  block.title = sequenceLabel + ' ' + runblockName + ' - ' + (runbook.phase || '—') + ' [' + status + ']';
+  block.setAttribute('aria-label', sequenceLabel + ' ' + runblockName);
   
   // Add external label for runblock name
   var blockLabel = document.createElement('div');
   blockLabel.className = 'block-label-external';
-  blockLabel.textContent = runbook.runblock;
+  blockLabel.textContent = runblockName;
+  blockLabel.title = runblockName;
+  blockLabel.setAttribute('aria-hidden', 'true');
   block.appendChild(blockLabel);
   
   if (runbook.critical) {
