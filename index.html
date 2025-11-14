@@ -4738,6 +4738,7 @@ window.updateTimeline = function() {
   
   generateTimeScale(duration);
   generateTimelineRows();
+  refreshTimelineFieldLocks();
   displayValidationWarnings();
 
   var finishLine = document.getElementById('finishLine');
@@ -4977,6 +4978,35 @@ function applyTimelineFieldLock(input, locked) {
   } else {
     input.removeAttribute('title');
   }
+}
+
+function refreshTimelineFieldLocks() {
+  var rows = document.querySelectorAll('.timeline-control-row');
+  if (!rows || !rows.length) return;
+
+  rows.forEach(function(row) {
+    if (!row || !row.dataset) return;
+    var runbookKey = row.dataset.runbookId;
+    if (!runbookKey) return;
+
+    var runbook = window.AppState.runbooks.find(function(r) {
+      return String(r.id) === String(runbookKey) || r.id === Number(runbookKey);
+    });
+    if (!runbook) return;
+
+    var inputs = row.querySelectorAll('input[type="text"]');
+    if (!inputs || !inputs.length) return;
+
+    var startInput = Array.prototype.find.call(inputs, function(el) {
+      return el.dataset && el.dataset.fieldType === 'start';
+    });
+    var planInput = Array.prototype.find.call(inputs, function(el) {
+      return el.dataset && el.dataset.fieldType === 'plan';
+    });
+
+    applyTimelineFieldLock(startInput, shouldLockTimelineField(runbook));
+    applyTimelineFieldLock(planInput, shouldLockTimelineField(runbook));
+  });
 }
 
 function createTimelineControlRow(runbook) {
