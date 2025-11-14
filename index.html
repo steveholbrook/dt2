@@ -2915,6 +2915,7 @@ window.AppState = {
   currentDraggedBlock: null,
   dragOffset: 0,
   completionTimes: {},
+  pendingCompletionUpdates: {},
   isFirstUser: false,
   syncedTimelinePosition: 0,
   renderLock: false,
@@ -4579,10 +4580,12 @@ window.updateStatus = function(id, value) {
           window.AppState.completionTimes[id] = now.toISOString();
         }
       }
+      recordPendingCompletionUpdate(id, true, runbook.actualDuration, window.AppState.completionTimes[id]);
     } else {
       runbook.completed = false;
       runbook.actualDuration = null;
       delete window.AppState.completionTimes[id];
+      recordPendingCompletionUpdate(id, false, null, null);
     }
 
     updateCompletionPercentage();
@@ -4969,7 +4972,11 @@ function createTimelineControlRow(runbook) {
   checkbox.className = 'timeline-checkbox';
   checkbox.checked = runbook.completed;
   checkbox.title = 'Mark as completed';
-  checkbox.disabled = !(window.AppState.downtimeStarted && !window.AppState.downtimePaused);
+  var canToggle = window.AppState.downtimeStarted && !window.AppState.downtimePaused;
+  if (typeof window.canWrite === 'function') {
+    canToggle = canToggle && window.canWrite();
+  }
+  checkbox.disabled = !canToggle;
   checkbox.dataset.runbookId = runbook.id;
   checkbox.onchange = function() { toggleCompleted(runbook.id, this.checked); };
   endCell.appendChild(checkbox);
@@ -5024,7 +5031,11 @@ function updateTimelineControlRow(row, runbook) {
   var checkbox = cells[2].querySelector('input[type="checkbox"]');
   if (checkbox) {
     checkbox.checked = runbook.completed;
-    checkbox.disabled = !(window.AppState.downtimeStarted && !window.AppState.downtimePaused);
+    var canToggle = window.AppState.downtimeStarted && !window.AppState.downtimePaused;
+    if (typeof window.canWrite === 'function') {
+      canToggle = canToggle && window.canWrite();
+    }
+    checkbox.disabled = !canToggle;
   }
   
   // Update ACTUAL display
@@ -5034,6 +5045,9 @@ function updateTimelineControlRow(row, runbook) {
     actualSpan.style.color = runbook.actualDuration ? '#107e3e' : '#999';
   }
 }
+
+// Allow timeline blocks to shrink when plan minutes are less than an hour
+var MIN_TIMELINE_BLOCK_WIDTH = 20;
 
 function createTimelineBlock(runbook) {
   var block = document.createElement('div');
@@ -5076,7 +5090,7 @@ function createTimelineBlock(runbook) {
   var duration = runbook.durationHours + (runbook.durationMinutes / 60);
   
   block.style.left = (position * pixelsPerHour) + 'px';
-  block.style.width = Math.max(60, duration * pixelsPerHour - 4) + 'px';
+  block.style.width = Math.max(MIN_TIMELINE_BLOCK_WIDTH, duration * pixelsPerHour - 4) + 'px';
   
   // Show sequence and phase inside with predecessor indicator
   var labelText = '#' + runbook.sequence;
@@ -5268,43 +5282,131 @@ window.updateDurationTime = function(id, value) {
   }
 };
 
+function ensurePendingCompletionMap() {
+  if (!window.AppState.pendingCompletionUpdates) {
+    window.AppState.pendingCompletionUpdates = {};
+  }
+  return window.AppState.pendingCompletionUpdates;
+}
+
+function recordPendingCompletionUpdate(id, completed, actualDuration, completionIso) {
+  var pending = ensurePendingCompletionMap();
+  var key = String(id);
+  pending[key] = {
+    completed: !!completed,
+    actualDuration: actualDuration || null,
+    completionIso: completionIso || null,
+    timestamp: Date.now()
+  };
+}
+
+function reconcilePendingCompletionUpdates() {
+  var pending = window.AppState.pendingCompletionUpdates;
+  if (!pending) return false;
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    window.AppState.pendingCompletionUpdates = {};
+    return false;
+  }
+
+  var keys = Object.keys(pending);
+  if (!keys.length) return false;
+
+  var now = Date.now();
+  var changed = false;
+
+  keys.forEach(function(key) {
+    var entry = pending[key];
+    if (!entry) {
+      delete pending[key];
+      return;
+    }
+    if (now - entry.timestamp > 30000) {
+      delete pending[key];
+      return;
+    }
+
+    var runbook = window.AppState.runbooks.find(function(r) {
+      return String(r.id) === key || r.id === Number(key);
+    });
+
+    if (!runbook) {
+      delete pending[key];
+      return;
+    }
+
+    var desiredCompleted = !!entry.completed;
+    var desiredActual = entry.actualDuration || null;
+    var currentCompleted = !!runbook.completed;
+    var currentActual = runbook.actualDuration || null;
+
+    if (currentCompleted !== desiredCompleted || currentActual !== desiredActual) {
+      runbook.completed = desiredCompleted;
+      runbook.actualDuration = desiredActual;
+      if (desiredCompleted && entry.completionIso) {
+        window.AppState.completionTimes = window.AppState.completionTimes || {};
+        window.AppState.completionTimes[runbook.id] = entry.completionIso;
+      } else if (!desiredCompleted && window.AppState.completionTimes) {
+        delete window.AppState.completionTimes[runbook.id];
+      }
+      entry.timestamp = now;
+      changed = true;
+    } else {
+      delete pending[key];
+    }
+  });
+
+  return changed;
+}
+
 window.toggleCompleted = function(id, checked) {
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    setTimeout(function() {
+      if (typeof updateTimeline === 'function') updateTimeline();
+      if (typeof renderRunbookTable === 'function') renderRunbookTable(true);
+    }, 0);
+    return;
+  }
+
   var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
   if (runbook) {
     runbook.completed = checked;
-    
-      if (checked && window.AppState.downtimeStartTime) {
-        var now = new Date();
-        var stamp = captureCurrentDurationStamp(now);
-        if (stamp) {
-          runbook.actualDuration = stamp;
-          window.AppState.completionTimes[id] = now.toISOString();
 
-          // Force immediate update to timeline to show actual duration
-          setTimeout(function() {
-            var controls = document.getElementById('timelineControlsRows');
-            var sorted = window.AppState.runbooks.slice().sort(function(a,b) { return a.sequence - b.sequence; });
-            var idx = sorted.findIndex(function(r) { return r.id === id; });
-            if (controls && idx > -1 && controls.children[idx]) {
-              var actualCell = controls.children[idx].querySelectorAll('.timeline-control-cell')[3];
-              if (actualCell) {
-                var actualSpan = actualCell.querySelector('span');
-                if (actualSpan) {
-                  actualSpan.textContent = runbook.actualDuration;
-                  actualSpan.style.color = '#107e3e';
-                }
+    if (checked && window.AppState.downtimeStartTime) {
+      var now = new Date();
+      var stamp = captureCurrentDurationStamp(now);
+      if (stamp) {
+        runbook.actualDuration = stamp;
+        window.AppState.completionTimes[id] = now.toISOString();
+        recordPendingCompletionUpdate(id, true, runbook.actualDuration, window.AppState.completionTimes[id]);
+
+        // Force immediate update to timeline to show actual duration
+        setTimeout(function() {
+          var controls = document.getElementById('timelineControlsRows');
+          var sorted = window.AppState.runbooks.slice().sort(function(a,b) { return a.sequence - b.sequence; });
+          var idx = sorted.findIndex(function(r) { return r.id === id; });
+          if (controls && idx > -1 && controls.children[idx]) {
+            var actualCell = controls.children[idx].querySelectorAll('.timeline-control-cell')[3];
+            if (actualCell) {
+              var actualSpan = actualCell.querySelector('span');
+              if (actualSpan) {
+                actualSpan.textContent = runbook.actualDuration;
+                actualSpan.style.color = '#107e3e';
               }
             }
-          }, 50);
-        }
-      } else if (!checked) {
-        runbook.actualDuration = null;
-        delete window.AppState.completionTimes[id];
+          }
+        }, 50);
       }
-    
+    } else if (!checked) {
+      runbook.actualDuration = null;
+      delete window.AppState.completionTimes[id];
+      recordPendingCompletionUpdate(id, false, null, null);
+    } else {
+      recordPendingCompletionUpdate(id, checked, runbook.actualDuration, window.AppState.completionTimes[id]);
+    }
+
     // Update completion percentage
     updateCompletionPercentage();
-    
+
     // Delay the timeline update to prevent interference with checkbox
     setTimeout(function() {
       updateTimeline();
@@ -5376,6 +5478,7 @@ window.startDowntime = function() {
   window.AppState.downtimePaused = false;
   window.AppState.pausedDuration = 0;
   window.AppState.pauseStartTime = null;
+  window.AppState.pendingCompletionUpdates = {};
   
   var downtimeDuration = parseInt(document.getElementById('downtimeDuration').value) || 24;
   window.AppState.downtimeDuration = downtimeDuration;
@@ -5511,6 +5614,7 @@ window.stopDowntime = function() {
       r.completed = false;
     });
     window.AppState.completionTimes = {};
+    window.AppState.pendingCompletionUpdates = {};
     
     // Unlock customer name and transform cycle inputs
     var customerNameInput = document.getElementById('customerName');
@@ -5590,6 +5694,7 @@ window.downloadExcel = function() {
       Phase: r.phase,
       Runblock: r.runblock || '',
       Responsibility: r.responsibility || '',
+      Predecessor: (r.predecessor === 0 ? '0' : (r.predecessor || '')).toString(),
       Status: r.status || 'not-started',
       Critical: r.critical ? 'Yes' : 'No',
       ScheduleTime: String(r.scheduleHours).padStart(2,'0') + ':' + String(r.scheduleMinutes).padStart(2,'0'),
@@ -5598,8 +5703,8 @@ window.downloadExcel = function() {
       Completed: r.completed ? 'Yes' : 'No'
     };
   });
-  
-  var headers = ['Sequence','Strategy','Phase','Runblock','Responsibility','Status','Critical','ScheduleTime','PlannedDuration','ActualDuration','Completed'];
+
+  var headers = ['Sequence','Strategy','Phase','Runblock','Responsibility','Predecessor','Status','Critical','ScheduleTime','PlannedDuration','ActualDuration','Completed'];
   var csvContent = [
     headers.join(',')
   ].concat(data.map(function(row) {
@@ -5633,6 +5738,7 @@ window.uploadExcel = function(event) {
       var text = e.target.result;
       var lines = text.split('\n');
       var headers = lines[0].split(',').map(function(h) { return h.replace(/"/g, '').trim(); });
+      var predecessorIndex = headers.indexOf('Predecessor');
       
       window.AppState.runbooks = [];
       
@@ -5663,6 +5769,7 @@ window.uploadExcel = function(event) {
             phase: values[headers.indexOf('Phase')] || PHASES[0],
             runblock: values[headers.indexOf('Runblock')] || '',
             responsibility: values[headers.indexOf('Responsibility')] || '',
+            predecessor: predecessorIndex !== -1 ? (values[predecessorIndex] || '') : '',
             status: status,
             critical: values[headers.indexOf('Critical')] === 'Yes',
             scheduleHours: scheduleHours,
@@ -5930,7 +6037,7 @@ function updateSingleBlockWidth(id) {
   if (!rb) return;
   var pph = 60;
   var dur = rb.durationHours + rb.durationMinutes / 60;
-  var w = Math.max(60, dur * pph - 4);
+  var w = Math.max(MIN_TIMELINE_BLOCK_WIDTH, dur * pph - 4);
   var block = document.querySelector('.timeline-block[data-runbook-id="' + id + '"]');
   if (block) block.style.width = w + 'px';
 }
@@ -7423,6 +7530,8 @@ function applyRemoteState(remoteState) {
   state.pauseStartTime = remoteState.pauseStartTime ? new Date(remoteState.pauseStartTime) : null;
   state.downtimeStartTime = remoteState.downtimeStartTime ? new Date(remoteState.downtimeStartTime) : null;
   state.completionTimes = remoteState.completionTimes || {};
+
+  var pendingChanged = reconcilePendingCompletionUpdates();
   state.syncedTimelinePosition = remoteState.syncedTimelinePosition || 0;
   state.messagesOn = !!remoteState.messagesOn;
   state.lastPauseReason = remoteState.lastPauseReason || '';
@@ -7516,7 +7625,7 @@ function applyRemoteState(remoteState) {
   }
   
   // Update tables and timeline
-  if (typeof window.renderRunbookTable === 'function') window.renderRunbookTable();
+  if (typeof window.renderRunbookTable === 'function') window.renderRunbookTable(pendingChanged);
   if (typeof window.updateTimeline === 'function') window.updateTimeline();
   if (typeof window.calculateEndTime === 'function') window.calculateEndTime();
   if (typeof window.updateCompletionPercentage === 'function') window.updateCompletionPercentage();
@@ -9062,6 +9171,7 @@ document.getElementById("rt-reset").onclick = async function() {
     currentDraggedBlock: null,
     dragOffset: 0,
     completionTimes: {},
+    pendingCompletionUpdates: {},
     isFirstUser: false,
     syncedTimelinePosition: 0,
     renderLock: false,
