@@ -4918,8 +4918,10 @@ function createTimelineControlRow(runbook) {
   startInput.value = String(runbook.scheduleHours).padStart(2,'0') + ':' + String(runbook.scheduleMinutes).padStart(2,'0');
   startInput.dataset.runbookId = runbook.id;
   startInput.dataset.fieldType = 'start';
-  startInput.readOnly = runbook.completed;
-  if (runbook.completed) startInput.style.background = '#f8fafb';
+  var downtimeActive = !!(window.AppState && window.AppState.downtimeStarted);
+  var startLocked = runbook.completed && downtimeActive;
+  startInput.readOnly = startLocked;
+  startInput.style.background = startLocked ? '#f8fafb' : '#fff';
   
   startInput.onfocus = function() { 
     window.AppState.timelineInputLock = true;
@@ -4946,8 +4948,9 @@ function createTimelineControlRow(runbook) {
   planInput.value = String(runbook.durationHours).padStart(2,'0') + ':' + String(runbook.durationMinutes).padStart(2,'0');
   planInput.dataset.runbookId = runbook.id;
   planInput.dataset.fieldType = 'plan';
-  planInput.readOnly = runbook.completed;
-  if (runbook.completed) planInput.style.background = '#f8fafb';
+  var planLocked = runbook.completed && downtimeActive;
+  planInput.readOnly = planLocked;
+  planInput.style.background = planLocked ? '#f8fafb' : '#fff';
   
   planInput.onfocus = function() { 
     window.AppState.timelineInputLock = true;
@@ -5006,16 +5009,19 @@ function updateTimelineControlRow(row, runbook) {
   if (cells.length < 4) return;
   
   // Update START input (only if not currently focused)
+  var downtimeActive = !!(window.AppState && window.AppState.downtimeStarted);
+
   var startInput = cells[0].querySelector('input[type="text"]');
   if (startInput && startInput !== window.AppState.focusedTimelineInput) {
     var newStartValue = String(runbook.scheduleHours).padStart(2,'0') + ':' + String(runbook.scheduleMinutes).padStart(2,'0');
     if (startInput.value !== newStartValue) {
       startInput.value = newStartValue;
     }
-    startInput.readOnly = runbook.completed;
-    startInput.style.background = runbook.completed ? '#f8fafb' : '#fff';
+    var startLocked = runbook.completed && downtimeActive;
+    startInput.readOnly = startLocked;
+    startInput.style.background = startLocked ? '#f8fafb' : '#fff';
   }
-  
+
   // Update PLAN input (only if not currently focused)
   var planInput = cells[1].querySelector('input[type="text"]');
   if (planInput && planInput !== window.AppState.focusedTimelineInput) {
@@ -5023,8 +5029,9 @@ function updateTimelineControlRow(row, runbook) {
     if (planInput.value !== newPlanValue) {
       planInput.value = newPlanValue;
     }
-    planInput.readOnly = runbook.completed;
-    planInput.style.background = runbook.completed ? '#f8fafb' : '#fff';
+    var planLocked = runbook.completed && downtimeActive;
+    planInput.readOnly = planLocked;
+    planInput.style.background = planLocked ? '#f8fafb' : '#fff';
   }
   
   // Update END checkbox
@@ -5739,6 +5746,12 @@ window.uploadExcel = function(event) {
       var lines = text.split('\n');
       var headers = lines[0].split(',').map(function(h) { return h.replace(/"/g, '').trim(); });
       var predecessorIndex = headers.indexOf('Predecessor');
+      var plannedDurationIndex = headers.indexOf('PlannedDuration');
+      var legacyDurationIndex = headers.indexOf('Duration');
+      var scheduleIndex = headers.indexOf('ScheduleTime');
+      var statusIndex = headers.indexOf('Status');
+      var actualIndex = headers.indexOf('ActualDuration');
+      var completedIndex = headers.indexOf('Completed');
       
       window.AppState.runbooks = [];
       
@@ -5747,17 +5760,49 @@ window.uploadExcel = function(event) {
           var matches = lines[i].match(/(".*?"|[^,]+)/g);
           var values = matches ? matches.map(function(v) { return v.replace(/"/g, '').trim(); }) : [];
           
-          var scheduleTime = values[headers.indexOf('ScheduleTime')] || '00:00';
+          var scheduleSource = scheduleIndex !== -1 ? values[scheduleIndex] : null;
+          var scheduleTime = scheduleSource || '00:00';
           var scheduleTimeParts = scheduleTime.split(':').map(Number);
           var scheduleHours = scheduleTimeParts[0] || 0;
           var scheduleMinutes = scheduleTimeParts[1] || 0;
-          
-          var planDuration = values[headers.indexOf('PlannedDuration')] || values[headers.indexOf('Duration')] || '01:00';
-          var planDurationParts = planDuration.split(':').map(Number);
-          var durationHours = planDurationParts[0] || 1;
-          var durationMinutes = planDurationParts[1] || 0;
-          
-          var status = values[headers.indexOf('Status')] || 'not-started';
+
+          var planDurationRaw = '';
+          if (plannedDurationIndex !== -1) {
+            planDurationRaw = values[plannedDurationIndex] || '';
+          }
+          if (!planDurationRaw && legacyDurationIndex !== -1) {
+            planDurationRaw = values[legacyDurationIndex] || '';
+          }
+
+          var parsedPlan = parseHHMM(planDurationRaw);
+          if (!parsedPlan.ok) {
+            if (/^\d{1,2}$/.test(planDurationRaw || '')) {
+              var minutesOnly = parseInt(planDurationRaw, 10);
+              if (!isNaN(minutesOnly)) {
+                parsedPlan.h = Math.floor(minutesOnly / 60);
+                parsedPlan.m = minutesOnly % 60;
+                parsedPlan.ok = true;
+              }
+            }
+          }
+          if (!parsedPlan.ok) {
+            var numericDuration = parseFloat(planDurationRaw);
+            if (!isNaN(numericDuration) && isFinite(numericDuration)) {
+              var totalMinutes = Math.max(0, Math.round(numericDuration * 60));
+              parsedPlan.h = Math.floor(totalMinutes / 60);
+              parsedPlan.m = totalMinutes % 60;
+              parsedPlan.ok = true;
+            }
+          }
+          if (!parsedPlan.ok) {
+            parsedPlan.h = 1;
+            parsedPlan.m = 0;
+          }
+
+          var durationHours = parsedPlan.h;
+          var durationMinutes = parsedPlan.m;
+
+          var status = statusIndex !== -1 ? values[statusIndex] : 'not-started';
           if (TASK_STATUSES.indexOf(status) === -1) {
             status = 'not-started';
           }
@@ -5776,8 +5821,8 @@ window.uploadExcel = function(event) {
             scheduleMinutes: scheduleMinutes,
             durationHours: durationHours,
             durationMinutes: durationMinutes,
-            actualDuration: values[headers.indexOf('ActualDuration')] || null,
-            completed: values[headers.indexOf('Completed')] === 'Yes',
+            actualDuration: actualIndex !== -1 ? (values[actualIndex] || null) : null,
+            completed: completedIndex !== -1 ? values[completedIndex] === 'Yes' : false,
             position: 0
           };
           
