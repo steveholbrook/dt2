@@ -5046,6 +5046,9 @@ function updateTimelineControlRow(row, runbook) {
   }
 }
 
+// Allow timeline blocks to shrink when plan minutes are less than an hour
+var MIN_TIMELINE_BLOCK_WIDTH = 20;
+
 function createTimelineBlock(runbook) {
   var block = document.createElement('div');
   var strategyClass = runbook.strategy.toLowerCase().replace(/\s+/g, '');
@@ -5087,7 +5090,7 @@ function createTimelineBlock(runbook) {
   var duration = runbook.durationHours + (runbook.durationMinutes / 60);
   
   block.style.left = (position * pixelsPerHour) + 'px';
-  block.style.width = Math.max(60, duration * pixelsPerHour - 4) + 'px';
+  block.style.width = Math.max(MIN_TIMELINE_BLOCK_WIDTH, duration * pixelsPerHour - 4) + 'px';
   
   // Show sequence and phase inside with predecessor indicator
   var labelText = '#' + runbook.sequence;
@@ -5691,7 +5694,7 @@ window.downloadExcel = function() {
       Phase: r.phase,
       Runblock: r.runblock || '',
       Responsibility: r.responsibility || '',
-      Predecessor: r.predecessor || '',
+      Predecessor: (r.predecessor === 0 ? '0' : (r.predecessor || '')).toString(),
       Status: r.status || 'not-started',
       Critical: r.critical ? 'Yes' : 'No',
       ScheduleTime: String(r.scheduleHours).padStart(2,'0') + ':' + String(r.scheduleMinutes).padStart(2,'0'),
@@ -6034,7 +6037,7 @@ function updateSingleBlockWidth(id) {
   if (!rb) return;
   var pph = 60;
   var dur = rb.durationHours + rb.durationMinutes / 60;
-  var w = Math.max(60, dur * pph - 4);
+  var w = Math.max(MIN_TIMELINE_BLOCK_WIDTH, dur * pph - 4);
   var block = document.querySelector('.timeline-block[data-runbook-id="' + id + '"]');
   if (block) block.style.width = w + 'px';
 }
