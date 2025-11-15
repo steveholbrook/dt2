@@ -145,6 +145,64 @@
     color: #f5f7fa;
   }
 
+  .host-auth-card {
+    margin-bottom: 16px;
+    padding: 16px;
+    border: 1px solid var(--sap-border);
+    border-radius: 10px;
+    background: var(--sap-panel);
+    box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+  }
+
+  .host-auth-card h3 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    color: var(--sap-text);
+  }
+
+  .host-auth-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .host-auth-controls input[type="password"] {
+    flex: 1;
+    min-width: 220px;
+  }
+
+  .host-auth-note {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--sap-muted);
+  }
+
+  .host-auth-status {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--sap-muted);
+    min-height: 18px;
+  }
+
+  .host-auth-status.error {
+    color: var(--sap-error);
+  }
+
+  .host-auth-status.success {
+    color: var(--sap-success);
+  }
+
+  .host-auth-card.unlocked {
+    border-color: rgba(16, 126, 62, 0.45);
+    box-shadow: 0 6px 20px rgba(16, 126, 62, 0.12);
+    background: rgba(16, 126, 62, 0.06);
+  }
+
+  .host-auth-card.unlocked h3 {
+    color: var(--sap-success);
+  }
+
   #realtimeStatusPanel {
     transition: box-shadow 0.2s ease, transform 0.2s ease;
   }
@@ -2433,6 +2491,16 @@ body.dark-mode #messageToggleBtn:hover{
       </div>
     </div>
 
+    <div class="host-auth-card" id="hostAuthCard">
+      <h3>Host access required</h3>
+      <div class="host-auth-controls">
+        <input type="password" id="hostPasswordInput" placeholder="Enter host password" autocomplete="current-password">
+        <button class="btn primary" type="button" id="hostUnlockBtn">Unlock host mode</button>
+      </div>
+      <p class="host-auth-note">Only teammates with the shared host password can modify runbooks or downtime controls.</p>
+      <div class="host-auth-status" id="hostAuthStatus"></div>
+    </div>
+
     <!-- Customer Information -->
     <div class="panel customer-info-panel" style="margin-bottom:16px;padding:16px;">
       <div class="field-row">
@@ -2740,6 +2808,144 @@ body.dark-mode #messageToggleBtn:hover{
 <script>
 'use strict';
 
+const HOST_PASSWORD_STORAGE_KEY = 'dt2HostAccessVerified';
+const DEFAULT_HOST_MODE_PASSWORD = 'SNPHost2024!';
+
+function resolveHostPasswordSecret() {
+  if (typeof window.DTrackerHostPassword === 'string' && window.DTrackerHostPassword.trim().length > 0) {
+    return window.DTrackerHostPassword.trim();
+  }
+  const meta = document.querySelector('meta[name="dt-host-password"]');
+  if (meta && typeof meta.content === 'string' && meta.content.trim().length > 0) {
+    return meta.content.trim();
+  }
+  return DEFAULT_HOST_MODE_PASSWORD;
+}
+
+function displayHostAuthMessage(message, variant) {
+  const status = document.getElementById('hostAuthStatus');
+  if (!status) return;
+  status.textContent = message || '';
+  status.className = 'host-auth-status';
+  if (variant === 'error') {
+    status.classList.add('error');
+  } else if (variant === 'success') {
+    status.classList.add('success');
+  }
+}
+
+function focusHostAuthInput() {
+  const input = document.getElementById('hostPasswordInput');
+  if (input) {
+    input.disabled = false;
+    input.focus();
+    input.select();
+  }
+}
+
+function updateHostAuthUI() {
+  const card = document.getElementById('hostAuthCard');
+  if (!card) return;
+
+  const input = document.getElementById('hostPasswordInput');
+  const button = document.getElementById('hostUnlockBtn');
+  const verified = !!(window.HostAuth && typeof window.HostAuth.isVerified === 'function' && window.HostAuth.isVerified());
+
+  card.classList.toggle('unlocked', verified);
+  if (input) {
+    input.disabled = verified;
+    if (!verified) {
+      input.value = '';
+    }
+  }
+  if (button) {
+    button.disabled = verified;
+    button.textContent = verified ? 'Host mode unlocked' : 'Unlock host mode';
+  }
+
+  if (verified) {
+    displayHostAuthMessage('Host mode unlocked for this browser session.', 'success');
+  } else {
+    displayHostAuthMessage('Enter the host password to control downtime.', null);
+  }
+}
+
+window.displayHostAuthMessage = displayHostAuthMessage;
+window.focusHostAuthInput = focusHostAuthInput;
+window.updateHostAuthUI = updateHostAuthUI;
+
+window.HostAuth = {
+  storageKey: HOST_PASSWORD_STORAGE_KEY,
+  verified: false,
+  getSecret() {
+    return resolveHostPasswordSecret();
+  },
+  isVerified() {
+    return !!this.verified;
+  },
+  setVerified(value) {
+    this.verified = !!value;
+    try {
+      if (this.verified) {
+        sessionStorage.setItem(this.storageKey, '1');
+      } else {
+        sessionStorage.removeItem(this.storageKey);
+      }
+    } catch (err) {
+      console.warn('Unable to update host auth storage', err);
+    }
+    if (window.AppState) {
+      window.AppState.hostAuthenticated = this.verified;
+    }
+    updateHostAuthUI();
+    if (typeof renderHostStatus === 'function') renderHostStatus();
+    if (typeof renderDowntimeControls === 'function') renderDowntimeControls();
+    if (typeof updateViewerPanel === 'function') updateViewerPanel();
+    if (typeof renderRunbookTable === 'function') renderRunbookTable(true);
+    if (typeof updateTimeline === 'function') updateTimeline();
+    if (this.verified && typeof window.__DT2_attemptControllerClaim === 'function') {
+      window.__DT2_attemptControllerClaim('password-verified');
+    }
+  },
+  load() {
+    let stored = false;
+    try {
+      stored = sessionStorage.getItem(this.storageKey) === '1';
+    } catch (err) {
+      stored = false;
+    }
+    this.verified = stored;
+    if (window.AppState) {
+      window.AppState.hostAuthenticated = this.verified;
+    }
+    updateHostAuthUI();
+  }
+};
+
+function attemptHostUnlock() {
+  const input = document.getElementById('hostPasswordInput');
+  const attempted = input ? input.value.trim() : '';
+  if (!attempted) {
+    displayHostAuthMessage('Enter the host password to unlock host mode.', 'error');
+    focusHostAuthInput();
+    return;
+  }
+
+  const secret = window.HostAuth.getSecret();
+  if (attempted === secret) {
+    window.HostAuth.setVerified(true);
+    displayHostAuthMessage('Host mode unlocked. You can now control downtime.', 'success');
+    showToast('Host mode unlocked');
+  } else {
+    window.HostAuth.setVerified(false);
+    displayHostAuthMessage('Incorrect host password. Try again.', 'error');
+    showToast('Incorrect host password');
+    focusHostAuthInput();
+  }
+}
+
+window.attemptHostUnlock = attemptHostUnlock;
+
 // Authentication state
 let isAuthenticated = true;
 let authUiInitialized = false;
@@ -2861,6 +3067,26 @@ function runAuthenticatedStartup() {
     dismissBtn.__bound = true;
   }
 
+  var hostUnlockBtn = document.getElementById('hostUnlockBtn');
+  if (hostUnlockBtn && !hostUnlockBtn.__bound) {
+    hostUnlockBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      attemptHostUnlock();
+    });
+    hostUnlockBtn.__bound = true;
+  }
+
+  var hostPasswordInput = document.getElementById('hostPasswordInput');
+  if (hostPasswordInput && !hostPasswordInput.__bound) {
+    hostPasswordInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        attemptHostUnlock();
+      }
+    });
+    hostPasswordInput.__bound = true;
+  }
+
   var customerNameInput = document.getElementById('customerName');
   if (customerNameInput && !customerNameInput.__bound) {
     customerNameInput.addEventListener('change', function() {
@@ -2953,6 +3179,12 @@ window.AppState = {
   lastStatusChange: null,
   lastStatusSeenAt: null
 };
+
+if (window.HostAuth && typeof window.HostAuth.load === 'function') {
+  window.HostAuth.load();
+} else {
+  updateHostAuthUI();
+}
 
 document.body.classList.add('messages-off');
 
@@ -4568,6 +4800,10 @@ function renderRunbookTable(forceRender) {
 
 // NEW: Drag and Drop Row Reordering Functions
 function handleRowDragStart(e) {
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    e.preventDefault();
+    return;
+  }
   window.AppState.draggedRowId = parseFloat(e.currentTarget.dataset.runbookId);
   e.currentTarget.classList.add('dragging');
   e.dataTransfer.effectAllowed = 'move';
@@ -4581,9 +4817,12 @@ function handleRowDragEnd(e) {
 }
 
 function handleRowDragOver(e) {
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    return;
+  }
   e.preventDefault();
   e.dataTransfer.dropEffect = 'move';
-  
+
   var draggedId = window.AppState.draggedRowId;
   var targetId = parseFloat(e.currentTarget.dataset.runbookId);
   
@@ -4593,8 +4832,11 @@ function handleRowDragOver(e) {
 }
 
 function handleRowDrop(e) {
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    return;
+  }
   e.preventDefault();
-  
+
   var draggedId = window.AppState.draggedRowId;
   var targetId = parseFloat(e.currentTarget.dataset.runbookId);
   
@@ -4953,8 +5195,11 @@ function createTimelineRow(runbook, index) {
   }
 
   row.appendChild(track);
-  track.addEventListener('dragover', handleDragOver);
-  track.addEventListener('drop', handleDrop);
+  var trackEditable = typeof window.canWrite === 'function' ? window.canWrite() : true;
+  if (trackEditable) {
+    track.addEventListener('dragover', handleDragOver);
+    track.addEventListener('drop', handleDrop);
+  }
   return row;
 }
 
@@ -5197,6 +5442,7 @@ function createTimelineBlock(runbook) {
   var strategyClass = runbook.strategy.toLowerCase().replace(/\s+/g, '');
   block.className = 'timeline-block block-' + strategyClass;
   block.dataset.runbookId = runbook.id;
+  var timelineEditable = typeof window.canWrite === 'function' ? window.canWrite() : true;
   
   // Add status-specific styling
   var status = runbook.status || 'not-started';
@@ -5221,7 +5467,7 @@ function createTimelineBlock(runbook) {
     block.classList.add('completed');
     block.draggable = false;
   } else {
-    block.draggable = true;
+    block.draggable = timelineEditable;
   }
   
   var pixelsPerHour = 60;
@@ -5273,7 +5519,7 @@ function createTimelineBlock(runbook) {
   });
   block.addEventListener('mouseleave', hideEnhancedTooltip);
   
-  if (!runbook.completed && status !== 'completed') {
+  if (!runbook.completed && status !== 'completed' && timelineEditable) {
     block.addEventListener('dragstart', handleDragStart);
     block.addEventListener('dragend', handleDragEnd);
   }
@@ -5283,21 +5529,31 @@ function createTimelineBlock(runbook) {
 
 // Drag and Drop Handlers
 function handleDragStart(e) {
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    e.preventDefault();
+    return;
+  }
   e.dataTransfer.effectAllowed = 'move';
   e.target.classList.add('dragging');
   window.AppState.currentDraggedBlock = e.target;
-  
+
   var rect = e.target.getBoundingClientRect();
   window.AppState.dragOffset = e.clientX - rect.left;
 }
 
 function handleDragEnd(e) {
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    return;
+  }
   e.target.classList.remove('dragging');
   window.AppState.currentDraggedBlock = null;
   window.AppState.dragOffset = 0;
 }
 
 function handleDragOver(e) {
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    return;
+  }
   e.preventDefault();
   e.dataTransfer.dropEffect = 'move';
   
@@ -5322,8 +5578,11 @@ function handleDragOver(e) {
 }
 
 function handleDrop(e) {
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    return;
+  }
   e.preventDefault();
-  
+
   if (!window.AppState.currentDraggedBlock) return;
   
   var track = e.currentTarget;
@@ -5597,7 +5856,9 @@ function renderDowntimeControls() {
   controls.dataset.state = nextState;
 
   if (!canWrite) {
-    if (hasStarted) {
+    if (window.AppState && window.AppState.isFirstUser && window.HostAuth && !window.HostAuth.isVerified()) {
+      controls.innerHTML = '<div class="downtime-host-message">Host controls locked. Enter the host password to start downtime.</div>';
+    } else if (hasStarted) {
       controls.innerHTML = '<div class="downtime-host-message">Controlled by host</div>';
     } else {
       controls.innerHTML = '<button class="btn primary" id="startDowntimeBtn" onclick="startDowntime()" disabled title="Only the host can start downtime">Start Downtime</button>';
@@ -6369,6 +6630,9 @@ generateTimelineRows = function() {
 <script type="module">
 // CRITICAL FIX: Initialize canWrite immediately to prevent errors
 window.canWrite = function() {
+  if (window.HostAuth && typeof window.HostAuth.isVerified === 'function' && !window.HostAuth.isVerified()) {
+    return false;
+  }
   // Safe default: return true until Firebase sync is ready
   // This will be properly overridden once Firebase initializes
   return true;
@@ -6963,20 +7227,33 @@ function renderHostStatus() {
   const activeName = controllerName || resolveControllerName();
   const canWrite = typeof window.canWrite === 'function' ? window.canWrite() : true;
   const isViewer = typeof window.canWrite === 'function' ? !window.canWrite() : false;
+  const passwordVerified = window.HostAuth && typeof window.HostAuth.isVerified === 'function'
+    ? window.HostAuth.isVerified()
+    : false;
 
   if (hostValue) {
-    hostValue.textContent = activeName || 'Unassigned';
+    if (!passwordVerified && (!remoteController || remoteController === uid)) {
+      hostValue.textContent = 'Locked';
+    } else {
+      hostValue.textContent = activeName || 'Unassigned';
+    }
   }
 
   hostMetaNodes.forEach(function(metaEl) {
     if (!metaEl) return;
     if (!remoteController) {
-      metaEl.textContent = 'Awaiting first host';
+      if (!passwordVerified) {
+        metaEl.textContent = 'Host mode locked • enter password to control';
+      } else {
+        metaEl.textContent = 'Awaiting first host';
+      }
     } else if (canWrite && remoteController === uid) {
       metaEl.textContent = 'You are controlling this session';
       if (typeof OnboardingTour !== 'undefined' && OnboardingTour) {
         OnboardingTour.maybeStart();
       }
+    } else if (!passwordVerified && remoteController === uid) {
+      metaEl.textContent = 'Host mode locked • enter password to control';
     } else if (activeName) {
       metaEl.textContent = 'Controlled by ' + activeName;
     } else {
@@ -6996,8 +7273,11 @@ function renderHostStatus() {
       button.removeAttribute('title');
     } else {
       button.style.display = 'inline-flex';
-      button.disabled = !!requestBlocked || offline;
-      if (button.disabled) {
+      const locked = !passwordVerified;
+      button.disabled = locked || !!requestBlocked || offline;
+      if (locked) {
+        button.setAttribute('title', 'Enter the host password to request control');
+      } else if (button.disabled) {
         button.setAttribute('title', offline ? 'Reconnect to request host control' : 'Host is reviewing another request');
       } else {
         button.setAttribute('title', 'Ask the host to hand over control');
@@ -7659,8 +7939,42 @@ attemptedControllerClaim = false;
 let lastSentState = null;
 let writing = false;
 
+async function attemptControllerClaim(reason) {
+  if (attemptedControllerClaim) return false;
+  if (viewerForced) return false;
+  if (!window.HostAuth || typeof window.HostAuth.isVerified !== 'function' || !window.HostAuth.isVerified()) {
+    return false;
+  }
+  if (remoteController && remoteController !== uid) {
+    return false;
+  }
+  attemptedControllerClaim = true;
+  try {
+    await window.firestore.setDoc(sessionRef, {
+      controllerUid: uid,
+      controllerName: getOperatorName(),
+      controllerSetAt: window.firestore.serverTimestamp()
+    }, { merge: true });
+    console.log('✓ Became controller:', uid, reason || 'manual');
+    return true;
+  } catch (e) {
+    attemptedControllerClaim = false;
+    console.error('Failed to set controller:', e);
+    return false;
+  }
+}
+
+window.__DT2_attemptControllerClaim = attemptControllerClaim;
+
+if (window.HostAuth && typeof window.HostAuth.isVerified === 'function' && window.HostAuth.isVerified()) {
+  attemptControllerClaim('module-init');
+}
+
 // Check if can write - PROPERLY OVERRIDE THE EARLY INIT
 window.canWrite = function() {
+  if (window.HostAuth && typeof window.HostAuth.isVerified === 'function' && !window.HostAuth.isVerified()) {
+    return false;
+  }
   // If viewer mode is forced via URL parameter, always return false
   const currentUrl = new URL(window.location.href);
   if (viewerForced || currentUrl.searchParams.get("viewer") === "1") return false;
@@ -8970,16 +9284,9 @@ function subscribeToSession() {
   }
 
   // Try to become controller if none exists and we are eligible to host
-  if (!remoteController && !viewerForced && initialSync) {
-    try {
-      await window.firestore.setDoc(sessionRef, {
-        controllerUid: uid,
-        controllerName: getOperatorName(),
-        controllerSetAt: window.firestore.serverTimestamp()
-      }, { merge: true });
-      console.log("✓ Became controller:", uid);
-    } catch (e) {
-      console.error("Failed to set controller:", e);
+  if (!remoteController && !viewerForced) {
+    if (window.HostAuth && typeof window.HostAuth.isVerified === 'function' && window.HostAuth.isVerified()) {
+      await attemptControllerClaim(initialSync ? 'initial-sync' : 'session-sync');
     }
   }
 
@@ -9022,6 +9329,16 @@ subscribeToSession();
 async function requestHostControl() {
   if (typeof window.canWrite === 'function' && window.canWrite()) {
     alert('You are already the host of this session.');
+    return;
+  }
+  if (!window.HostAuth || typeof window.HostAuth.isVerified !== 'function' || !window.HostAuth.isVerified()) {
+    if (typeof window.displayHostAuthMessage === 'function') {
+      window.displayHostAuthMessage('Enter the host password to request control.', 'error');
+    }
+    if (typeof window.focusHostAuthInput === 'function') {
+      window.focusHostAuthInput();
+    }
+    showToast('Host password required to request control');
     return;
   }
   if (!uid) {
