@@ -2861,31 +2861,24 @@ body.dark-mode #messageToggleBtn:hover{
 <script>
 'use strict';
 
-const HOST_PASSWORD_STORAGE_KEY = 'dt2HostAccessVerified';
-const DEFAULT_HOST_MODE_PASSWORD = 'SNPHost2024!';
 const HOST_TAKEOVER_GRACE_MS = 60000;
 window.__DT2_HOST_TAKEOVER_GRACE_MS = HOST_TAKEOVER_GRACE_MS;
 
-function resolveHostPasswordSecret() {
-  if (typeof window.DTrackerHostPassword === 'string' && window.DTrackerHostPassword.trim().length > 0) {
-    return window.DTrackerHostPassword.trim();
-  }
-  const meta = document.querySelector('meta[name="dt-host-password"]');
-  if (meta && typeof meta.content === 'string' && meta.content.trim().length > 0) {
-    return meta.content.trim();
-  }
-  return DEFAULT_HOST_MODE_PASSWORD;
-}
-
 function displayHostAuthMessage(message, variant) {
   const status = document.getElementById('hostAuthStatus');
-  if (!status) return;
-  status.textContent = message || '';
-  status.className = 'host-auth-status';
-  if (variant === 'error') {
-    status.classList.add('error');
-  } else if (variant === 'success') {
-    status.classList.add('success');
+  if (status) {
+    status.textContent = message || '';
+    status.className = 'host-auth-status';
+    if (variant === 'error') {
+      status.classList.add('error');
+    } else if (variant === 'success') {
+      status.classList.add('success');
+    }
+    return;
+  }
+
+  if (message && typeof console !== 'undefined' && console.info) {
+    console.info('[host]', message);
   }
 }
 
@@ -2963,33 +2956,14 @@ function copyHostModeUrl(event) {
 }
 
 function updateHostAuthUI() {
+  if (window.AppState) {
+    window.AppState.hostAuthenticated = true;
+  }
+
   const card = document.getElementById('hostAuthCard');
-  if (!card) return;
-
-  updateHostUrlHint();
-
-  const input = document.getElementById('hostPasswordInput');
-  const button = document.getElementById('hostUnlockBtn');
-  const verified = !!(window.HostAuth && typeof window.HostAuth.isVerified === 'function' && window.HostAuth.isVerified());
-
-  card.classList.toggle('unlocked', verified);
-  if (input) {
-    input.disabled = verified;
-  }
-  if (button) {
-    button.disabled = verified;
-    button.textContent = verified ? 'Host mode unlocked' : 'Unlock host mode';
-  }
-
-  if (verified) {
-    const canWriteNow = typeof window.canWrite === 'function' ? window.canWrite() : true;
-    const waitingForControl = !canWriteNow;
-    const message = waitingForControl
-      ? 'Host mode unlocked. Waiting for the current host to release control.'
-      : 'Host mode unlocked for this browser session.';
-    displayHostAuthMessage(message, 'success');
-  } else {
-    displayHostAuthMessage('Enter the host password to control downtime. Use the direct host URL above if the unlock button stays disabled.', null);
+  if (card && !card.__removed) {
+    card.remove();
+    card.__removed = true;
   }
 }
 
@@ -2998,25 +2972,15 @@ window.focusHostAuthInput = focusHostAuthInput;
 window.updateHostAuthUI = updateHostAuthUI;
 
 window.HostAuth = {
-  storageKey: HOST_PASSWORD_STORAGE_KEY,
-  verified: false,
+  verified: true,
   getSecret() {
-    return resolveHostPasswordSecret();
+    return '';
   },
   isVerified() {
-    return !!this.verified;
+    return true;
   },
   setVerified(value) {
-    this.verified = !!value;
-    try {
-      if (this.verified) {
-        sessionStorage.setItem(this.storageKey, '1');
-      } else {
-        sessionStorage.removeItem(this.storageKey);
-      }
-    } catch (err) {
-      console.warn('Unable to update host auth storage', err);
-    }
+    this.verified = value !== false;
     if (window.AppState) {
       window.AppState.hostAuthenticated = this.verified;
     }
@@ -3027,50 +2991,13 @@ window.HostAuth = {
     if (typeof renderRunbookTable === 'function') renderRunbookTable(true);
     if (typeof updateTimeline === 'function') updateTimeline();
     if (this.verified && typeof window.__DT2_attemptControllerClaim === 'function') {
-      window.__DT2_attemptControllerClaim('password-verified');
+      window.__DT2_attemptControllerClaim('host-access');
     }
   },
   load() {
-    let stored = false;
-    try {
-      stored = sessionStorage.getItem(this.storageKey) === '1';
-    } catch (err) {
-      stored = false;
-    }
-    this.verified = stored;
-    if (window.AppState) {
-      window.AppState.hostAuthenticated = this.verified;
-    }
-    updateHostAuthUI();
+    this.setVerified(true);
   }
 };
-
-function attemptHostUnlock() {
-  const input = document.getElementById('hostPasswordInput');
-  const attempted = input ? input.value.trim() : '';
-  if (!attempted) {
-    displayHostAuthMessage('Enter the host password to unlock host mode.', 'error');
-    focusHostAuthInput();
-    return;
-  }
-
-  const secret = window.HostAuth.getSecret();
-  if (attempted === secret) {
-    window.HostAuth.setVerified(true);
-    displayHostAuthMessage('Host mode unlocked. You can now control downtime.', 'success');
-    showToast('Host mode unlocked');
-  } else {
-    window.HostAuth.setVerified(false);
-    displayHostAuthMessage('Incorrect host password. Try again.', 'error');
-    showToast('Incorrect host password');
-    if (input) {
-      input.value = '';
-    }
-    focusHostAuthInput();
-  }
-}
-
-window.attemptHostUnlock = attemptHostUnlock;
 
 // Authentication state
 let isAuthenticated = true;
@@ -7388,10 +7315,6 @@ function renderHostStatus() {
   const activeName = controllerName || resolveControllerName();
   const canWrite = typeof window.canWrite === 'function' ? window.canWrite() : true;
   const isViewer = typeof window.canWrite === 'function' ? !window.canWrite() : false;
-  const passwordVerified = window.HostAuth && typeof window.HostAuth.isVerified === 'function'
-    ? window.HostAuth.isVerified()
-    : false;
-
   if (hostValue) {
     if (!passwordVerified && (!remoteController || remoteController === uid)) {
       hostValue.textContent = 'Locked';
@@ -8093,9 +8016,6 @@ let writing = false;
 
 async function attemptControllerClaim(reason) {
   if (attemptedControllerClaim) return false;
-  if (!window.HostAuth || typeof window.HostAuth.isVerified !== 'function' || !window.HostAuth.isVerified()) {
-    return false;
-  }
 
   let forcedTakeover = false;
   let clearedViewerLock = false;
@@ -8161,9 +8081,7 @@ async function attemptControllerClaim(reason) {
 
 window.__DT2_attemptControllerClaim = attemptControllerClaim;
 
-if (window.HostAuth && typeof window.HostAuth.isVerified === 'function' && window.HostAuth.isVerified()) {
-  attemptControllerClaim('module-init');
-}
+attemptControllerClaim('module-init');
 
 // Check if can write - PROPERLY OVERRIDE THE EARLY INIT
 window.canWrite = function() {
@@ -9480,9 +9398,7 @@ function subscribeToSession() {
 
   // Try to become controller if none exists and we are eligible to host
   if (!remoteController && !viewerForced) {
-    if (window.HostAuth && typeof window.HostAuth.isVerified === 'function' && window.HostAuth.isVerified()) {
-      await attemptControllerClaim(initialSync ? 'initial-sync' : 'session-sync');
-    }
+    await attemptControllerClaim(initialSync ? 'initial-sync' : 'session-sync');
   }
 
   // Update UI based on role
