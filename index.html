@@ -2975,9 +2975,6 @@ function updateHostAuthUI() {
   card.classList.toggle('unlocked', verified);
   if (input) {
     input.disabled = verified;
-    if (!verified) {
-      input.value = '';
-    }
   }
   if (button) {
     button.disabled = verified;
@@ -2992,7 +2989,7 @@ function updateHostAuthUI() {
       : 'Host mode unlocked for this browser session.';
     displayHostAuthMessage(message, 'success');
   } else {
-    displayHostAuthMessage('Enter the host password to control downtime.', null);
+    displayHostAuthMessage('Enter the host password to control downtime. Use the direct host URL above if the unlock button stays disabled.', null);
   }
 }
 
@@ -3066,6 +3063,9 @@ function attemptHostUnlock() {
     window.HostAuth.setVerified(false);
     displayHostAuthMessage('Incorrect host password. Try again.', 'error');
     showToast('Incorrect host password');
+    if (input) {
+      input.value = '';
+    }
     focusHostAuthInput();
   }
 }
