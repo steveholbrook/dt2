@@ -2810,6 +2810,8 @@ body.dark-mode #messageToggleBtn:hover{
 
 const HOST_PASSWORD_STORAGE_KEY = 'dt2HostAccessVerified';
 const DEFAULT_HOST_MODE_PASSWORD = 'SNPHost2024!';
+const HOST_TAKEOVER_GRACE_MS = 60000;
+window.__DT2_HOST_TAKEOVER_GRACE_MS = HOST_TAKEOVER_GRACE_MS;
 
 function resolveHostPasswordSecret() {
   if (typeof window.DTrackerHostPassword === 'string' && window.DTrackerHostPassword.trim().length > 0) {
@@ -2864,7 +2866,12 @@ function updateHostAuthUI() {
   }
 
   if (verified) {
-    displayHostAuthMessage('Host mode unlocked for this browser session.', 'success');
+    const canWriteNow = typeof window.canWrite === 'function' ? window.canWrite() : true;
+    const waitingForControl = !canWriteNow;
+    const message = waitingForControl
+      ? 'Host mode unlocked. Waiting for the current host to release control.'
+      : 'Host mode unlocked for this browser session.';
+    displayHostAuthMessage(message, 'success');
   } else {
     displayHostAuthMessage('Enter the host password to control downtime.', null);
   }
@@ -6652,6 +6659,32 @@ const firebaseConfig = {
   measurementId: "G-CJ2F30SYRY"
 };
 
+const HOST_TAKEOVER_GRACE_MS = window.__DT2_HOST_TAKEOVER_GRACE_MS || 60000;
+const PRESENCE_ACTIVITY_WINDOW_MS = 45000;
+
+function resolvePresenceLastActive(entry) {
+  if (!entry) return 0;
+  if (typeof entry.lastActiveMs === 'number') return entry.lastActiveMs;
+  if (typeof entry.lastActive === 'number') return entry.lastActive;
+  if (entry.lastActive && typeof entry.lastActive.toMillis === 'function') return entry.lastActive.toMillis();
+  if (entry.lastActive && typeof entry.lastActive.seconds === 'number') return entry.lastActive.seconds * 1000;
+  if (typeof entry.lastActiveMillis === 'number') return entry.lastActiveMillis;
+  if (typeof entry.updatedAt === 'object' && entry.updatedAt && typeof entry.updatedAt.seconds === 'number') {
+    return entry.updatedAt.seconds * 1000;
+  }
+  if (typeof entry.lastSeen === 'number') return entry.lastSeen;
+  if (typeof entry.ts === 'number') return entry.ts;
+  return 0;
+}
+
+function isPresenceEntryActive(entry, now) {
+  if (!entry) return false;
+  if (typeof entry.isActive === 'boolean') return entry.isActive;
+  const lastActive = resolvePresenceLastActive(entry);
+  if (!lastActive) return false;
+  return (now || Date.now()) - lastActive < PRESENCE_ACTIVITY_WINDOW_MS;
+}
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
@@ -7144,6 +7177,7 @@ function persistOperatorProfile(name) {
 }
 
 let presenceRoster = {};
+let presenceRosterReady = false;
 let controllerName = null;
 let controlRequest = null;
 let latestSessionData = {};
@@ -7822,22 +7856,8 @@ function handlePresenceEntries(entries) {
       roster[presenceEntry.uid] = rosterEntry;
     }
 
-    let timestamp = 0;
-    if (typeof presenceEntry.lastActive === 'number') {
-      timestamp = presenceEntry.lastActive;
-    } else if (presenceEntry.lastActive && typeof presenceEntry.lastActive.toMillis === 'function') {
-      timestamp = presenceEntry.lastActive.toMillis();
-    } else if (presenceEntry.lastActive && typeof presenceEntry.lastActive.seconds === 'number') {
-      timestamp = presenceEntry.lastActive.seconds * 1000;
-    } else if (typeof presenceEntry.lastActiveMillis === 'number') {
-      timestamp = presenceEntry.lastActiveMillis;
-    } else if (presenceEntry.updatedAt && typeof presenceEntry.updatedAt.seconds === 'number') {
-      timestamp = presenceEntry.updatedAt.seconds * 1000;
-    } else if (typeof presenceEntry.ts === 'number') {
-      timestamp = presenceEntry.ts;
-    }
-
-    const isActive = timestamp ? (now - timestamp < 45000) : true;
+    const timestamp = resolvePresenceLastActive(presenceEntry);
+    const isActive = timestamp ? (now - timestamp < PRESENCE_ACTIVITY_WINDOW_MS) : true;
     if (isActive) {
       online++;
       if ((rosterEntry.mode || '').toLowerCase() === 'viewer') {
@@ -7847,9 +7867,14 @@ function handlePresenceEntries(entries) {
         hostCount++;
       }
     }
+
+    rosterEntry.lastActiveMs = timestamp || 0;
+    rosterEntry.isActive = isActive;
+    rosterEntry.lastSeen = timestamp || 0;
   });
 
   presenceRoster = roster;
+  presenceRosterReady = true;
   controllerName = resolveControllerName();
   trackViewerEngagement(viewerEntries, now);
 
@@ -7945,9 +7970,32 @@ async function attemptControllerClaim(reason) {
   if (!window.HostAuth || typeof window.HostAuth.isVerified !== 'function' || !window.HostAuth.isVerified()) {
     return false;
   }
+
+  let forcedTakeover = false;
   if (remoteController && remoteController !== uid) {
-    return false;
+    const presence = presenceRoster ? presenceRoster[remoteController] : null;
+    const now = Date.now();
+    let stale = false;
+    let offlineDuration = 0;
+
+    if (presence) {
+      const lastActive = resolvePresenceLastActive(presence);
+      const active = isPresenceEntryActive(presence, now);
+      offlineDuration = lastActive ? now - lastActive : Number.POSITIVE_INFINITY;
+      stale = !active && offlineDuration >= HOST_TAKEOVER_GRACE_MS;
+    } else if (presenceRosterReady) {
+      stale = true;
+      offlineDuration = Number.POSITIVE_INFINITY;
+    }
+
+    if (!stale) {
+      return false;
+    }
+
+    forcedTakeover = true;
+    console.warn('Forcing host takeover from offline controller', remoteController, 'inactive for', offlineDuration, 'ms');
   }
+
   attemptedControllerClaim = true;
   try {
     await window.firestore.setDoc(sessionRef, {
@@ -7956,6 +8004,14 @@ async function attemptControllerClaim(reason) {
       controllerSetAt: window.firestore.serverTimestamp()
     }, { merge: true });
     console.log('✓ Became controller:', uid, reason || 'manual');
+    if (forcedTakeover) {
+      if (typeof window.displayHostAuthMessage === 'function') {
+        window.displayHostAuthMessage('Host control reclaimed from an inactive host.', 'success');
+      }
+      if (typeof window.showToast === 'function') {
+        window.showToast('Host control reassigned. Previous host inactive.');
+      }
+    }
     return true;
   } catch (e) {
     attemptedControllerClaim = false;
@@ -9292,6 +9348,9 @@ function subscribeToSession() {
 
   // Update UI based on role
   updateViewerPanel();
+  if (typeof window.updateHostAuthUI === 'function') {
+    window.updateHostAuthUI();
+  }
 
   if (initialSync) {
     initialSync = false;
@@ -9300,6 +9359,9 @@ function subscribeToSession() {
     hideContextSwitchToast();
     contextSwitchInFlight = false;
     renderHostStatus();
+    if (typeof window.updateHostAuthUI === 'function') {
+      window.updateHostAuthUI();
+    }
 
     // CRITICAL FIX: For viewers, force UI update and start duration counter
     if (!window.canWrite() && data.state) {
@@ -9516,6 +9578,7 @@ async function switchSessionContext(newValues) {
   controlRequest = null;
   controllerName = null;
   presenceRoster = {};
+  presenceRosterReady = false;
 
   try {
     url.searchParams.set("customer", sessionContext.customerValue);
@@ -9696,7 +9759,9 @@ document.getElementById("rt-reset").onclick = async function() {
     messagesOn: false,
     fullscreenMode: false
   };
-  
+  presenceRoster = {};
+  presenceRosterReady = false;
+
   // Reset UI
   document.getElementById('customerName').value = '';
   document.getElementById('transformCycle').value = 'Test Migration';
