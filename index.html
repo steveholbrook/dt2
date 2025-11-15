@@ -178,6 +178,47 @@
     color: var(--sap-muted);
   }
 
+  .host-auth-instructions {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--sap-muted);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .host-auth-steps {
+    margin: 0;
+    padding-left: 18px;
+  }
+
+  .host-auth-steps li {
+    margin-bottom: 4px;
+    line-height: 1.5;
+  }
+
+  .host-auth-url-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .host-auth-url-label {
+    font-weight: 600;
+    color: var(--sap-text);
+  }
+
+  .host-auth-url-link {
+    color: var(--sap-accent);
+    word-break: break-all;
+  }
+
+  .host-auth-url-copy {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
   .host-auth-status {
     margin-top: 8px;
     font-size: 12px;
@@ -2498,6 +2539,18 @@ body.dark-mode #messageToggleBtn:hover{
         <button class="btn primary" type="button" id="hostUnlockBtn">Unlock host mode</button>
       </div>
       <p class="host-auth-note">Only teammates with the shared host password can modify runbooks or downtime controls.</p>
+      <div class="host-auth-instructions">
+        <ol class="host-auth-steps">
+          <li>Open the host view using the direct link below so you are not in read-only viewer mode.</li>
+          <li>Enter the shared password and press <strong>Unlock host mode</strong> (or press Enter).</li>
+          <li>If another host is active, wait for their session to release or for the system to reclaim control automatically.</li>
+        </ol>
+        <div class="host-auth-url-row">
+          <span class="host-auth-url-label">Direct host URL:</span>
+          <a id="hostModeUrlLink" class="host-auth-url-link" target="_blank" rel="noopener">—</a>
+          <button type="button" class="btn host-auth-url-copy" id="copyHostModeUrlBtn">Copy</button>
+        </div>
+      </div>
       <div class="host-auth-status" id="hostAuthStatus"></div>
     </div>
 
@@ -2845,9 +2898,75 @@ function focusHostAuthInput() {
   }
 }
 
+function computeHostModeUrl() {
+  try {
+    const current = new URL(window.location.href);
+    current.searchParams.set('viewer', '0');
+    return current.toString();
+  } catch (err) {
+    const href = window.location && window.location.href ? window.location.href : '';
+    const separator = href.includes('?') ? '&' : '?';
+    return href + separator + 'viewer=0';
+  }
+}
+
+function updateHostUrlHint() {
+  const link = document.getElementById('hostModeUrlLink');
+  const copyBtn = document.getElementById('copyHostModeUrlBtn');
+  const url = computeHostModeUrl();
+
+  if (link) {
+    link.href = url;
+    link.textContent = url;
+  }
+
+  if (copyBtn) {
+    copyBtn.dataset.url = url;
+  }
+}
+
+function copyHostModeUrl(event) {
+  event.preventDefault();
+  const url = (event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.url) || computeHostModeUrl();
+  if (!url) return;
+
+  const notify = function(message) {
+    if (typeof window.showToast === 'function') {
+      window.showToast(message);
+    } else {
+      alert(message);
+    }
+  };
+
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    navigator.clipboard.writeText(url)
+      .then(function() { notify('Host link copied'); })
+      .catch(function() { notify('Copy failed. Use the link to open host mode.'); });
+    return;
+  }
+
+  const temp = document.createElement('textarea');
+  temp.value = url;
+  temp.setAttribute('readonly', '');
+  temp.style.position = 'absolute';
+  temp.style.left = '-9999px';
+  document.body.appendChild(temp);
+  temp.select();
+  try {
+    document.execCommand('copy');
+    notify('Host link copied');
+  } catch (err) {
+    notify('Copy failed. Use the link to open host mode.');
+  } finally {
+    document.body.removeChild(temp);
+  }
+}
+
 function updateHostAuthUI() {
   const card = document.getElementById('hostAuthCard');
   if (!card) return;
+
+  updateHostUrlHint();
 
   const input = document.getElementById('hostPasswordInput');
   const button = document.getElementById('hostUnlockBtn');
@@ -3093,6 +3212,14 @@ function runAuthenticatedStartup() {
     });
     hostPasswordInput.__bound = true;
   }
+
+  var copyHostUrlBtn = document.getElementById('copyHostModeUrlBtn');
+  if (copyHostUrlBtn && !copyHostUrlBtn.__bound) {
+    copyHostUrlBtn.addEventListener('click', copyHostModeUrl);
+    copyHostUrlBtn.__bound = true;
+  }
+
+  updateHostUrlHint();
 
   var customerNameInput = document.getElementById('customerName');
   if (customerNameInput && !customerNameInput.__bound) {
@@ -7966,12 +8093,12 @@ let writing = false;
 
 async function attemptControllerClaim(reason) {
   if (attemptedControllerClaim) return false;
-  if (viewerForced) return false;
   if (!window.HostAuth || typeof window.HostAuth.isVerified !== 'function' || !window.HostAuth.isVerified()) {
     return false;
   }
 
   let forcedTakeover = false;
+  let clearedViewerLock = false;
   if (remoteController && remoteController !== uid) {
     const presence = presenceRoster ? presenceRoster[remoteController] : null;
     const now = Date.now();
@@ -7989,11 +8116,23 @@ async function attemptControllerClaim(reason) {
     }
 
     if (!stale) {
+      if (viewerForced) {
+        console.warn('Viewer mode enforced: active host still connected');
+      }
       return false;
     }
 
     forcedTakeover = true;
     console.warn('Forcing host takeover from offline controller', remoteController, 'inactive for', offlineDuration, 'ms');
+  } else if (viewerForced) {
+    clearedViewerLock = true;
+  }
+
+  if (viewerForced) {
+    viewerForced = false;
+  }
+  if (clearedViewerLock) {
+    console.log('Viewer lock cleared after host verification');
   }
 
   attemptedControllerClaim = true;
