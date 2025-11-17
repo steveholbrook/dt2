@@ -2900,6 +2900,7 @@ function computeHostModeUrl(options) {
       current.searchParams.set('customer', sessionContext.customerValue || '');
       current.searchParams.set('transformCycle', sessionContext.transformValue || '');
       current.searchParams.set('phase', sessionContext.transformValue || '');
+      current.searchParams.set('session', sessionContext.sessionKey || '');
     }
     current.searchParams.set('viewer', forceViewer ? '1' : '0');
     return current.toString();
@@ -2910,7 +2911,8 @@ function computeHostModeUrl(options) {
     const base = href.includes('viewer=') ? href.replace(/viewer=[^&#]*/g, viewerParam) : (href + separator + viewerParam);
     const customerPart = sessionContext?.customerValue ? `&customer=${encodeURIComponent(sessionContext.customerValue)}` : '';
     const transformPart = sessionContext?.transformValue ? `&transformCycle=${encodeURIComponent(sessionContext.transformValue)}&phase=${encodeURIComponent(sessionContext.transformValue)}` : '';
-    return base + customerPart + transformPart;
+    const sessionPart = sessionContext?.sessionKey ? `&session=${encodeURIComponent(sessionContext.sessionKey)}` : '';
+    return base + customerPart + transformPart + sessionPart;
   }
 }
 
@@ -6003,20 +6005,26 @@ window.startDowntime = function() {
   document.getElementById('startTimeDisplay').style.display = 'block';
   document.getElementById('currentDurationInput').style.display = 'none';
   document.getElementById('currentDurationDisplay').style.display = 'block';
-  
-  var startTimeStr = window.AppState.downtimeStartTime.toLocaleTimeString('en-US', 
+
+  var startTimeStr = window.AppState.downtimeStartTime.toLocaleTimeString('en-US',
     { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
   
   document.getElementById('startTimeDisplay').textContent = startTimeStr;
   
   // Set current duration to 00:00:00
   document.getElementById('currentDurationDisplay').textContent = '00:00:00';
-  
+
   calculateEndTime();
-  
+
+  // Kick off timers immediately so the tracker and duration reflect the new session without delay
+  if (!clockIntervalId) {
+    clockIntervalId = setInterval(updateClock, 1000);
+  }
+  updateClock();
+
   document.getElementById('statusText').textContent = 'In Progress';
   document.getElementById('statusText').style.color = 'var(--sap-error)';
-  
+
   renderDowntimeControls();
   
   var currentLine = document.getElementById('currentTimeLine');
@@ -6829,6 +6837,7 @@ window.loadTemplatesFromFirebase = async function() {
 const url = new URL(window.location.href);
 let customerParam = url.searchParams.get("customer") || "";
 let phaseParam = url.searchParams.get("phase") || url.searchParams.get("transformCycle") || "";
+let sessionParam = url.searchParams.get("session") || "";
 let viewerParam = url.searchParams.get("viewer");
 let requestedViewerMode = viewerParam === "1";
 let hostBlockReason = null;
@@ -6868,6 +6877,12 @@ function loadLastSessionContext() {
 }
 
 const lastSessionContext = loadLastSessionContext();
+if (sessionParam && (!customerParam || !phaseParam)) {
+  const parts = sessionParam.split("__");
+  const hydrate = (segment) => (segment || "").replace(/-/g, " ").trim();
+  if (!customerParam && parts[0]) customerParam = hydrate(parts[0]);
+  if (!phaseParam && parts[1]) phaseParam = hydrate(parts[1]);
+}
 if (!customerParam && lastSessionContext.customer) customerParam = lastSessionContext.customer;
 if (!phaseParam && lastSessionContext.transform) phaseParam = lastSessionContext.transform;
 
@@ -7493,6 +7508,7 @@ try {
   url.searchParams.set("customer", sessionContext.customerValue);
   url.searchParams.set("transformCycle", sessionContext.transformValue);
   url.searchParams.set("phase", sessionContext.transformValue);
+  url.searchParams.set("session", sessionContext.sessionKey);
   history.replaceState(null, "", url.toString());
 } catch (e) {
   console.warn("Failed to update URL parameters", e);
@@ -7620,6 +7636,7 @@ function createRealtimeOverlay() {
     shareUrl.searchParams.set("customer", sessionContext.customerValue);
     shareUrl.searchParams.set("transformCycle", sessionContext.transformValue);
     shareUrl.searchParams.set("phase", sessionContext.transformValue);
+    shareUrl.searchParams.set("session", sessionContext.sessionKey);
     await navigator.clipboard.writeText(shareUrl.toString());
     const btn = document.getElementById("rt-copy");
     const prev = btn.textContent;
@@ -9546,6 +9563,7 @@ async function switchSessionContext(newValues) {
       url.searchParams.set("customer", sessionContext.customerValue);
       url.searchParams.set("transformCycle", sessionContext.transformValue);
       url.searchParams.set("phase", sessionContext.transformValue);
+      url.searchParams.set("session", sessionContext.sessionKey);
       history.replaceState(null, "", url.toString());
     } catch (err) {
       console.warn("Failed to refresh URL on session switch", err);
@@ -9650,6 +9668,7 @@ async function switchSessionContext(newValues) {
     url.searchParams.set("customer", sessionContext.customerValue);
     url.searchParams.set("transformCycle", sessionContext.transformValue);
     url.searchParams.set("phase", sessionContext.transformValue);
+    url.searchParams.set("session", sessionContext.sessionKey);
     history.replaceState(null, "", url.toString());
   } catch (err) {
     console.warn("Failed to refresh URL on session switch", err);
