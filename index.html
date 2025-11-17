@@ -2891,22 +2891,33 @@ function focusHostAuthInput() {
   }
 }
 
-function computeHostModeUrl() {
+function computeHostModeUrl(options) {
+  const forceViewer = !!(options && options.viewer);
+
   try {
     const current = new URL(window.location.href);
-    current.searchParams.set('viewer', '0');
+    if (sessionContext && typeof sessionContext === 'object') {
+      current.searchParams.set('customer', sessionContext.customerValue || '');
+      current.searchParams.set('transformCycle', sessionContext.transformValue || '');
+      current.searchParams.set('phase', sessionContext.transformValue || '');
+    }
+    current.searchParams.set('viewer', forceViewer ? '1' : '0');
     return current.toString();
   } catch (err) {
     const href = window.location && window.location.href ? window.location.href : '';
     const separator = href.includes('?') ? '&' : '?';
-    return href + separator + 'viewer=0';
+    const viewerParam = 'viewer=' + (forceViewer ? '1' : '0');
+    const base = href.includes('viewer=') ? href.replace(/viewer=[^&#]*/g, viewerParam) : (href + separator + viewerParam);
+    const customerPart = sessionContext?.customerValue ? `&customer=${encodeURIComponent(sessionContext.customerValue)}` : '';
+    const transformPart = sessionContext?.transformValue ? `&transformCycle=${encodeURIComponent(sessionContext.transformValue)}&phase=${encodeURIComponent(sessionContext.transformValue)}` : '';
+    return base + customerPart + transformPart;
   }
 }
 
 function updateHostUrlHint() {
   const link = document.getElementById('hostModeUrlLink');
   const copyBtn = document.getElementById('copyHostModeUrlBtn');
-  const url = computeHostModeUrl();
+  const url = computeHostModeUrl({ viewer: true });
 
   if (link) {
     link.href = url;
@@ -2920,7 +2931,7 @@ function updateHostUrlHint() {
 
 function copyHostModeUrl(event) {
   event.preventDefault();
-  const url = (event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.url) || computeHostModeUrl();
+  const url = (event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.url) || computeHostModeUrl({ viewer: true });
   if (!url) return;
 
   const notify = function(message) {
