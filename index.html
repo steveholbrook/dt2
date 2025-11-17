@@ -6877,12 +6877,18 @@ function loadLastSessionContext() {
 }
 
 const lastSessionContext = loadLastSessionContext();
-if (sessionParam && (!customerParam || !phaseParam)) {
+let sessionHydratedCustomer = "";
+let sessionHydratedTransform = "";
+
+if (sessionParam) {
   const parts = sessionParam.split("__");
   const hydrate = (segment) => (segment || "").replace(/-/g, " ").trim();
-  if (!customerParam && parts[0]) customerParam = hydrate(parts[0]);
-  if (!phaseParam && parts[1]) phaseParam = hydrate(parts[1]);
+  sessionHydratedCustomer = hydrate(parts[0]);
+  sessionHydratedTransform = hydrate(parts[1]);
 }
+
+if (!customerParam && sessionHydratedCustomer) customerParam = sessionHydratedCustomer;
+if (!phaseParam && sessionHydratedTransform) phaseParam = sessionHydratedTransform;
 if (!customerParam && lastSessionContext.customer) customerParam = lastSessionContext.customer;
 if (!phaseParam && lastSessionContext.transform) phaseParam = lastSessionContext.transform;
 
@@ -6898,7 +6904,7 @@ if (phaseParam && phaseInput) phaseInput.value = phaseParam;
 // Generate safe key for Firebase
 const toKey = s => (s||"default").toString().trim().toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"") || "default";
 
-function deriveSessionContext({ customerValue, transformValue }) {
+function deriveSessionContext({ customerValue, transformValue, sessionKeyOverride }) {
   const normalizedCustomer = (customerValue || "").toString().trim() || "default";
   const normalizedTransform = (transformValue || "").toString().trim() || "default";
   const customerKey = toKey(normalizedCustomer);
@@ -6908,13 +6914,14 @@ function deriveSessionContext({ customerValue, transformValue }) {
     transformValue: normalizedTransform,
     customerKey,
     phaseKey,
-    sessionKey: `${customerKey}__${phaseKey}`
+    sessionKey: sessionKeyOverride || `${customerKey}__${phaseKey}`
   };
 }
 
 let sessionContext = deriveSessionContext({
   customerValue: nameInput?.value || customerParam,
-  transformValue: phaseInput?.value || phaseParam
+  transformValue: phaseInput?.value || phaseParam,
+  sessionKeyOverride: sessionParam || null
 });
 
 customerParam = sessionContext.customerValue;
