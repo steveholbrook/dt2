@@ -6867,6 +6867,7 @@ let sessionContext = deriveSessionContext({
   transformValue: phaseInput?.value || phaseParam,
   sessionKeyOverride: sessionParam || null
 });
+let lastRequestedContext = sessionContext;
 
 customerParam = sessionContext.customerValue;
 phaseParam = sessionContext.transformValue;
@@ -6885,6 +6886,8 @@ function applySessionContextToUi(context) {
   if (!context) return;
   customerParam = context.customerValue;
   phaseParam = context.transformValue;
+
+  lastRequestedContext = context;
 
   if (nameInput) nameInput.value = context.customerValue;
   if (phaseInput) phaseInput.value = context.transformValue;
@@ -8185,9 +8188,10 @@ function applyRemoteState(remoteState) {
   if (!state.inputLock) {
     const remoteCustomer = remoteState.customerName;
     const remoteTransform = remoteState.transformCycle;
+    const targetContext = pendingSessionContext || lastRequestedContext || sessionContext;
     const remoteMatchesContext = (
-      (!remoteCustomer || toKey(remoteCustomer) === sessionContext.customerKey) &&
-      (!remoteTransform || toKey(remoteTransform) === sessionContext.phaseKey)
+      (!remoteCustomer || toKey(remoteCustomer) === targetContext.customerKey) &&
+      (!remoteTransform || toKey(remoteTransform) === targetContext.phaseKey)
     );
 
     if (remoteMatchesContext) {
@@ -9522,6 +9526,15 @@ async function switchSessionContext(newValues) {
   const newContext = deriveSessionContext(newValues);
   const previousContext = sessionContext;
   const previousPresenceId = presenceDocId || uid || sessionInstanceId;
+  lastRequestedContext = newContext;
+
+  if (contextSwitchInFlight) {
+    console.warn("Session switch already in progress; queuing latest request.");
+    pendingSessionContext = newContext;
+    // Keep the UI aligned with the user's requested context while the switch is queued
+    applySessionContextToUi({ ...sessionContext, ...newContext });
+    return;
+  }
 
   if (contextSwitchInFlight) {
     console.warn("Session switch already in progress; queuing latest request.");
