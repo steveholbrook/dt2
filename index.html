@@ -1471,6 +1471,13 @@
     min-width:100px;
     text-align:center;
   }
+
+  .time-subtext {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: var(--sap-muted);
+    margin-top: 6px;
+  }
   
   .time-input{
     font-family:'Courier New', monospace;
@@ -2497,15 +2504,17 @@ body.dark-mode #messageToggleBtn:hover{
         <div class="timeline-info">
           <div class="timeline-field">
             <label>Technical Downtime Duration (hrs)</label>
-            <input type="number" id="downtimeDuration" min="1" max="168" value="24" 
+            <input type="number" id="downtimeDuration" min="1" max="168" value="24"
                    onchange="updateTimeline();calculateEndTime()" style="width:80px;">
+            <div class="time-subtext" id="plannedWindowTime">Planned: --:-- → --:--</div>
           </div>
           <div class="timeline-field">
             <label>Start Time</label>
             <div id="startTimeContainer">
-              <input type="time" id="startTimeInput" class="time-input" 
+              <input type="time" id="startTimeInput" class="time-input"
                      onchange="calculateEndTime()" style="display:none;">
               <div class="time-display" id="startTimeDisplay">--:--:--</div>
+              <div class="time-subtext" id="liveStartTime">Current: --:--:--</div>
             </div>
           </div>
           <div class="timeline-field">
@@ -4370,21 +4379,17 @@ function setupStartTimeInputs() {
 function calculateEndTime() {
   var duration = parseInt(document.getElementById('downtimeDuration').value) || 24;
   var startTimeInput = document.getElementById('startTimeInput');
-  var endTimeDisplay = document.getElementById('endTimeDisplay');
+  var plannedStart = resolvePlannedStartDate();
   
   if (!window.AppState.downtimeStarted && startTimeInput && startTimeInput.value) {
-    var timeParts = startTimeInput.value.split(':').map(Number);
-    var hours = timeParts[0];
-    var minutes = timeParts[1];
-    var startDate = new Date();
-    startDate.setHours(hours, minutes, 0, 0);
-    
-    var endDate = new Date(startDate.getTime() + duration * 3600000);
+    var endDate = new Date(plannedStart.getTime() + duration * 3600000);
     updateEndTimeDisplay(endDate, duration);
   } else if (window.AppState.downtimeStarted && window.AppState.downtimeStartTime) {
     var endDate = new Date(window.AppState.downtimeStartTime.getTime() + duration * 3600000);
     updateEndTimeDisplay(endDate, duration);
   }
+
+  updatePlannedWindowTime(null, plannedStart);
 }
 
 function updateEndTimeDisplay(endDate, duration) {
@@ -4401,12 +4406,63 @@ function updateEndTimeDisplay(endDate, duration) {
   if (daysDiff > 0) {
     displayText += ' (+' + daysDiff + ' day' + (daysDiff > 1 ? 's' : '') + ')';
   }
-  
+
   endTimeDisplay.textContent = displayText;
+}
+
+function formatClockTime(date, includeSeconds) {
+  if (!(date instanceof Date) || isNaN(date)) return '--:--' + (includeSeconds ? ':--' : '');
+  var hours = String(date.getHours()).padStart(2, '0');
+  var minutes = String(date.getMinutes()).padStart(2, '0');
+  if (!includeSeconds) return hours + ':' + minutes;
+  var seconds = String(date.getSeconds()).padStart(2, '0');
+  return hours + ':' + minutes + ':' + seconds;
+}
+
+function resolvePlannedStartDate(now) {
+  var candidateNow = now instanceof Date ? now : new Date();
+  var resolvedStart = resolveDowntimeStartTime();
+  if (resolvedStart) return resolvedStart;
+
+  var startTimeInput = document.getElementById('startTimeInput');
+  if (startTimeInput && startTimeInput.value) {
+    var parts = startTimeInput.value.split(':').map(Number);
+    if (parts.length >= 2 && !parts.some(function(p) { return isNaN(p); })) {
+      var startDate = new Date(candidateNow.getTime());
+      startDate.setHours(parts[0], parts[1], candidateNow.getSeconds(), candidateNow.getMilliseconds());
+      return startDate;
+    }
+  }
+
+  return candidateNow;
+}
+
+function updatePlannedWindowTime(now, explicitStart) {
+  var label = document.getElementById('plannedWindowTime');
+  if (!label) return;
+
+  var duration = parseInt(document.getElementById('downtimeDuration').value) || 24;
+  var startDate = explicitStart instanceof Date ? explicitStart : resolvePlannedStartDate(now);
+  if (!(startDate instanceof Date) || isNaN(startDate)) {
+    label.textContent = 'Planned: --:-- → --:--';
+    return;
+  }
+
+  var endDate = new Date(startDate.getTime() + duration * 3600000);
+  label.textContent = 'Planned: ' + formatClockTime(startDate, false) + ' → ' + formatClockTime(endDate, false);
+}
+
+function updateLiveStartTime(now) {
+  var liveLabel = document.getElementById('liveStartTime');
+  if (!liveLabel) return;
+  var current = now instanceof Date ? now : new Date();
+  liveLabel.textContent = 'Current: ' + formatClockTime(current, true);
 }
 
 function updateClock() {
   var now = new Date();
+  updateLiveStartTime(now);
+  updatePlannedWindowTime(now);
   var timeElement = document.getElementById('currentTime');
   if (timeElement) {
     timeElement.textContent = now.toLocaleTimeString('en-US', {
