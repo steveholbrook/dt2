@@ -6811,6 +6811,33 @@ console.log("Session initialization:", {
   fullUrl: window.location.href
 });
 
+function applySessionContextToUi(context) {
+  if (!context) return;
+  customerParam = context.customerValue;
+  phaseParam = context.transformValue;
+
+  if (nameInput) nameInput.value = context.customerValue;
+  if (phaseInput) phaseInput.value = context.transformValue;
+
+  try {
+    url.searchParams.set("customer", context.customerValue);
+    url.searchParams.set("transformCycle", context.transformValue);
+    url.searchParams.set("phase", context.transformValue);
+    url.searchParams.set("session", context.sessionKey);
+    history.replaceState(null, "", url.toString());
+  } catch (err) {
+    console.warn("Failed to refresh URL on session switch", err);
+  }
+
+  const customerLabel = document.getElementById('rt-customer');
+  if (customerLabel) customerLabel.textContent = context.customerValue;
+  const transformLabel = document.getElementById('rt-transform');
+  if (transformLabel) transformLabel.textContent = context.transformValue;
+
+  addRecentCustomer(context.customerValue, context.transformValue);
+  renderHostStatus();
+}
+
 function createLocalRealtimeBridge(sessionKey) {
   const safeSessionKey = sessionKey || 'default__default';
   const stateKey = `dt2-local-state-${safeSessionKey}`;
@@ -9414,25 +9441,14 @@ async function switchSessionContext(newValues) {
   const previousContext = sessionContext;
   const previousPresenceId = presenceDocId || uid || sessionInstanceId;
 
+  if (contextSwitchInFlight) {
+    console.warn("Session switch already in progress; ignoring new request.");
+    return;
+  }
+
   if (newContext.sessionKey === previousContext.sessionKey) {
     sessionContext = { ...previousContext, ...newContext };
-    customerParam = sessionContext.customerValue;
-    phaseParam = sessionContext.transformValue;
-    try {
-      url.searchParams.set("customer", sessionContext.customerValue);
-      url.searchParams.set("transformCycle", sessionContext.transformValue);
-      url.searchParams.set("phase", sessionContext.transformValue);
-      url.searchParams.set("session", sessionContext.sessionKey);
-      history.replaceState(null, "", url.toString());
-    } catch (err) {
-      console.warn("Failed to refresh URL on session switch", err);
-    }
-    const customerLabel = document.getElementById('rt-customer');
-    if (customerLabel) customerLabel.textContent = sessionContext.customerValue;
-    const transformLabel = document.getElementById('rt-transform');
-    if (transformLabel) transformLabel.textContent = sessionContext.transformValue;
-    addRecentCustomer(sessionContext.customerValue, sessionContext.transformValue);
-    renderHostStatus();
+    applySessionContextToUi(sessionContext);
     return;
   }
 
@@ -9502,8 +9518,6 @@ async function switchSessionContext(newValues) {
 
   try {
     sessionContext = newContext;
-    customerParam = sessionContext.customerValue;
-    phaseParam = sessionContext.transformValue;
     if (!presenceDocId && uid) {
       presenceDocId = `${uid}-${sessionInstanceId}`;
     }
@@ -9524,17 +9538,7 @@ async function switchSessionContext(newValues) {
     presenceRoster = {};
     presenceRosterReady = false;
 
-    url.searchParams.set("customer", sessionContext.customerValue);
-    url.searchParams.set("transformCycle", sessionContext.transformValue);
-    url.searchParams.set("phase", sessionContext.transformValue);
-    url.searchParams.set("session", sessionContext.sessionKey);
-    history.replaceState(null, "", url.toString());
-
-    const customerLabel = document.getElementById('rt-customer');
-    if (customerLabel) customerLabel.textContent = sessionContext.customerValue;
-    const transformLabel = document.getElementById('rt-transform');
-    if (transformLabel) transformLabel.textContent = sessionContext.transformValue;
-    addRecentCustomer(sessionContext.customerValue, sessionContext.transformValue);
+    applySessionContextToUi(sessionContext);
     renderControlRequestBanner();
 
     LocalRealtime = createLocalRealtimeBridge(sessionContext.sessionKey);
@@ -9549,10 +9553,7 @@ async function switchSessionContext(newValues) {
     console.error('Failed to switch session context', err);
     updateConnectionIndicator('error', 'Session switch failed, restoring previous context');
     sessionContext = previousContext;
-    customerParam = previousContext.customerValue;
-    phaseParam = previousContext.transformValue;
-    if (nameInput) nameInput.value = previousContext.customerValue;
-    if (phaseInput) phaseInput.value = previousContext.transformValue;
+    applySessionContextToUi(previousContext);
     throw err;
   } finally {
     hideContextSwitchToast();
@@ -9566,6 +9567,16 @@ if (nameInput) {
       customerValue: nameInput.value,
       transformValue: phaseInput?.value || phaseParam
     }).catch(err => console.error('Failed to switch session context (customer change)', err));
+  });
+
+  nameInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      switchSessionContext({
+        customerValue: nameInput.value,
+        transformValue: phaseInput?.value || phaseParam
+      }).catch(err => console.error('Failed to switch session context (customer change via enter)', err));
+    }
   });
 }
 
@@ -9597,7 +9608,20 @@ function syncSessionContextFromUrl() {
   }).catch(err => console.error('Failed to sync session from URL params', err));
 }
 
-window.addEventListener('popstate', syncSessionContextFromUrl);
+['pushState', 'replaceState'].forEach(function(method) {
+  const original = history[method];
+  history[method] = function() {
+    const result = original.apply(this, arguments);
+    window.dispatchEvent(new Event('locationchange'));
+    return result;
+  };
+});
+
+window.addEventListener('popstate', function() {
+  window.dispatchEvent(new Event('locationchange'));
+});
+window.addEventListener('locationchange', syncSessionContextFromUrl);
+syncSessionContextFromUrl();
 
 // Hook into mutation functions (including fullscreen toggle)
 const mutationFunctions = [
