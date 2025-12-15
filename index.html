@@ -6707,8 +6707,10 @@ window.loadTemplatesFromFirebase = async function() {
 
 // Get URL parameters
 const url = new URL(window.location.href);
-let customerParam = url.searchParams.get("customer") || "";
-let phaseParam = url.searchParams.get("phase") || url.searchParams.get("transformCycle") || "";
+const readCustomerFromUrl = (search = url.searchParams) => search.get("customer") || "";
+const readTransformFromUrl = (search = url.searchParams) => search.get("phase") || search.get("transformCycle") || "";
+let customerParam = readCustomerFromUrl();
+let phaseParam = readTransformFromUrl();
 let sessionParam = url.searchParams.get("session") || "";
 let viewerParam = url.searchParams.get("viewer");
 let requestedViewerMode = viewerParam === "1";
@@ -9498,54 +9500,64 @@ async function switchSessionContext(newValues) {
     console.warn("Failed to release previous controller", err);
   }
 
-  sessionContext = newContext;
-  customerParam = sessionContext.customerValue;
-  phaseParam = sessionContext.transformValue;
-  if (!presenceDocId && uid) {
-    presenceDocId = `${uid}-${sessionInstanceId}`;
-  }
-  presenceRef = doc(db, "sessions", sessionContext.sessionKey, "presence", presenceDocId || uid);
-  sessionRef = doc(db, "sessions", sessionContext.sessionKey);
-  attemptedControllerClaim = false;
-  remoteController = null;
-  remoteDowntimeActive = false;
-  initialSync = true;
-  viewerParam = url.searchParams.get("viewer");
-  viewerForced = viewerParam === "1";
-  requestedViewerMode = viewerParam === "1";
-  hostBlockReason = null;
-  hostBlockAlerted = false;
-  window.AppState.isFirstUser = false;
-  controlRequest = null;
-  controllerName = null;
-  presenceRoster = {};
-  presenceRosterReady = false;
-
   try {
+    sessionContext = newContext;
+    customerParam = sessionContext.customerValue;
+    phaseParam = sessionContext.transformValue;
+    if (!presenceDocId && uid) {
+      presenceDocId = `${uid}-${sessionInstanceId}`;
+    }
+    presenceRef = doc(db, "sessions", sessionContext.sessionKey, "presence", presenceDocId || uid);
+    sessionRef = doc(db, "sessions", sessionContext.sessionKey);
+    attemptedControllerClaim = false;
+    remoteController = null;
+    remoteDowntimeActive = false;
+    initialSync = true;
+    viewerParam = url.searchParams.get("viewer");
+    viewerForced = viewerParam === "1";
+    requestedViewerMode = viewerParam === "1";
+    hostBlockReason = null;
+    hostBlockAlerted = false;
+    window.AppState.isFirstUser = false;
+    controlRequest = null;
+    controllerName = null;
+    presenceRoster = {};
+    presenceRosterReady = false;
+
     url.searchParams.set("customer", sessionContext.customerValue);
     url.searchParams.set("transformCycle", sessionContext.transformValue);
     url.searchParams.set("phase", sessionContext.transformValue);
     url.searchParams.set("session", sessionContext.sessionKey);
     history.replaceState(null, "", url.toString());
+
+    const customerLabel = document.getElementById('rt-customer');
+    if (customerLabel) customerLabel.textContent = sessionContext.customerValue;
+    const transformLabel = document.getElementById('rt-transform');
+    if (transformLabel) transformLabel.textContent = sessionContext.transformValue;
+    addRecentCustomer(sessionContext.customerValue, sessionContext.transformValue);
+    renderControlRequestBanner();
+
+    LocalRealtime = createLocalRealtimeBridge(sessionContext.sessionKey);
+    window.LocalRealtimeBridge = LocalRealtime;
+    bindLocalRealtimeBridges();
+
+    await bindPresenceListeners();
+    subscribeToSession();
+    await detectMode();
+    updateViewerPanel();
   } catch (err) {
-    console.warn("Failed to refresh URL on session switch", err);
+    console.error('Failed to switch session context', err);
+    updateConnectionIndicator('error', 'Session switch failed, restoring previous context');
+    sessionContext = previousContext;
+    customerParam = previousContext.customerValue;
+    phaseParam = previousContext.transformValue;
+    if (nameInput) nameInput.value = previousContext.customerValue;
+    if (phaseInput) phaseInput.value = previousContext.transformValue;
+    throw err;
+  } finally {
+    hideContextSwitchToast();
+    contextSwitchInFlight = false;
   }
-
-  const customerLabel = document.getElementById('rt-customer');
-  if (customerLabel) customerLabel.textContent = sessionContext.customerValue;
-  const transformLabel = document.getElementById('rt-transform');
-  if (transformLabel) transformLabel.textContent = sessionContext.transformValue;
-  addRecentCustomer(sessionContext.customerValue, sessionContext.transformValue);
-  renderControlRequestBanner();
-
-  LocalRealtime = createLocalRealtimeBridge(sessionContext.sessionKey);
-  window.LocalRealtimeBridge = LocalRealtime;
-  bindLocalRealtimeBridges();
-
-  await bindPresenceListeners();
-  subscribeToSession();
-  await detectMode();
-  updateViewerPanel();
 }
 
 if (nameInput) {
@@ -9565,6 +9577,27 @@ if (phaseInput) {
     }).catch(err => console.error('Failed to switch session context (transform change)', err));
   });
 }
+
+function syncSessionContextFromUrl() {
+  const currentSearch = new URL(window.location.href).searchParams;
+  const urlCustomer = readCustomerFromUrl(currentSearch);
+  const urlTransform = readTransformFromUrl(currentSearch);
+
+  const needsCustomerUpdate = nameInput && urlCustomer && urlCustomer !== nameInput.value;
+  const needsTransformUpdate = phaseInput && urlTransform && urlTransform !== phaseInput.value;
+
+  if (!needsCustomerUpdate && !needsTransformUpdate) return;
+
+  if (needsCustomerUpdate) nameInput.value = urlCustomer;
+  if (needsTransformUpdate) phaseInput.value = urlTransform;
+
+  switchSessionContext({
+    customerValue: nameInput?.value || urlCustomer,
+    transformValue: phaseInput?.value || urlTransform
+  }).catch(err => console.error('Failed to sync session from URL params', err));
+}
+
+window.addEventListener('popstate', syncSessionContextFromUrl);
 
 // Hook into mutation functions (including fullscreen toggle)
 const mutationFunctions = [
