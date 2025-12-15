@@ -6707,8 +6707,10 @@ window.loadTemplatesFromFirebase = async function() {
 
 // Get URL parameters
 const url = new URL(window.location.href);
-let customerParam = url.searchParams.get("customer") || "";
-let phaseParam = url.searchParams.get("phase") || url.searchParams.get("transformCycle") || "";
+const readCustomerFromUrl = (search = url.searchParams) => search.get("customer") || "";
+const readTransformFromUrl = (search = url.searchParams) => search.get("phase") || search.get("transformCycle") || "";
+let customerParam = readCustomerFromUrl();
+let phaseParam = readTransformFromUrl();
 let sessionParam = url.searchParams.get("session") || "";
 let viewerParam = url.searchParams.get("viewer");
 let requestedViewerMode = viewerParam === "1";
@@ -6808,6 +6810,33 @@ console.log("Session initialization:", {
   domain: window.location.hostname,
   fullUrl: window.location.href
 });
+
+function applySessionContextToUi(context) {
+  if (!context) return;
+  customerParam = context.customerValue;
+  phaseParam = context.transformValue;
+
+  if (nameInput) nameInput.value = context.customerValue;
+  if (phaseInput) phaseInput.value = context.transformValue;
+
+  try {
+    url.searchParams.set("customer", context.customerValue);
+    url.searchParams.set("transformCycle", context.transformValue);
+    url.searchParams.set("phase", context.transformValue);
+    url.searchParams.set("session", context.sessionKey);
+    history.replaceState(null, "", url.toString());
+  } catch (err) {
+    console.warn("Failed to refresh URL on session switch", err);
+  }
+
+  const customerLabel = document.getElementById('rt-customer');
+  if (customerLabel) customerLabel.textContent = context.customerValue;
+  const transformLabel = document.getElementById('rt-transform');
+  if (transformLabel) transformLabel.textContent = context.transformValue;
+
+  addRecentCustomer(context.customerValue, context.transformValue);
+  renderHostStatus();
+}
 
 function createLocalRealtimeBridge(sessionKey) {
   const safeSessionKey = sessionKey || 'default__default';
@@ -9412,25 +9441,14 @@ async function switchSessionContext(newValues) {
   const previousContext = sessionContext;
   const previousPresenceId = presenceDocId || uid || sessionInstanceId;
 
+  if (contextSwitchInFlight) {
+    console.warn("Session switch already in progress; ignoring new request.");
+    return;
+  }
+
   if (newContext.sessionKey === previousContext.sessionKey) {
     sessionContext = { ...previousContext, ...newContext };
-    customerParam = sessionContext.customerValue;
-    phaseParam = sessionContext.transformValue;
-    try {
-      url.searchParams.set("customer", sessionContext.customerValue);
-      url.searchParams.set("transformCycle", sessionContext.transformValue);
-      url.searchParams.set("phase", sessionContext.transformValue);
-      url.searchParams.set("session", sessionContext.sessionKey);
-      history.replaceState(null, "", url.toString());
-    } catch (err) {
-      console.warn("Failed to refresh URL on session switch", err);
-    }
-    const customerLabel = document.getElementById('rt-customer');
-    if (customerLabel) customerLabel.textContent = sessionContext.customerValue;
-    const transformLabel = document.getElementById('rt-transform');
-    if (transformLabel) transformLabel.textContent = sessionContext.transformValue;
-    addRecentCustomer(sessionContext.customerValue, sessionContext.transformValue);
-    renderHostStatus();
+    applySessionContextToUi(sessionContext);
     return;
   }
 
@@ -9498,54 +9516,49 @@ async function switchSessionContext(newValues) {
     console.warn("Failed to release previous controller", err);
   }
 
-  sessionContext = newContext;
-  customerParam = sessionContext.customerValue;
-  phaseParam = sessionContext.transformValue;
-  if (!presenceDocId && uid) {
-    presenceDocId = `${uid}-${sessionInstanceId}`;
-  }
-  presenceRef = doc(db, "sessions", sessionContext.sessionKey, "presence", presenceDocId || uid);
-  sessionRef = doc(db, "sessions", sessionContext.sessionKey);
-  attemptedControllerClaim = false;
-  remoteController = null;
-  remoteDowntimeActive = false;
-  initialSync = true;
-  viewerParam = url.searchParams.get("viewer");
-  viewerForced = viewerParam === "1";
-  requestedViewerMode = viewerParam === "1";
-  hostBlockReason = null;
-  hostBlockAlerted = false;
-  window.AppState.isFirstUser = false;
-  controlRequest = null;
-  controllerName = null;
-  presenceRoster = {};
-  presenceRosterReady = false;
-
   try {
-    url.searchParams.set("customer", sessionContext.customerValue);
-    url.searchParams.set("transformCycle", sessionContext.transformValue);
-    url.searchParams.set("phase", sessionContext.transformValue);
-    url.searchParams.set("session", sessionContext.sessionKey);
-    history.replaceState(null, "", url.toString());
+    sessionContext = newContext;
+    if (!presenceDocId && uid) {
+      presenceDocId = `${uid}-${sessionInstanceId}`;
+    }
+    presenceRef = doc(db, "sessions", sessionContext.sessionKey, "presence", presenceDocId || uid);
+    sessionRef = doc(db, "sessions", sessionContext.sessionKey);
+    attemptedControllerClaim = false;
+    remoteController = null;
+    remoteDowntimeActive = false;
+    initialSync = true;
+    viewerParam = url.searchParams.get("viewer");
+    viewerForced = viewerParam === "1";
+    requestedViewerMode = viewerParam === "1";
+    hostBlockReason = null;
+    hostBlockAlerted = false;
+    window.AppState.isFirstUser = false;
+    controlRequest = null;
+    controllerName = null;
+    presenceRoster = {};
+    presenceRosterReady = false;
+
+    applySessionContextToUi(sessionContext);
+    renderControlRequestBanner();
+
+    LocalRealtime = createLocalRealtimeBridge(sessionContext.sessionKey);
+    window.LocalRealtimeBridge = LocalRealtime;
+    bindLocalRealtimeBridges();
+
+    await bindPresenceListeners();
+    subscribeToSession();
+    await detectMode();
+    updateViewerPanel();
   } catch (err) {
-    console.warn("Failed to refresh URL on session switch", err);
+    console.error('Failed to switch session context', err);
+    updateConnectionIndicator('error', 'Session switch failed, restoring previous context');
+    sessionContext = previousContext;
+    applySessionContextToUi(previousContext);
+    throw err;
+  } finally {
+    hideContextSwitchToast();
+    contextSwitchInFlight = false;
   }
-
-  const customerLabel = document.getElementById('rt-customer');
-  if (customerLabel) customerLabel.textContent = sessionContext.customerValue;
-  const transformLabel = document.getElementById('rt-transform');
-  if (transformLabel) transformLabel.textContent = sessionContext.transformValue;
-  addRecentCustomer(sessionContext.customerValue, sessionContext.transformValue);
-  renderControlRequestBanner();
-
-  LocalRealtime = createLocalRealtimeBridge(sessionContext.sessionKey);
-  window.LocalRealtimeBridge = LocalRealtime;
-  bindLocalRealtimeBridges();
-
-  await bindPresenceListeners();
-  subscribeToSession();
-  await detectMode();
-  updateViewerPanel();
 }
 
 if (nameInput) {
@@ -9554,6 +9567,16 @@ if (nameInput) {
       customerValue: nameInput.value,
       transformValue: phaseInput?.value || phaseParam
     }).catch(err => console.error('Failed to switch session context (customer change)', err));
+  });
+
+  nameInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      switchSessionContext({
+        customerValue: nameInput.value,
+        transformValue: phaseInput?.value || phaseParam
+      }).catch(err => console.error('Failed to switch session context (customer change via enter)', err));
+    }
   });
 }
 
@@ -9565,6 +9588,40 @@ if (phaseInput) {
     }).catch(err => console.error('Failed to switch session context (transform change)', err));
   });
 }
+
+function syncSessionContextFromUrl() {
+  const currentSearch = new URL(window.location.href).searchParams;
+  const urlCustomer = readCustomerFromUrl(currentSearch);
+  const urlTransform = readTransformFromUrl(currentSearch);
+
+  const needsCustomerUpdate = nameInput && urlCustomer && urlCustomer !== nameInput.value;
+  const needsTransformUpdate = phaseInput && urlTransform && urlTransform !== phaseInput.value;
+
+  if (!needsCustomerUpdate && !needsTransformUpdate) return;
+
+  if (needsCustomerUpdate) nameInput.value = urlCustomer;
+  if (needsTransformUpdate) phaseInput.value = urlTransform;
+
+  switchSessionContext({
+    customerValue: nameInput?.value || urlCustomer,
+    transformValue: phaseInput?.value || urlTransform
+  }).catch(err => console.error('Failed to sync session from URL params', err));
+}
+
+['pushState', 'replaceState'].forEach(function(method) {
+  const original = history[method];
+  history[method] = function() {
+    const result = original.apply(this, arguments);
+    window.dispatchEvent(new Event('locationchange'));
+    return result;
+  };
+});
+
+window.addEventListener('popstate', function() {
+  window.dispatchEvent(new Event('locationchange'));
+});
+window.addEventListener('locationchange', syncSessionContextFromUrl);
+syncSessionContextFromUrl();
 
 // Hook into mutation functions (including fullscreen toggle)
 const mutationFunctions = [
