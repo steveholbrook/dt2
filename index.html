@@ -1471,6 +1471,13 @@
     min-width:100px;
     text-align:center;
   }
+
+  .time-subtext {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: var(--sap-muted);
+    margin-top: 6px;
+  }
   
   .time-input{
     font-family:'Courier New', monospace;
@@ -2405,12 +2412,6 @@ body.dark-mode #messageToggleBtn:hover{
       <span class="status-label">Status</span>
       <span class="status-value" id="statusText" style="color:var(--sap-warning);">Not Started</span>
     </div>
-    <div class="header-actions">
-      <button type="button" class="header-focus-button" id="headerFocusButton" data-focus-toggle="true" aria-pressed="false">
-        <span class="header-focus-icon" id="headerFocusIcon">⛶</span>
-        <span class="header-focus-text" id="headerFocusText">Focus</span>
-      </button>
-    </div>
   </div>
 
   <div class="context-switch-toast" id="contextSwitchToast" role="status" aria-live="polite">
@@ -2497,15 +2498,17 @@ body.dark-mode #messageToggleBtn:hover{
         <div class="timeline-info">
           <div class="timeline-field">
             <label>Technical Downtime Duration (hrs)</label>
-            <input type="number" id="downtimeDuration" min="1" max="168" value="24" 
+            <input type="number" id="downtimeDuration" min="1" max="168" value="24"
                    onchange="updateTimeline();calculateEndTime()" style="width:80px;">
+            <div class="time-subtext" id="plannedWindowTime">Planned: --:-- → --:--</div>
           </div>
           <div class="timeline-field">
             <label>Start Time</label>
             <div id="startTimeContainer">
-              <input type="time" id="startTimeInput" class="time-input" 
+              <input type="time" id="startTimeInput" class="time-input"
                      onchange="calculateEndTime()" style="display:none;">
               <div class="time-display" id="startTimeDisplay">--:--:--</div>
+              <div class="time-subtext" id="liveStartTime">Current: --:--:--</div>
             </div>
           </div>
           <div class="timeline-field">
@@ -3420,6 +3423,7 @@ window.loadTemplate = async function(templateId) {
           id: Date.now() + Math.random() + idx,
           completed: false,
           actualDuration: null,
+          actualEndTime: null,
           position: 0,
           status: 'not-started'
         };
@@ -3567,8 +3571,27 @@ function initializeFocusToggle() {
 }
 
 document.addEventListener('keydown', function(e) {
-  // Don't trigger shortcuts when typing in inputs
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
+  var inFormField = e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA';
+
+  // Ctrl+Shift+F: Keep quick search access alongside focus shortcut
+  if (e.ctrlKey && e.shiftKey && e.key === 'f') {
+    e.preventDefault();
+    var searchBox = document.getElementById('searchRunbooks');
+    if (searchBox) {
+      searchBox.focus();
+      searchBox.select();
+    }
+    return;
+  }
+
+  // Ctrl+F: Toggle focus mode without needing the header button
+  if (e.ctrlKey && e.key === 'f') {
+    handleFocusToggleEvent(e);
+    return;
+  }
+
+  // Don't trigger other shortcuts when typing in inputs
+  if (inFormField) {
     // Except for Ctrl+S to save
     if (e.ctrlKey && e.key === 's') {
       e.preventDefault();
@@ -3576,17 +3599,16 @@ document.addEventListener('keydown', function(e) {
       if (window.canWrite && window.canWrite()) {
         console.log('Manual save triggered');
       }
-      return;
     }
     return;
   }
-  
+
   // Ctrl+N: Add new runbook
   if (e.ctrlKey && e.key === 'n') {
     e.preventDefault();
     window.addRunbookRow();
   }
-  
+
   // Ctrl+D: Duplicate selected row
   if (e.ctrlKey && e.key === 'd') {
     e.preventDefault();
@@ -3594,17 +3616,7 @@ document.addEventListener('keydown', function(e) {
       window.duplicateRunbook(window.AppState.selectedRunbookId);
     }
   }
-  
-  // Ctrl+F: Focus search
-  if (e.ctrlKey && e.key === 'f') {
-    e.preventDefault();
-    var searchBox = document.getElementById('searchRunbooks');
-    if (searchBox) {
-      searchBox.focus();
-      searchBox.select();
-    }
-  }
-  
+
   // F: Toggle full screen mode
   if (e.key === 'f' && !e.ctrlKey && !e.shiftKey && !e.altKey) {
     e.preventDefault();
@@ -3719,9 +3731,6 @@ function updateFullscreenButton(isFullscreen) {
   var icon = document.getElementById('fullscreenIcon');
   var text = document.getElementById('fullscreenText');
   var btn = document.getElementById('fullscreenToggle');
-  var headerBtn = document.getElementById('headerFocusButton');
-  var headerIcon = document.getElementById('headerFocusIcon');
-  var headerText = document.getElementById('headerFocusText');
 
   if (icon) icon.textContent = isFullscreen ? '⛶' : '⛶';
   if (text) text.textContent = isFullscreen ? 'Exit Focus' : 'Focus';
@@ -3731,17 +3740,6 @@ function updateFullscreenButton(isFullscreen) {
       btn.classList.add('active');
     } else {
       btn.classList.remove('active');
-    }
-  }
-
-  if (headerIcon) headerIcon.textContent = isFullscreen ? '⛶' : '⛶';
-  if (headerText) headerText.textContent = isFullscreen ? 'Exit Focus' : 'Focus';
-  if (headerBtn) {
-    headerBtn.setAttribute('aria-pressed', isFullscreen ? 'true' : 'false');
-    if (isFullscreen) {
-      headerBtn.classList.add('active');
-    } else {
-      headerBtn.classList.remove('active');
     }
   }
 }
@@ -3872,6 +3870,7 @@ window.duplicateRunbook = function(id) {
     durationMinutes: original.durationMinutes,
     completed: false,
     actualDuration: null,
+    actualEndTime: null,
     position: 0,
     status: 'not-started'
   };
@@ -4370,21 +4369,17 @@ function setupStartTimeInputs() {
 function calculateEndTime() {
   var duration = parseInt(document.getElementById('downtimeDuration').value) || 24;
   var startTimeInput = document.getElementById('startTimeInput');
-  var endTimeDisplay = document.getElementById('endTimeDisplay');
+  var plannedStart = resolvePlannedStartDate();
   
   if (!window.AppState.downtimeStarted && startTimeInput && startTimeInput.value) {
-    var timeParts = startTimeInput.value.split(':').map(Number);
-    var hours = timeParts[0];
-    var minutes = timeParts[1];
-    var startDate = new Date();
-    startDate.setHours(hours, minutes, 0, 0);
-    
-    var endDate = new Date(startDate.getTime() + duration * 3600000);
+    var endDate = new Date(plannedStart.getTime() + duration * 3600000);
     updateEndTimeDisplay(endDate, duration);
   } else if (window.AppState.downtimeStarted && window.AppState.downtimeStartTime) {
     var endDate = new Date(window.AppState.downtimeStartTime.getTime() + duration * 3600000);
     updateEndTimeDisplay(endDate, duration);
   }
+
+  updatePlannedWindowTime(null, plannedStart);
 }
 
 function updateEndTimeDisplay(endDate, duration) {
@@ -4401,12 +4396,63 @@ function updateEndTimeDisplay(endDate, duration) {
   if (daysDiff > 0) {
     displayText += ' (+' + daysDiff + ' day' + (daysDiff > 1 ? 's' : '') + ')';
   }
-  
+
   endTimeDisplay.textContent = displayText;
+}
+
+function formatClockTime(date, includeSeconds) {
+  if (!(date instanceof Date) || isNaN(date)) return '--:--' + (includeSeconds ? ':--' : '');
+  var hours = String(date.getHours()).padStart(2, '0');
+  var minutes = String(date.getMinutes()).padStart(2, '0');
+  if (!includeSeconds) return hours + ':' + minutes;
+  var seconds = String(date.getSeconds()).padStart(2, '0');
+  return hours + ':' + minutes + ':' + seconds;
+}
+
+function resolvePlannedStartDate(now) {
+  var candidateNow = now instanceof Date ? now : new Date();
+  var resolvedStart = resolveDowntimeStartTime();
+  if (resolvedStart) return resolvedStart;
+
+  var startTimeInput = document.getElementById('startTimeInput');
+  if (startTimeInput && startTimeInput.value) {
+    var parts = startTimeInput.value.split(':').map(Number);
+    if (parts.length >= 2 && !parts.some(function(p) { return isNaN(p); })) {
+      var startDate = new Date(candidateNow.getTime());
+      startDate.setHours(parts[0], parts[1], candidateNow.getSeconds(), candidateNow.getMilliseconds());
+      return startDate;
+    }
+  }
+
+  return candidateNow;
+}
+
+function updatePlannedWindowTime(now, explicitStart) {
+  var label = document.getElementById('plannedWindowTime');
+  if (!label) return;
+
+  var duration = parseInt(document.getElementById('downtimeDuration').value) || 24;
+  var startDate = explicitStart instanceof Date ? explicitStart : resolvePlannedStartDate(now);
+  if (!(startDate instanceof Date) || isNaN(startDate)) {
+    label.textContent = 'Planned: --:-- → --:--';
+    return;
+  }
+
+  var endDate = new Date(startDate.getTime() + duration * 3600000);
+  label.textContent = 'Planned: ' + formatClockTime(startDate, false) + ' → ' + formatClockTime(endDate, false);
+}
+
+function updateLiveStartTime(now) {
+  var liveLabel = document.getElementById('liveStartTime');
+  if (!liveLabel) return;
+  var current = now instanceof Date ? now : new Date();
+  liveLabel.textContent = 'Current: ' + formatClockTime(current, true);
 }
 
 function updateClock() {
   var now = new Date();
+  updateLiveStartTime(now);
+  updatePlannedWindowTime(now);
   var timeElement = document.getElementById('currentTime');
   if (timeElement) {
     timeElement.textContent = now.toLocaleTimeString('en-US', {
@@ -4474,6 +4520,15 @@ function captureCurrentDurationStamp(referenceTime) {
   var seconds = Math.floor((elapsed % 60000) / 1000);
 
   return String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+}
+
+function captureCurrentEndTime(referenceTime) {
+  var now = referenceTime instanceof Date ? referenceTime : new Date();
+  try {
+    return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  } catch (e) {
+    return now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+  }
 }
 
 function updateDuration() {
@@ -4582,6 +4637,7 @@ window.addRunbookRow = function() {
     durationMinutes: 0,
     completed: false,
     actualDuration: null,
+    actualEndTime: null,
     position: 0,
     status: 'not-started'
   };
@@ -4794,17 +4850,20 @@ window.updateStatus = function(id, value) {
       if (window.AppState.downtimeStarted && window.AppState.downtimeStartTime && !runbook.actualDuration) {
         var now = new Date();
         var stamp = captureCurrentDurationStamp(now);
+        var endTime = captureCurrentEndTime(now);
         if (stamp) {
           runbook.actualDuration = stamp;
+          runbook.actualEndTime = endTime;
           window.AppState.completionTimes[id] = now.toISOString();
         }
       }
-      recordPendingCompletionUpdate(id, true, runbook.actualDuration, window.AppState.completionTimes[id]);
+      recordPendingCompletionUpdate(id, true, runbook.actualDuration, window.AppState.completionTimes[id], runbook.actualEndTime);
     } else {
       runbook.completed = false;
       runbook.actualDuration = null;
+      runbook.actualEndTime = null;
       delete window.AppState.completionTimes[id];
-      recordPendingCompletionUpdate(id, false, null, null);
+      recordPendingCompletionUpdate(id, false, null, null, null);
     }
 
     updateCompletionPercentage();
@@ -5325,9 +5384,10 @@ function createTimelineControlRow(runbook) {
   var actualCell = document.createElement('div');
   actualCell.className = 'timeline-control-cell';
   var actualSpan = document.createElement('span');
+  var actualDisplay = runbook.actualEndTime || runbook.actualDuration;
   actualSpan.style.fontSize = '11px';
-  actualSpan.style.color = runbook.actualDuration ? '#107e3e' : '#999';
-  actualSpan.textContent = runbook.actualDuration || '--:--:--';
+  actualSpan.style.color = actualDisplay ? '#107e3e' : '#999';
+  actualSpan.textContent = actualDisplay || '--:--:--';
   actualSpan.dataset.runbookId = runbook.id;
   actualCell.appendChild(actualSpan);
   row.appendChild(actualCell);
@@ -5380,8 +5440,9 @@ function updateTimelineControlRow(row, runbook) {
   // Update ACTUAL display
   var actualSpan = cells[3].querySelector('span');
   if (actualSpan) {
-    actualSpan.textContent = runbook.actualDuration || '--:--:--';
-    actualSpan.style.color = runbook.actualDuration ? '#107e3e' : '#999';
+    var actualValue = runbook.actualEndTime || runbook.actualDuration;
+    actualSpan.textContent = actualValue || '--:--:--';
+    actualSpan.style.color = actualValue ? '#107e3e' : '#999';
   }
 }
 
@@ -5662,12 +5723,13 @@ function ensurePendingCompletionMap() {
   return window.AppState.pendingCompletionUpdates;
 }
 
-function recordPendingCompletionUpdate(id, completed, actualDuration, completionIso) {
+function recordPendingCompletionUpdate(id, completed, actualDuration, completionIso, actualEndTime) {
   var pending = ensurePendingCompletionMap();
   var key = String(id);
   pending[key] = {
     completed: !!completed,
     actualDuration: actualDuration || null,
+    actualEndTime: actualEndTime || null,
     completionIso: completionIso || null,
     timestamp: Date.now()
   };
@@ -5709,12 +5771,15 @@ function reconcilePendingCompletionUpdates() {
 
     var desiredCompleted = !!entry.completed;
     var desiredActual = entry.actualDuration || null;
+    var desiredActualEnd = entry.actualEndTime || null;
     var currentCompleted = !!runbook.completed;
     var currentActual = runbook.actualDuration || null;
+    var currentActualEnd = runbook.actualEndTime || null;
 
-    if (currentCompleted !== desiredCompleted || currentActual !== desiredActual) {
+    if (currentCompleted !== desiredCompleted || currentActual !== desiredActual || currentActualEnd !== desiredActualEnd) {
       runbook.completed = desiredCompleted;
       runbook.actualDuration = desiredActual;
+      runbook.actualEndTime = desiredActualEnd;
       if (desiredCompleted && entry.completionIso) {
         window.AppState.completionTimes = window.AppState.completionTimes || {};
         window.AppState.completionTimes[runbook.id] = entry.completionIso;
@@ -5747,10 +5812,12 @@ window.toggleCompleted = function(id, checked) {
     if (checked && window.AppState.downtimeStartTime) {
       var now = new Date();
       var stamp = captureCurrentDurationStamp(now);
+      var endTime = captureCurrentEndTime(now);
       if (stamp) {
         runbook.actualDuration = stamp;
+        runbook.actualEndTime = endTime;
         window.AppState.completionTimes[id] = now.toISOString();
-        recordPendingCompletionUpdate(id, true, runbook.actualDuration, window.AppState.completionTimes[id]);
+        recordPendingCompletionUpdate(id, true, runbook.actualDuration, window.AppState.completionTimes[id], runbook.actualEndTime);
 
         // Force immediate update to timeline to show actual duration
         setTimeout(function() {
@@ -5762,7 +5829,7 @@ window.toggleCompleted = function(id, checked) {
             if (actualCell) {
               var actualSpan = actualCell.querySelector('span');
               if (actualSpan) {
-                actualSpan.textContent = runbook.actualDuration;
+                actualSpan.textContent = runbook.actualEndTime || runbook.actualDuration;
                 actualSpan.style.color = '#107e3e';
               }
             }
@@ -5771,10 +5838,11 @@ window.toggleCompleted = function(id, checked) {
       }
     } else if (!checked) {
       runbook.actualDuration = null;
+      runbook.actualEndTime = null;
       delete window.AppState.completionTimes[id];
-      recordPendingCompletionUpdate(id, false, null, null);
+      recordPendingCompletionUpdate(id, false, null, null, null);
     } else {
-      recordPendingCompletionUpdate(id, checked, runbook.actualDuration, window.AppState.completionTimes[id]);
+      recordPendingCompletionUpdate(id, checked, runbook.actualDuration, window.AppState.completionTimes[id], runbook.actualEndTime);
     }
 
     // Update completion percentage
@@ -5990,6 +6058,7 @@ window.stopDowntime = function() {
     // Reset actual durations
     window.AppState.runbooks.forEach(function(r) {
       r.actualDuration = null;
+      r.actualEndTime = null;
       r.completed = false;
     });
     window.AppState.completionTimes = {};
@@ -6194,6 +6263,7 @@ window.uploadExcel = function(event) {
             durationHours: durationHours,
             durationMinutes: durationMinutes,
             actualDuration: actualIndex !== -1 ? (values[actualIndex] || null) : null,
+            actualEndTime: null,
             completed: completedIndex !== -1 ? values[completedIndex] === 'Yes' : false,
             position: 0
           };
@@ -6707,8 +6777,10 @@ window.loadTemplatesFromFirebase = async function() {
 
 // Get URL parameters
 const url = new URL(window.location.href);
-let customerParam = url.searchParams.get("customer") || "";
-let phaseParam = url.searchParams.get("phase") || url.searchParams.get("transformCycle") || "";
+const readCustomerFromUrl = (search = url.searchParams) => search.get("customer") || "";
+const readTransformFromUrl = (search = url.searchParams) => search.get("phase") || search.get("transformCycle") || "";
+let customerParam = readCustomerFromUrl();
+let phaseParam = readTransformFromUrl();
 let sessionParam = url.searchParams.get("session") || "";
 let viewerParam = url.searchParams.get("viewer");
 let requestedViewerMode = viewerParam === "1";
@@ -6808,6 +6880,34 @@ console.log("Session initialization:", {
   domain: window.location.hostname,
   fullUrl: window.location.href
 });
+
+function applySessionContextToUi(context) {
+  if (!context) return;
+  customerParam = context.customerValue;
+  phaseParam = context.transformValue;
+
+  if (nameInput) nameInput.value = context.customerValue;
+  if (phaseInput) phaseInput.value = context.transformValue;
+
+  try {
+    url.searchParams.set("customer", context.customerValue);
+    url.searchParams.set("transformCycle", context.transformValue);
+    url.searchParams.set("phase", context.transformValue);
+    url.searchParams.set("session", context.sessionKey);
+    history.replaceState(null, "", url.toString());
+  } catch (err) {
+    console.warn("Failed to refresh URL on session switch", err);
+  }
+
+  const customerLabel = document.getElementById('rt-customer');
+  if (customerLabel) customerLabel.textContent = context.customerValue;
+  const transformLabel = document.getElementById('rt-transform');
+  if (transformLabel) transformLabel.textContent = context.transformValue;
+
+  addRecentCustomer(context.customerValue, context.transformValue);
+  rememberSessionContext(context.customerValue, context.transformValue);
+  renderHostStatus();
+}
 
 function createLocalRealtimeBridge(sessionKey) {
   const safeSessionKey = sessionKey || 'default__default';
@@ -7145,6 +7245,7 @@ let connectionStatus = 'pending';
 let connectionDetail = 'Awaiting Firebase handshake';
 let lastSnapshotAt = Date.now();
 let contextSwitchInFlight = false;
+let pendingSessionContext = null;
 let remoteController = null;
 let remoteDowntimeActive = false;
 let attemptedControllerClaim = false;
@@ -8039,7 +8140,8 @@ function applyRemoteState(remoteState) {
   state.runbooks = Array.isArray(remoteState.runbooks) ? remoteState.runbooks.map(function(r) {
     return {
       ...r,
-      status: r.status || 'not-started'
+      status: r.status || 'not-started',
+      actualEndTime: r.actualEndTime || null
     };
   }) : [];
   state.downtimeStarted = !!remoteState.downtimeStarted;
@@ -8079,10 +8181,19 @@ function applyRemoteState(remoteState) {
     });
   }
 
-  // Only update UI fields if not currently being edited
+  // Only update UI fields if not currently being edited and the incoming state matches the active session
   if (!state.inputLock) {
-    if (nameInput && remoteState.customerName) nameInput.value = remoteState.customerName;
-    if (phaseInput && remoteState.transformCycle) phaseInput.value = remoteState.transformCycle;
+    const remoteCustomer = remoteState.customerName;
+    const remoteTransform = remoteState.transformCycle;
+    const remoteMatchesContext = (
+      (!remoteCustomer || toKey(remoteCustomer) === sessionContext.customerKey) &&
+      (!remoteTransform || toKey(remoteTransform) === sessionContext.phaseKey)
+    );
+
+    if (remoteMatchesContext) {
+      if (nameInput && remoteCustomer) nameInput.value = remoteCustomer;
+      if (phaseInput && remoteTransform) phaseInput.value = remoteTransform;
+    }
   }
 
   // Lock/unlock customer name and transform cycle based on downtime status
@@ -9412,25 +9523,17 @@ async function switchSessionContext(newValues) {
   const previousContext = sessionContext;
   const previousPresenceId = presenceDocId || uid || sessionInstanceId;
 
+  if (contextSwitchInFlight) {
+    console.warn("Session switch already in progress; queuing latest request.");
+    pendingSessionContext = newContext;
+    // Keep the UI aligned with the user's requested context while the switch is queued
+    applySessionContextToUi({ ...sessionContext, ...newContext });
+    return;
+  }
+
   if (newContext.sessionKey === previousContext.sessionKey) {
     sessionContext = { ...previousContext, ...newContext };
-    customerParam = sessionContext.customerValue;
-    phaseParam = sessionContext.transformValue;
-    try {
-      url.searchParams.set("customer", sessionContext.customerValue);
-      url.searchParams.set("transformCycle", sessionContext.transformValue);
-      url.searchParams.set("phase", sessionContext.transformValue);
-      url.searchParams.set("session", sessionContext.sessionKey);
-      history.replaceState(null, "", url.toString());
-    } catch (err) {
-      console.warn("Failed to refresh URL on session switch", err);
-    }
-    const customerLabel = document.getElementById('rt-customer');
-    if (customerLabel) customerLabel.textContent = sessionContext.customerValue;
-    const transformLabel = document.getElementById('rt-transform');
-    if (transformLabel) transformLabel.textContent = sessionContext.transformValue;
-    addRecentCustomer(sessionContext.customerValue, sessionContext.transformValue);
-    renderHostStatus();
+    applySessionContextToUi(sessionContext);
     return;
   }
 
@@ -9498,54 +9601,57 @@ async function switchSessionContext(newValues) {
     console.warn("Failed to release previous controller", err);
   }
 
-  sessionContext = newContext;
-  customerParam = sessionContext.customerValue;
-  phaseParam = sessionContext.transformValue;
-  if (!presenceDocId && uid) {
-    presenceDocId = `${uid}-${sessionInstanceId}`;
-  }
-  presenceRef = doc(db, "sessions", sessionContext.sessionKey, "presence", presenceDocId || uid);
-  sessionRef = doc(db, "sessions", sessionContext.sessionKey);
-  attemptedControllerClaim = false;
-  remoteController = null;
-  remoteDowntimeActive = false;
-  initialSync = true;
-  viewerParam = url.searchParams.get("viewer");
-  viewerForced = viewerParam === "1";
-  requestedViewerMode = viewerParam === "1";
-  hostBlockReason = null;
-  hostBlockAlerted = false;
-  window.AppState.isFirstUser = false;
-  controlRequest = null;
-  controllerName = null;
-  presenceRoster = {};
-  presenceRosterReady = false;
-
   try {
-    url.searchParams.set("customer", sessionContext.customerValue);
-    url.searchParams.set("transformCycle", sessionContext.transformValue);
-    url.searchParams.set("phase", sessionContext.transformValue);
-    url.searchParams.set("session", sessionContext.sessionKey);
-    history.replaceState(null, "", url.toString());
+    sessionContext = newContext;
+    if (!presenceDocId && uid) {
+      presenceDocId = `${uid}-${sessionInstanceId}`;
+    }
+    presenceRef = doc(db, "sessions", sessionContext.sessionKey, "presence", presenceDocId || uid);
+    sessionRef = doc(db, "sessions", sessionContext.sessionKey);
+    attemptedControllerClaim = false;
+    remoteController = null;
+    remoteDowntimeActive = false;
+    initialSync = true;
+    viewerParam = url.searchParams.get("viewer");
+    viewerForced = viewerParam === "1";
+    requestedViewerMode = viewerParam === "1";
+    hostBlockReason = null;
+    hostBlockAlerted = false;
+    window.AppState.isFirstUser = false;
+    controlRequest = null;
+    controllerName = null;
+    presenceRoster = {};
+    presenceRosterReady = false;
+
+    applySessionContextToUi(sessionContext);
+    renderControlRequestBanner();
+
+    LocalRealtime = createLocalRealtimeBridge(sessionContext.sessionKey);
+    window.LocalRealtimeBridge = LocalRealtime;
+    bindLocalRealtimeBridges();
+
+    await bindPresenceListeners();
+    subscribeToSession();
+    await detectMode();
+    updateViewerPanel();
   } catch (err) {
-    console.warn("Failed to refresh URL on session switch", err);
+    console.error('Failed to switch session context', err);
+    updateConnectionIndicator('error', 'Session switch failed, restoring previous context');
+    sessionContext = previousContext;
+    applySessionContextToUi(previousContext);
+    throw err;
+  } finally {
+    hideContextSwitchToast();
+    contextSwitchInFlight = false;
+
+    if (pendingSessionContext && pendingSessionContext.sessionKey !== sessionContext.sessionKey) {
+      const queued = pendingSessionContext;
+      pendingSessionContext = null;
+      switchSessionContext(queued).catch(err => console.error('Queued session context switch failed', err));
+    } else {
+      pendingSessionContext = null;
+    }
   }
-
-  const customerLabel = document.getElementById('rt-customer');
-  if (customerLabel) customerLabel.textContent = sessionContext.customerValue;
-  const transformLabel = document.getElementById('rt-transform');
-  if (transformLabel) transformLabel.textContent = sessionContext.transformValue;
-  addRecentCustomer(sessionContext.customerValue, sessionContext.transformValue);
-  renderControlRequestBanner();
-
-  LocalRealtime = createLocalRealtimeBridge(sessionContext.sessionKey);
-  window.LocalRealtimeBridge = LocalRealtime;
-  bindLocalRealtimeBridges();
-
-  await bindPresenceListeners();
-  subscribeToSession();
-  await detectMode();
-  updateViewerPanel();
 }
 
 if (nameInput) {
@@ -9554,6 +9660,16 @@ if (nameInput) {
       customerValue: nameInput.value,
       transformValue: phaseInput?.value || phaseParam
     }).catch(err => console.error('Failed to switch session context (customer change)', err));
+  });
+
+  nameInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      switchSessionContext({
+        customerValue: nameInput.value,
+        transformValue: phaseInput?.value || phaseParam
+      }).catch(err => console.error('Failed to switch session context (customer change via enter)', err));
+    }
   });
 }
 
@@ -9565,6 +9681,40 @@ if (phaseInput) {
     }).catch(err => console.error('Failed to switch session context (transform change)', err));
   });
 }
+
+function syncSessionContextFromUrl() {
+  const currentSearch = new URL(window.location.href).searchParams;
+  const urlCustomer = readCustomerFromUrl(currentSearch);
+  const urlTransform = readTransformFromUrl(currentSearch);
+
+  const needsCustomerUpdate = nameInput && urlCustomer && urlCustomer !== nameInput.value;
+  const needsTransformUpdate = phaseInput && urlTransform && urlTransform !== phaseInput.value;
+
+  if (!needsCustomerUpdate && !needsTransformUpdate) return;
+
+  if (needsCustomerUpdate) nameInput.value = urlCustomer;
+  if (needsTransformUpdate) phaseInput.value = urlTransform;
+
+  switchSessionContext({
+    customerValue: nameInput?.value || urlCustomer,
+    transformValue: phaseInput?.value || urlTransform
+  }).catch(err => console.error('Failed to sync session from URL params', err));
+}
+
+['pushState', 'replaceState'].forEach(function(method) {
+  const original = history[method];
+  history[method] = function() {
+    const result = original.apply(this, arguments);
+    window.dispatchEvent(new Event('locationchange'));
+    return result;
+  };
+});
+
+window.addEventListener('popstate', function() {
+  window.dispatchEvent(new Event('locationchange'));
+});
+window.addEventListener('locationchange', syncSessionContextFromUrl);
+syncSessionContextFromUrl();
 
 // Hook into mutation functions (including fullscreen toggle)
 const mutationFunctions = [
