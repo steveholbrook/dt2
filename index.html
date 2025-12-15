@@ -9536,6 +9536,14 @@ async function switchSessionContext(newValues) {
     return;
   }
 
+  if (contextSwitchInFlight) {
+    console.warn("Session switch already in progress; queuing latest request.");
+    pendingSessionContext = newContext;
+    // Keep the UI aligned with the user's requested context while the switch is queued
+    applySessionContextToUi({ ...sessionContext, ...newContext });
+    return;
+  }
+
   if (newContext.sessionKey === previousContext.sessionKey) {
     sessionContext = { ...previousContext, ...newContext };
     applySessionContextToUi(sessionContext);
