@@ -7230,6 +7230,7 @@ let connectionStatus = 'pending';
 let connectionDetail = 'Awaiting Firebase handshake';
 let lastSnapshotAt = Date.now();
 let contextSwitchInFlight = false;
+let pendingSessionContext = null;
 let remoteController = null;
 let remoteDowntimeActive = false;
 let attemptedControllerClaim = false;
@@ -9498,7 +9499,8 @@ async function switchSessionContext(newValues) {
   const previousPresenceId = presenceDocId || uid || sessionInstanceId;
 
   if (contextSwitchInFlight) {
-    console.warn("Session switch already in progress; ignoring new request.");
+    console.warn("Session switch already in progress; queuing latest request.");
+    pendingSessionContext = newContext;
     return;
   }
 
@@ -9614,6 +9616,14 @@ async function switchSessionContext(newValues) {
   } finally {
     hideContextSwitchToast();
     contextSwitchInFlight = false;
+
+    if (pendingSessionContext && pendingSessionContext.sessionKey !== sessionContext.sessionKey) {
+      const queued = pendingSessionContext;
+      pendingSessionContext = null;
+      switchSessionContext(queued).catch(err => console.error('Queued session context switch failed', err));
+    } else {
+      pendingSessionContext = null;
+    }
   }
 }
 
