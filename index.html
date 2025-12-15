@@ -1724,7 +1724,7 @@
     display:grid;
     grid-template-columns:70px 70px 60px 70px;
     align-items:center;
-    height:24px;
+    height:38px;
     background:linear-gradient(180deg, #f8fafb 0%, #f2f5f7 100%);
     border-bottom:1px solid var(--sap-border);
   }
@@ -1826,24 +1826,49 @@
   }
   
   .timeline-scale{
-    height:24px;
+    height:38px;
     position:relative;
     background:linear-gradient(180deg, #f8fafb 0%, #f2f5f7 100%);
     border-bottom:1px solid var(--sap-border);
     border-right:2px solid var(--sap-border);
     flex:0 0 auto;
+    padding-top:4px;
   }
-  
+
   .timeline-hour{
     position:absolute;
-    font-size:10px;
-    color:var(--sap-muted);
-    top:5px;
-    font-weight:600;
+    top:4px;
+    left:0;
+    transform:translateX(-50%);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:2px;
     user-select: none;
   }
-  
-  .timeline-hour:hover{
+
+  .timeline-hour-label{
+    font-size:10px;
+    color:var(--sap-muted);
+    font-weight:600;
+    line-height:1;
+  }
+
+  .timeline-hour-actual{
+    font-size:9px;
+    color:var(--sap-text);
+    background:rgba(0,0,0,0.03);
+    border-radius:6px;
+    padding:1px 6px;
+    line-height:1.2;
+  }
+
+  body.dark-mode .timeline-hour-actual {
+    background:rgba(255,255,255,0.08);
+  }
+
+  .timeline-hour:hover .timeline-hour-label,
+  .timeline-hour:hover .timeline-hour-actual{
     color:var(--sap-accent);
   }
   
@@ -2144,7 +2169,7 @@
   .viewer-mode input:not(#rt-copy),
   .viewer-mode select,
   .viewer-mode textarea,
-  .viewer-mode button:not(#rt-copy):not(#rt-reset):not(#reportBtn):not(#fullscreenToggle):not(#darkModeToggle):not(#rt-request-control) {
+  .viewer-mode button:not(#rt-copy):not(#rt-reset):not(#reportBtn):not(#fullscreenToggle):not(#darkModeToggle):not(#rt-request-control):not(#rt-collapse) {
     pointer-events: none !important;
     opacity: 0.6 !important;
   }
@@ -2161,7 +2186,8 @@
   .viewer-mode #rt-reset,
   .viewer-mode #reportBtn,
   .viewer-mode #fullscreenToggle,
-  .viewer-mode #darkModeToggle {
+  .viewer-mode #darkModeToggle,
+  .viewer-mode #rt-collapse {
     pointer-events: auto !important;
     opacity: 1 !important;
   }
@@ -4474,6 +4500,8 @@ function updateClock() {
       durationDisplay.textContent = '00:00:00';
     }
   }
+
+  updateActualTimelineTimes();
 }
 
 function resolveDowntimeStartTime() {
@@ -4988,10 +5016,61 @@ function generateTimeScale(hours) {
   for (var h = 0; h <= hours; h++) {
     var marker = document.createElement('div');
     marker.className = 'timeline-hour';
+    marker.dataset.hourIndex = h;
     marker.style.left = (h * pixelsPerHour) + 'px';
-    marker.textContent = h + 'h';
+
+    var label = document.createElement('div');
+    label.className = 'timeline-hour-label';
+    label.textContent = h + 'h';
+    marker.appendChild(label);
+
+    var actual = document.createElement('div');
+    actual.className = 'timeline-hour-actual';
+    actual.textContent = '--:--';
+    marker.appendChild(actual);
+
     scale.appendChild(marker);
   }
+
+  updateActualTimelineTimes();
+}
+
+function updateActualTimelineTimes() {
+  var scale = document.getElementById('timelineScale');
+  if (!scale) return;
+
+  var markers = scale.querySelectorAll('.timeline-hour');
+  if (!markers.length) return;
+
+  var startTime = resolveDowntimeStartTime();
+  var hasActiveDowntime = !!(window.AppState && window.AppState.downtimeStarted && startTime);
+  var now = new Date();
+  var pausedOffset = hasActiveDowntime ? getEffectivePausedDuration(now) : 0;
+
+  markers.forEach(function(marker) {
+    var actualEl = marker.querySelector('.timeline-hour-actual');
+    if (!actualEl) return;
+
+    if (!hasActiveDowntime) {
+      actualEl.textContent = '--:--';
+      actualEl.style.opacity = '0.6';
+      return;
+    }
+
+    var hourIndex = parseInt(marker.dataset.hourIndex || '0', 10);
+    var tick = new Date(startTime.getTime() + pausedOffset + hourIndex * 3600000);
+
+    if (!(tick instanceof Date) || isNaN(tick)) {
+      actualEl.textContent = '--:--';
+      actualEl.style.opacity = '0.6';
+      return;
+    }
+
+    var hours = String(tick.getHours()).padStart(2, '0');
+    var minutes = String(tick.getMinutes()).padStart(2, '0');
+    actualEl.textContent = hours + ':' + minutes;
+    actualEl.style.opacity = '1';
+  });
 }
 
 function generateTimelineRows() {
@@ -9527,14 +9606,6 @@ async function switchSessionContext(newValues) {
   const previousContext = sessionContext;
   const previousPresenceId = presenceDocId || uid || sessionInstanceId;
   lastRequestedContext = newContext;
-
-  if (contextSwitchInFlight) {
-    console.warn("Session switch already in progress; queuing latest request.");
-    pendingSessionContext = newContext;
-    // Keep the UI aligned with the user's requested context while the switch is queued
-    applySessionContextToUi({ ...sessionContext, ...newContext });
-    return;
-  }
 
   if (contextSwitchInFlight) {
     console.warn("Session switch already in progress; queuing latest request.");
