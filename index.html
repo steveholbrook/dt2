@@ -1857,8 +1857,8 @@
     box-shadow:0 1px 2px rgba(0,0,0,0.2);
     user-select:none;
     white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
+    overflow:visible;
+    text-overflow:initial;
   }
   
   .timeline-block:hover{
@@ -2348,12 +2348,28 @@ body.dark-mode #messageToggleBtn:hover{
         </span>
       </div>
       <div class="tooltip-row">
+        <span class="tooltip-label">Sequence:</span>
+        <span class="tooltip-value" id="tooltipSequence">—</span>
+      </div>
+      <div class="tooltip-row">
         <span class="tooltip-label">Phase:</span>
         <span class="tooltip-value" id="tooltipPhase">—</span>
       </div>
       <div class="tooltip-row">
         <span class="tooltip-label">Strategy:</span>
         <span class="tooltip-value" id="tooltipStrategy">—</span>
+      </div>
+      <div class="tooltip-row">
+        <span class="tooltip-label">Predecessor:</span>
+        <span class="tooltip-value" id="tooltipPredecessor">—</span>
+      </div>
+      <div class="tooltip-row">
+        <span class="tooltip-label">Start:</span>
+        <span class="tooltip-value" id="tooltipStart">—</span>
+      </div>
+      <div class="tooltip-row">
+        <span class="tooltip-label">Plan:</span>
+        <span class="tooltip-value" id="tooltipPlan">—</span>
       </div>
     </div>
   </div>
@@ -2724,6 +2740,157 @@ body.dark-mode #messageToggleBtn:hover{
 <script>
 'use strict';
 
+const HOST_TAKEOVER_GRACE_MS = 60000;
+window.__DT2_HOST_TAKEOVER_GRACE_MS = HOST_TAKEOVER_GRACE_MS;
+
+function displayHostAuthMessage(message, variant) {
+  const status = document.getElementById('hostAuthStatus');
+  if (status) {
+    status.textContent = message || '';
+    status.className = 'host-auth-status';
+    if (variant === 'error') {
+      status.classList.add('error');
+    } else if (variant === 'success') {
+      status.classList.add('success');
+    }
+    return;
+  }
+
+  if (message && typeof console !== 'undefined' && console.info) {
+    console.info('[host]', message);
+  }
+}
+
+function focusHostAuthInput() {
+  const input = document.getElementById('hostPasswordInput');
+  if (input) {
+    input.disabled = false;
+    input.focus();
+    input.select();
+  }
+}
+
+function computeHostModeUrl(options) {
+  const forceViewer = !!(options && options.viewer);
+
+  try {
+    const current = new URL(window.location.href);
+    if (sessionContext && typeof sessionContext === 'object') {
+      current.searchParams.set('customer', sessionContext.customerValue || '');
+      current.searchParams.set('transformCycle', sessionContext.transformValue || '');
+      current.searchParams.set('phase', sessionContext.transformValue || '');
+      current.searchParams.set('session', sessionContext.sessionKey || '');
+    }
+    current.searchParams.set('viewer', forceViewer ? '1' : '0');
+    return current.toString();
+  } catch (err) {
+    const href = window.location && window.location.href ? window.location.href : '';
+    const separator = href.includes('?') ? '&' : '?';
+    const viewerParam = 'viewer=' + (forceViewer ? '1' : '0');
+    const base = href.includes('viewer=') ? href.replace(/viewer=[^&#]*/g, viewerParam) : (href + separator + viewerParam);
+    const customerPart = sessionContext?.customerValue ? `&customer=${encodeURIComponent(sessionContext.customerValue)}` : '';
+    const transformPart = sessionContext?.transformValue ? `&transformCycle=${encodeURIComponent(sessionContext.transformValue)}&phase=${encodeURIComponent(sessionContext.transformValue)}` : '';
+    const sessionPart = sessionContext?.sessionKey ? `&session=${encodeURIComponent(sessionContext.sessionKey)}` : '';
+    return base + customerPart + transformPart + sessionPart;
+  }
+}
+
+function updateHostUrlHint() {
+  const link = document.getElementById('hostModeUrlLink');
+  const copyBtn = document.getElementById('copyHostModeUrlBtn');
+  const url = computeHostModeUrl({ viewer: true });
+
+  if (link) {
+    link.href = url;
+    link.textContent = url;
+  }
+
+  if (copyBtn) {
+    copyBtn.dataset.url = url;
+  }
+}
+
+function copyHostModeUrl(event) {
+  event.preventDefault();
+  const url = (event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.url) || computeHostModeUrl({ viewer: true });
+  if (!url) return;
+
+  const notify = function(message) {
+    if (typeof window.showToast === 'function') {
+      window.showToast(message);
+    } else {
+      alert(message);
+    }
+  };
+
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    navigator.clipboard.writeText(url)
+      .then(function() { notify('Host link copied'); })
+      .catch(function() { notify('Copy failed. Use the link to open host mode.'); });
+    return;
+  }
+
+  const temp = document.createElement('textarea');
+  temp.value = url;
+  temp.setAttribute('readonly', '');
+  temp.style.position = 'absolute';
+  temp.style.left = '-9999px';
+  document.body.appendChild(temp);
+  temp.select();
+  try {
+    document.execCommand('copy');
+    notify('Host link copied');
+  } catch (err) {
+    notify('Copy failed. Use the link to open host mode.');
+  } finally {
+    document.body.removeChild(temp);
+  }
+}
+
+function updateHostAuthUI() {
+  if (window.AppState) {
+    window.AppState.hostAuthenticated = true;
+  }
+
+  const card = document.getElementById('hostAuthCard');
+  if (card && !card.__removed) {
+    card.remove();
+    card.__removed = true;
+  }
+}
+
+window.displayHostAuthMessage = displayHostAuthMessage;
+window.focusHostAuthInput = focusHostAuthInput;
+window.updateHostAuthUI = updateHostAuthUI;
+
+window.HostAuth = {
+  verified: true,
+  getSecret() {
+    return '';
+  },
+  isVerified() {
+    return true;
+  },
+  setVerified(value) {
+    this.verified = value !== false;
+    if (window.AppState) {
+      window.AppState.hostAuthenticated = this.verified;
+    }
+    updateHostAuthUI();
+    if (typeof renderHostStatus === 'function') renderHostStatus();
+    if (typeof renderDowntimeControls === 'function') renderDowntimeControls();
+    if (typeof updateViewerPanel === 'function') updateViewerPanel();
+    if (typeof renderRunbookTable === 'function') renderRunbookTable(true);
+    if (typeof updateTimeline === 'function') updateTimeline();
+    if (this.verified && typeof window.__DT2_attemptControllerClaim === 'function') {
+      window.__DT2_attemptControllerClaim('host-access');
+    }
+  },
+  load() {
+    this.setVerified(true);
+  }
+};
+
 // Authentication state
 let isAuthenticated = true;
 let authUiInitialized = false;
@@ -2915,6 +3082,7 @@ window.AppState = {
   currentDraggedBlock: null,
   dragOffset: 0,
   completionTimes: {},
+  pendingCompletionUpdates: {},
   isFirstUser: false,
   syncedTimelinePosition: 0,
   renderLock: false,
@@ -2936,6 +3104,12 @@ window.AppState = {
   lastStatusChange: null,
   lastStatusSeenAt: null
 };
+
+if (window.HostAuth && typeof window.HostAuth.load === 'function') {
+  window.HostAuth.load();
+} else {
+  updateHostAuthUI();
+}
 
 document.body.classList.add('messages-off');
 
@@ -2965,6 +3139,44 @@ function showEnhancedTooltip(runbook, event, immediate) {
 
     const statusIcon = document.getElementById('tooltipStatusIcon');
     statusIcon.className = 'status-icon ' + status;
+
+    const sequenceEl = document.getElementById('tooltipSequence');
+    if (sequenceEl) {
+      sequenceEl.textContent = runbook.sequence != null ? '#' + runbook.sequence : '—';
+    }
+
+    const predecessorEl = document.getElementById('tooltipPredecessor');
+    if (predecessorEl) {
+      if (runbook.predecessor || runbook.predecessor === 0) {
+        predecessorEl.textContent = '#' + runbook.predecessor;
+      } else {
+        predecessorEl.textContent = 'None';
+      }
+    }
+
+    const parseTimePart = function(value) {
+      if (value === null || value === undefined || value === '') return null;
+      const num = typeof value === 'number' ? value : parseInt(value, 10);
+      if (!Number.isFinite(num)) return null;
+      return Math.max(0, Math.trunc(num));
+    };
+
+    const formatHHMMTooltip = function(hours, minutes) {
+      const h = parseTimePart(hours);
+      const m = parseTimePart(minutes);
+      if (h === null || m === null) return '--:--';
+      return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+    };
+
+    const startEl = document.getElementById('tooltipStart');
+    if (startEl) {
+      startEl.textContent = formatHHMMTooltip(runbook.scheduleHours, runbook.scheduleMinutes);
+    }
+
+    const planEl = document.getElementById('tooltipPlan');
+    if (planEl) {
+      planEl.textContent = formatHHMMTooltip(runbook.durationHours, runbook.durationMinutes);
+    }
 
     const iconMap = {
       'Preparation': '🔧',
@@ -4511,6 +4723,10 @@ function renderRunbookTable() {
 
 // NEW: Drag and Drop Row Reordering Functions
 function handleRowDragStart(e) {
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    e.preventDefault();
+    return;
+  }
   window.AppState.draggedRowId = parseFloat(e.currentTarget.dataset.runbookId);
   e.currentTarget.classList.add('dragging');
   e.dataTransfer.effectAllowed = 'move';
@@ -4524,9 +4740,12 @@ function handleRowDragEnd(e) {
 }
 
 function handleRowDragOver(e) {
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    return;
+  }
   e.preventDefault();
   e.dataTransfer.dropEffect = 'move';
-  
+
   var draggedId = window.AppState.draggedRowId;
   var targetId = parseFloat(e.currentTarget.dataset.runbookId);
   
@@ -4536,8 +4755,11 @@ function handleRowDragOver(e) {
 }
 
 function handleRowDrop(e) {
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    return;
+  }
   e.preventDefault();
-  
+
   var draggedId = window.AppState.draggedRowId;
   var targetId = parseFloat(e.currentTarget.dataset.runbookId);
   
@@ -4577,10 +4799,12 @@ window.updateStatus = function(id, value) {
           window.AppState.completionTimes[id] = now.toISOString();
         }
       }
+      recordPendingCompletionUpdate(id, true, runbook.actualDuration, window.AppState.completionTimes[id]);
     } else {
       runbook.completed = false;
       runbook.actualDuration = null;
       delete window.AppState.completionTimes[id];
+      recordPendingCompletionUpdate(id, false, null, null);
     }
 
     updateCompletionPercentage();
@@ -4675,6 +4899,8 @@ window.updateTimeline = function() {
   
   generateTimeScale(duration);
   generateTimelineRows();
+  refreshTimelineFieldLocks();
+  syncTimelineDragPermissions();
   displayValidationWarnings();
 
   var finishLine = document.getElementById('finishLine');
@@ -4889,9 +5115,113 @@ function createTimelineRow(runbook, index) {
   }
 
   row.appendChild(track);
-  track.addEventListener('dragover', handleDragOver);
-  track.addEventListener('drop', handleDrop);
+  var trackEditable = typeof window.canWrite === 'function' ? window.canWrite() : true;
+  if (trackEditable) {
+    track.addEventListener('dragover', handleDragOver);
+    track.addEventListener('drop', handleDrop);
+  }
   return row;
+}
+
+function syncTimelineDragPermissions() {
+  var canWrite = typeof window.canWrite === 'function' ? window.canWrite() : true;
+  var tracks = document.querySelectorAll('.timeline-track');
+  tracks.forEach(function(track) {
+    track.classList.toggle('timeline-readonly', !canWrite);
+    track.removeEventListener('dragover', handleDragOver);
+    track.removeEventListener('drop', handleDrop);
+    if (canWrite) {
+      track.addEventListener('dragover', handleDragOver);
+      track.addEventListener('drop', handleDrop);
+    }
+  });
+
+  var blocks = document.querySelectorAll('.timeline-block');
+  blocks.forEach(function(block) {
+    var runbookId = parseFloat(block.dataset.runbookId);
+    var runbook = window.AppState.runbooks.find(function(r) { return r.id === runbookId; });
+    var status = runbook ? (runbook.status || '') : '';
+    var completed = !!(runbook && (runbook.completed || status === 'completed'));
+    var allowDrag = canWrite && !completed;
+
+    block.draggable = allowDrag;
+    block.classList.toggle('timeline-readonly-block', !allowDrag);
+
+    block.removeEventListener('dragstart', handleDragStart);
+    block.removeEventListener('dragend', handleDragEnd);
+    if (allowDrag) {
+      block.addEventListener('dragstart', handleDragStart);
+      block.addEventListener('dragend', handleDragEnd);
+    }
+  });
+}
+
+function isDowntimeTrackerRunning() {
+  var state = window.AppState || {};
+  return !!(state.downtimeStarted && state.downtimeStartTime && !state.downtimePaused);
+}
+
+function shouldLockTimelineField(runbook) {
+  if (!runbook) return false;
+  return isDowntimeTrackerRunning() && !!runbook.completed;
+}
+
+function applyTimelineFieldLock(input, locked) {
+  if (!input) return;
+  var isLocked = !!locked;
+  input.readOnly = isLocked;
+  input.style.background = isLocked ? '#f8fafb' : '#fff';
+  if (isLocked) {
+    input.setAttribute('title', 'Locked while downtime tracking is active');
+  } else {
+    input.removeAttribute('title');
+  }
+}
+
+function resolveTimelineInputValue(runbook, field) {
+  if (!runbook) return '00:00';
+  if (field === 'start' && runbook.__startDraft !== undefined && runbook.__startDraft !== null) {
+    return runbook.__startDraft;
+  }
+  if (field === 'plan' && runbook.__planDraft !== undefined && runbook.__planDraft !== null) {
+    return runbook.__planDraft;
+  }
+  if (field === 'start') {
+    return formatHHMM(runbook.scheduleHours, runbook.scheduleMinutes);
+  }
+  if (field === 'plan') {
+    return formatHHMM(runbook.durationHours, runbook.durationMinutes);
+  }
+  return '00:00';
+}
+
+function refreshTimelineFieldLocks() {
+  var rows = document.querySelectorAll('.timeline-control-row');
+  if (!rows || !rows.length) return;
+
+  rows.forEach(function(row) {
+    if (!row || !row.dataset) return;
+    var runbookKey = row.dataset.runbookId;
+    if (!runbookKey) return;
+
+    var runbook = window.AppState.runbooks.find(function(r) {
+      return String(r.id) === String(runbookKey) || r.id === Number(runbookKey);
+    });
+    if (!runbook) return;
+
+    var inputs = row.querySelectorAll('input[type="text"]');
+    if (!inputs || !inputs.length) return;
+
+    var startInput = Array.prototype.find.call(inputs, function(el) {
+      return el.dataset && el.dataset.fieldType === 'start';
+    });
+    var planInput = Array.prototype.find.call(inputs, function(el) {
+      return el.dataset && el.dataset.fieldType === 'plan';
+    });
+
+    applyTimelineFieldLock(startInput, shouldLockTimelineField(runbook));
+    applyTimelineFieldLock(planInput, shouldLockTimelineField(runbook));
+  });
 }
 
 function createTimelineControlRow(runbook) {
@@ -4906,20 +5236,29 @@ function createTimelineControlRow(runbook) {
   startInput.type = 'text';
   startInput.pattern = '[0-9]{1,3}:[0-9]{2}';
   startInput.placeholder = 'HH:MM';
-  startInput.value = String(runbook.scheduleHours).padStart(2,'0') + ':' + String(runbook.scheduleMinutes).padStart(2,'0');
+  startInput.value = resolveTimelineInputValue(runbook, 'start');
   startInput.dataset.runbookId = runbook.id;
   startInput.dataset.fieldType = 'start';
-  startInput.readOnly = runbook.completed;
-  if (runbook.completed) startInput.style.background = '#f8fafb';
+  var startLocked = shouldLockTimelineField(runbook);
+  applyTimelineFieldLock(startInput, startLocked);
   
   startInput.onfocus = function() { 
     window.AppState.timelineInputLock = true;
     window.AppState.focusedTimelineInput = this;
   };
-  startInput.onblur = function() { 
+  startInput.onblur = function() {
     setTimeout(function() {
       window.AppState.timelineInputLock = false;
       window.AppState.focusedTimelineInput = null;
+      try {
+        var id = runbook.id;
+        var latest = window.AppState.runbooks.find(function(r) { return r.id === id; });
+        if (latest && startInput) {
+          startInput.value = resolveTimelineInputValue(latest, 'start');
+        }
+      } catch (err) {
+        console.warn('Unable to refresh start value after blur:', err);
+      }
     }, 300);
   };
   startInput.onchange = function() { updateScheduleTime(runbook.id, this.value); };
@@ -4934,20 +5273,29 @@ function createTimelineControlRow(runbook) {
   planInput.type = 'text';
   planInput.pattern = '[0-9]{1,3}:[0-9]{2}';
   planInput.placeholder = 'HH:MM';
-  planInput.value = String(runbook.durationHours).padStart(2,'0') + ':' + String(runbook.durationMinutes).padStart(2,'0');
+  planInput.value = resolveTimelineInputValue(runbook, 'plan');
   planInput.dataset.runbookId = runbook.id;
   planInput.dataset.fieldType = 'plan';
-  planInput.readOnly = runbook.completed;
-  if (runbook.completed) planInput.style.background = '#f8fafb';
+  var planLocked = shouldLockTimelineField(runbook);
+  applyTimelineFieldLock(planInput, planLocked);
   
   planInput.onfocus = function() { 
     window.AppState.timelineInputLock = true;
     window.AppState.focusedTimelineInput = this;
   };
-  planInput.onblur = function() { 
+  planInput.onblur = function() {
     setTimeout(function() {
       window.AppState.timelineInputLock = false;
       window.AppState.focusedTimelineInput = null;
+      try {
+        var id = runbook.id;
+        var latest = window.AppState.runbooks.find(function(r) { return r.id === id; });
+        if (latest && planInput) {
+          planInput.value = resolveTimelineInputValue(latest, 'plan');
+        }
+      } catch (err) {
+        console.warn('Unable to refresh plan value after blur:', err);
+      }
     }, 300);
   };
   planInput.onchange = function() { updateDurationTime(runbook.id, this.value); };
@@ -4963,7 +5311,11 @@ function createTimelineControlRow(runbook) {
   checkbox.className = 'timeline-checkbox';
   checkbox.checked = runbook.completed;
   checkbox.title = 'Mark as completed';
-  checkbox.disabled = !(window.AppState.downtimeStarted && !window.AppState.downtimePaused);
+  var canToggle = window.AppState.downtimeStarted && !window.AppState.downtimePaused;
+  if (typeof window.canWrite === 'function') {
+    canToggle = canToggle && window.canWrite();
+  }
+  checkbox.disabled = !canToggle;
   checkbox.dataset.runbookId = runbook.id;
   checkbox.onchange = function() { toggleCompleted(runbook.id, this.checked); };
   endCell.appendChild(checkbox);
@@ -4995,30 +5347,34 @@ function updateTimelineControlRow(row, runbook) {
   // Update START input (only if not currently focused)
   var startInput = cells[0].querySelector('input[type="text"]');
   if (startInput && startInput !== window.AppState.focusedTimelineInput) {
-    var newStartValue = String(runbook.scheduleHours).padStart(2,'0') + ':' + String(runbook.scheduleMinutes).padStart(2,'0');
+    var newStartValue = resolveTimelineInputValue(runbook, 'start');
     if (startInput.value !== newStartValue) {
       startInput.value = newStartValue;
     }
-    startInput.readOnly = runbook.completed;
-    startInput.style.background = runbook.completed ? '#f8fafb' : '#fff';
+    var startLocked = shouldLockTimelineField(runbook);
+    applyTimelineFieldLock(startInput, startLocked);
   }
-  
+
   // Update PLAN input (only if not currently focused)
   var planInput = cells[1].querySelector('input[type="text"]');
   if (planInput && planInput !== window.AppState.focusedTimelineInput) {
-    var newPlanValue = String(runbook.durationHours).padStart(2,'0') + ':' + String(runbook.durationMinutes).padStart(2,'0');
+    var newPlanValue = resolveTimelineInputValue(runbook, 'plan');
     if (planInput.value !== newPlanValue) {
       planInput.value = newPlanValue;
     }
-    planInput.readOnly = runbook.completed;
-    planInput.style.background = runbook.completed ? '#f8fafb' : '#fff';
+    var planLocked = shouldLockTimelineField(runbook);
+    applyTimelineFieldLock(planInput, planLocked);
   }
   
   // Update END checkbox
   var checkbox = cells[2].querySelector('input[type="checkbox"]');
   if (checkbox) {
     checkbox.checked = runbook.completed;
-    checkbox.disabled = !(window.AppState.downtimeStarted && !window.AppState.downtimePaused);
+    var canToggle = window.AppState.downtimeStarted && !window.AppState.downtimePaused;
+    if (typeof window.canWrite === 'function') {
+      canToggle = canToggle && window.canWrite();
+    }
+    checkbox.disabled = !canToggle;
   }
   
   // Update ACTUAL display
@@ -5029,11 +5385,15 @@ function updateTimelineControlRow(row, runbook) {
   }
 }
 
+// Allow timeline blocks to shrink when plan minutes are less than an hour
+var MIN_TIMELINE_BLOCK_WIDTH = 20;
+
 function createTimelineBlock(runbook) {
   var block = document.createElement('div');
   var strategyClass = runbook.strategy.toLowerCase().replace(/\s+/g, '');
   block.className = 'timeline-block block-' + strategyClass;
   block.dataset.runbookId = runbook.id;
+  var timelineEditable = typeof window.canWrite === 'function' ? window.canWrite() : true;
   
   // Add status-specific styling
   var status = runbook.status || 'not-started';
@@ -5058,7 +5418,7 @@ function createTimelineBlock(runbook) {
     block.classList.add('completed');
     block.draggable = false;
   } else {
-    block.draggable = true;
+    block.draggable = timelineEditable;
   }
   
   var pixelsPerHour = 60;
@@ -5070,21 +5430,21 @@ function createTimelineBlock(runbook) {
   var duration = runbook.durationHours + (runbook.durationMinutes / 60);
   
   block.style.left = (position * pixelsPerHour) + 'px';
-  block.style.width = Math.max(60, duration * pixelsPerHour - 4) + 'px';
+  block.style.width = Math.max(MIN_TIMELINE_BLOCK_WIDTH, duration * pixelsPerHour - 4) + 'px';
   
-  // Show sequence and phase inside with predecessor indicator
-  var labelText = '#' + runbook.sequence;
-  if (runbook.predecessor) {
-    labelText += ' (→' + runbook.predecessor + ')';
-  }
-  labelText += ' | ' + runbook.phase;
-  block.textContent = labelText;
-  block.title = runbook.runblock + ' - ' + runbook.phase + ' [' + status + ']';
+  // Show only the sequence number inside the block for a cleaner timeline
+  var sequenceLabel = runbook.sequence != null ? '#' + runbook.sequence : '#?';
+  var runblockName = runbook.runblock || 'Runblock';
+  block.textContent = sequenceLabel;
+  block.title = sequenceLabel + ' ' + runblockName + ' - ' + (runbook.phase || '—') + ' [' + status + ']';
+  block.setAttribute('aria-label', sequenceLabel + ' ' + runblockName);
   
   // Add external label for runblock name
   var blockLabel = document.createElement('div');
   blockLabel.className = 'block-label-external';
-  blockLabel.textContent = runbook.runblock;
+  blockLabel.textContent = runblockName;
+  blockLabel.title = runblockName;
+  blockLabel.setAttribute('aria-hidden', 'true');
   block.appendChild(blockLabel);
   
   if (runbook.critical) {
@@ -5110,7 +5470,7 @@ function createTimelineBlock(runbook) {
   });
   block.addEventListener('mouseleave', hideEnhancedTooltip);
   
-  if (!runbook.completed && status !== 'completed') {
+  if (!runbook.completed && status !== 'completed' && timelineEditable) {
     block.addEventListener('dragstart', handleDragStart);
     block.addEventListener('dragend', handleDragEnd);
   }
@@ -5120,21 +5480,31 @@ function createTimelineBlock(runbook) {
 
 // Drag and Drop Handlers
 function handleDragStart(e) {
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    e.preventDefault();
+    return;
+  }
   e.dataTransfer.effectAllowed = 'move';
   e.target.classList.add('dragging');
   window.AppState.currentDraggedBlock = e.target;
-  
+
   var rect = e.target.getBoundingClientRect();
   window.AppState.dragOffset = e.clientX - rect.left;
 }
 
 function handleDragEnd(e) {
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    return;
+  }
   e.target.classList.remove('dragging');
   window.AppState.currentDraggedBlock = null;
   window.AppState.dragOffset = 0;
 }
 
 function handleDragOver(e) {
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    return;
+  }
   e.preventDefault();
   e.dataTransfer.dropEffect = 'move';
   
@@ -5159,8 +5529,11 @@ function handleDragOver(e) {
 }
 
 function handleDrop(e) {
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    return;
+  }
   e.preventDefault();
-  
+
   if (!window.AppState.currentDraggedBlock) return;
   
   var track = e.currentTarget;
@@ -5196,9 +5569,19 @@ window.updateScheduleTime = function(id, value) {
   var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
   if (runbook) {
     var t = parseHHMM(value);
+    if (!t.ok) {
+      if (scheduleTimeUpdateDebounce[id]) {
+        clearTimeout(scheduleTimeUpdateDebounce[id]);
+        delete scheduleTimeUpdateDebounce[id];
+      }
+      runbook.__startDraft = value;
+      return;
+    }
+
+    delete runbook.__startDraft;
     runbook.scheduleHours = t.h;
     runbook.scheduleMinutes = t.m;
-    
+
     // Clear existing timeout for this runbook
     if (scheduleTimeUpdateDebounce[id]) {
       clearTimeout(scheduleTimeUpdateDebounce[id]);
@@ -5213,7 +5596,7 @@ window.updateScheduleTime = function(id, value) {
         if (controls && idx > -1 && controls.children[idx]) {
           var inp = controls.children[idx].querySelectorAll('.timeline-control-cell input[type="text"]')[0];
           if (inp && inp !== window.AppState.focusedTimelineInput) {
-            inp.value = formatHHMM(t.h, t.m);
+            inp.value = resolveTimelineInputValue(runbook, 'start');
           }
         }
       } catch(e) {
@@ -5231,9 +5614,19 @@ window.updateDurationTime = function(id, value) {
   var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
   if (runbook) {
     var t = parseHHMM(value);
+    if (!t.ok) {
+      if (durationTimeUpdateDebounce[id]) {
+        clearTimeout(durationTimeUpdateDebounce[id]);
+        delete durationTimeUpdateDebounce[id];
+      }
+      runbook.__planDraft = value;
+      return;
+    }
+
+    delete runbook.__planDraft;
     runbook.durationHours = t.h;
     runbook.durationMinutes = t.m;
-    
+
     // Clear existing timeout for this runbook
     if (durationTimeUpdateDebounce[id]) {
       clearTimeout(durationTimeUpdateDebounce[id]);
@@ -5248,7 +5641,7 @@ window.updateDurationTime = function(id, value) {
         if (controls && idx > -1 && controls.children[idx]) {
           var inp = controls.children[idx].querySelectorAll('.timeline-control-cell input[type="text"]')[1];
           if (inp && inp !== window.AppState.focusedTimelineInput) {
-            inp.value = formatHHMM(t.h, t.m);
+            inp.value = resolveTimelineInputValue(runbook, 'plan');
           }
         }
       } catch(e) {
@@ -5262,43 +5655,131 @@ window.updateDurationTime = function(id, value) {
   }
 };
 
+function ensurePendingCompletionMap() {
+  if (!window.AppState.pendingCompletionUpdates) {
+    window.AppState.pendingCompletionUpdates = {};
+  }
+  return window.AppState.pendingCompletionUpdates;
+}
+
+function recordPendingCompletionUpdate(id, completed, actualDuration, completionIso) {
+  var pending = ensurePendingCompletionMap();
+  var key = String(id);
+  pending[key] = {
+    completed: !!completed,
+    actualDuration: actualDuration || null,
+    completionIso: completionIso || null,
+    timestamp: Date.now()
+  };
+}
+
+function reconcilePendingCompletionUpdates() {
+  var pending = window.AppState.pendingCompletionUpdates;
+  if (!pending) return false;
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    window.AppState.pendingCompletionUpdates = {};
+    return false;
+  }
+
+  var keys = Object.keys(pending);
+  if (!keys.length) return false;
+
+  var now = Date.now();
+  var changed = false;
+
+  keys.forEach(function(key) {
+    var entry = pending[key];
+    if (!entry) {
+      delete pending[key];
+      return;
+    }
+    if (now - entry.timestamp > 30000) {
+      delete pending[key];
+      return;
+    }
+
+    var runbook = window.AppState.runbooks.find(function(r) {
+      return String(r.id) === key || r.id === Number(key);
+    });
+
+    if (!runbook) {
+      delete pending[key];
+      return;
+    }
+
+    var desiredCompleted = !!entry.completed;
+    var desiredActual = entry.actualDuration || null;
+    var currentCompleted = !!runbook.completed;
+    var currentActual = runbook.actualDuration || null;
+
+    if (currentCompleted !== desiredCompleted || currentActual !== desiredActual) {
+      runbook.completed = desiredCompleted;
+      runbook.actualDuration = desiredActual;
+      if (desiredCompleted && entry.completionIso) {
+        window.AppState.completionTimes = window.AppState.completionTimes || {};
+        window.AppState.completionTimes[runbook.id] = entry.completionIso;
+      } else if (!desiredCompleted && window.AppState.completionTimes) {
+        delete window.AppState.completionTimes[runbook.id];
+      }
+      entry.timestamp = now;
+      changed = true;
+    } else {
+      delete pending[key];
+    }
+  });
+
+  return changed;
+}
+
 window.toggleCompleted = function(id, checked) {
+  if (typeof window.canWrite === 'function' && !window.canWrite()) {
+    setTimeout(function() {
+      if (typeof updateTimeline === 'function') updateTimeline();
+      if (typeof renderRunbookTable === 'function') renderRunbookTable(true);
+    }, 0);
+    return;
+  }
+
   var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
   if (runbook) {
     runbook.completed = checked;
-    
-      if (checked && window.AppState.downtimeStartTime) {
-        var now = new Date();
-        var stamp = captureCurrentDurationStamp(now);
-        if (stamp) {
-          runbook.actualDuration = stamp;
-          window.AppState.completionTimes[id] = now.toISOString();
 
-          // Force immediate update to timeline to show actual duration
-          setTimeout(function() {
-            var controls = document.getElementById('timelineControlsRows');
-            var sorted = window.AppState.runbooks.slice().sort(function(a,b) { return a.sequence - b.sequence; });
-            var idx = sorted.findIndex(function(r) { return r.id === id; });
-            if (controls && idx > -1 && controls.children[idx]) {
-              var actualCell = controls.children[idx].querySelectorAll('.timeline-control-cell')[3];
-              if (actualCell) {
-                var actualSpan = actualCell.querySelector('span');
-                if (actualSpan) {
-                  actualSpan.textContent = runbook.actualDuration;
-                  actualSpan.style.color = '#107e3e';
-                }
+    if (checked && window.AppState.downtimeStartTime) {
+      var now = new Date();
+      var stamp = captureCurrentDurationStamp(now);
+      if (stamp) {
+        runbook.actualDuration = stamp;
+        window.AppState.completionTimes[id] = now.toISOString();
+        recordPendingCompletionUpdate(id, true, runbook.actualDuration, window.AppState.completionTimes[id]);
+
+        // Force immediate update to timeline to show actual duration
+        setTimeout(function() {
+          var controls = document.getElementById('timelineControlsRows');
+          var sorted = window.AppState.runbooks.slice().sort(function(a,b) { return a.sequence - b.sequence; });
+          var idx = sorted.findIndex(function(r) { return r.id === id; });
+          if (controls && idx > -1 && controls.children[idx]) {
+            var actualCell = controls.children[idx].querySelectorAll('.timeline-control-cell')[3];
+            if (actualCell) {
+              var actualSpan = actualCell.querySelector('span');
+              if (actualSpan) {
+                actualSpan.textContent = runbook.actualDuration;
+                actualSpan.style.color = '#107e3e';
               }
             }
-          }, 50);
-        }
-      } else if (!checked) {
-        runbook.actualDuration = null;
-        delete window.AppState.completionTimes[id];
+          }
+        }, 50);
       }
-    
+    } else if (!checked) {
+      runbook.actualDuration = null;
+      delete window.AppState.completionTimes[id];
+      recordPendingCompletionUpdate(id, false, null, null);
+    } else {
+      recordPendingCompletionUpdate(id, checked, runbook.actualDuration, window.AppState.completionTimes[id]);
+    }
+
     // Update completion percentage
     updateCompletionPercentage();
-    
+
     // Delay the timeline update to prevent interference with checkbox
     setTimeout(function() {
       updateTimeline();
@@ -5370,6 +5851,7 @@ window.startDowntime = function() {
   window.AppState.downtimePaused = false;
   window.AppState.pausedDuration = 0;
   window.AppState.pauseStartTime = null;
+  window.AppState.pendingCompletionUpdates = {};
   
   var downtimeDuration = parseInt(document.getElementById('downtimeDuration').value) || 24;
   window.AppState.downtimeDuration = downtimeDuration;
@@ -5398,20 +5880,26 @@ window.startDowntime = function() {
   document.getElementById('startTimeDisplay').style.display = 'block';
   document.getElementById('currentDurationInput').style.display = 'none';
   document.getElementById('currentDurationDisplay').style.display = 'block';
-  
-  var startTimeStr = window.AppState.downtimeStartTime.toLocaleTimeString('en-US', 
+
+  var startTimeStr = window.AppState.downtimeStartTime.toLocaleTimeString('en-US',
     { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
   
   document.getElementById('startTimeDisplay').textContent = startTimeStr;
   
   // Set current duration to 00:00:00
   document.getElementById('currentDurationDisplay').textContent = '00:00:00';
-  
+
   calculateEndTime();
-  
+
+  // Kick off timers immediately so the tracker and duration reflect the new session without delay
+  if (!clockIntervalId) {
+    clockIntervalId = setInterval(updateClock, 1000);
+  }
+  updateClock();
+
   document.getElementById('statusText').textContent = 'In Progress';
   document.getElementById('statusText').style.color = 'var(--sap-error)';
-  
+
   renderDowntimeControls();
   
   var currentLine = document.getElementById('currentTimeLine');
@@ -5505,6 +5993,7 @@ window.stopDowntime = function() {
       r.completed = false;
     });
     window.AppState.completionTimes = {};
+    window.AppState.pendingCompletionUpdates = {};
     
     // Unlock customer name and transform cycle inputs
     var customerNameInput = document.getElementById('customerName');
@@ -5584,6 +6073,7 @@ window.downloadExcel = function() {
       Phase: r.phase,
       Runblock: r.runblock || '',
       Responsibility: r.responsibility || '',
+      Predecessor: (r.predecessor === 0 ? '0' : (r.predecessor || '')).toString(),
       Status: r.status || 'not-started',
       Critical: r.critical ? 'Yes' : 'No',
       ScheduleTime: String(r.scheduleHours).padStart(2,'0') + ':' + String(r.scheduleMinutes).padStart(2,'0'),
@@ -5592,8 +6082,8 @@ window.downloadExcel = function() {
       Completed: r.completed ? 'Yes' : 'No'
     };
   });
-  
-  var headers = ['Sequence','Strategy','Phase','Runblock','Responsibility','Status','Critical','ScheduleTime','PlannedDuration','ActualDuration','Completed'];
+
+  var headers = ['Sequence','Strategy','Phase','Runblock','Responsibility','Predecessor','Status','Critical','ScheduleTime','PlannedDuration','ActualDuration','Completed'];
   var csvContent = [
     headers.join(',')
   ].concat(data.map(function(row) {
@@ -5627,6 +6117,13 @@ window.uploadExcel = function(event) {
       var text = e.target.result;
       var lines = text.split('\n');
       var headers = lines[0].split(',').map(function(h) { return h.replace(/"/g, '').trim(); });
+      var predecessorIndex = headers.indexOf('Predecessor');
+      var plannedDurationIndex = headers.indexOf('PlannedDuration');
+      var legacyDurationIndex = headers.indexOf('Duration');
+      var scheduleIndex = headers.indexOf('ScheduleTime');
+      var statusIndex = headers.indexOf('Status');
+      var actualIndex = headers.indexOf('ActualDuration');
+      var completedIndex = headers.indexOf('Completed');
       
       window.AppState.runbooks = [];
       
@@ -5635,17 +6132,49 @@ window.uploadExcel = function(event) {
           var matches = lines[i].match(/(".*?"|[^,]+)/g);
           var values = matches ? matches.map(function(v) { return v.replace(/"/g, '').trim(); }) : [];
           
-          var scheduleTime = values[headers.indexOf('ScheduleTime')] || '00:00';
+          var scheduleSource = scheduleIndex !== -1 ? values[scheduleIndex] : null;
+          var scheduleTime = scheduleSource || '00:00';
           var scheduleTimeParts = scheduleTime.split(':').map(Number);
           var scheduleHours = scheduleTimeParts[0] || 0;
           var scheduleMinutes = scheduleTimeParts[1] || 0;
-          
-          var planDuration = values[headers.indexOf('PlannedDuration')] || values[headers.indexOf('Duration')] || '01:00';
-          var planDurationParts = planDuration.split(':').map(Number);
-          var durationHours = planDurationParts[0] || 1;
-          var durationMinutes = planDurationParts[1] || 0;
-          
-          var status = values[headers.indexOf('Status')] || 'not-started';
+
+          var planDurationRaw = '';
+          if (plannedDurationIndex !== -1) {
+            planDurationRaw = values[plannedDurationIndex] || '';
+          }
+          if (!planDurationRaw && legacyDurationIndex !== -1) {
+            planDurationRaw = values[legacyDurationIndex] || '';
+          }
+
+          var parsedPlan = parseHHMM(planDurationRaw);
+          if (!parsedPlan.ok) {
+            if (/^\d{1,2}$/.test(planDurationRaw || '')) {
+              var minutesOnly = parseInt(planDurationRaw, 10);
+              if (!isNaN(minutesOnly)) {
+                parsedPlan.h = Math.floor(minutesOnly / 60);
+                parsedPlan.m = minutesOnly % 60;
+                parsedPlan.ok = true;
+              }
+            }
+          }
+          if (!parsedPlan.ok) {
+            var numericDuration = parseFloat(planDurationRaw);
+            if (!isNaN(numericDuration) && isFinite(numericDuration)) {
+              var totalMinutes = Math.max(0, Math.round(numericDuration * 60));
+              parsedPlan.h = Math.floor(totalMinutes / 60);
+              parsedPlan.m = totalMinutes % 60;
+              parsedPlan.ok = true;
+            }
+          }
+          if (!parsedPlan.ok) {
+            parsedPlan.h = 1;
+            parsedPlan.m = 0;
+          }
+
+          var durationHours = parsedPlan.h;
+          var durationMinutes = parsedPlan.m;
+
+          var status = statusIndex !== -1 ? values[statusIndex] : 'not-started';
           if (TASK_STATUSES.indexOf(status) === -1) {
             status = 'not-started';
           }
@@ -5657,14 +6186,15 @@ window.uploadExcel = function(event) {
             phase: values[headers.indexOf('Phase')] || PHASES[0],
             runblock: values[headers.indexOf('Runblock')] || '',
             responsibility: values[headers.indexOf('Responsibility')] || '',
+            predecessor: predecessorIndex !== -1 ? (values[predecessorIndex] || '') : '',
             status: status,
             critical: values[headers.indexOf('Critical')] === 'Yes',
             scheduleHours: scheduleHours,
             scheduleMinutes: scheduleMinutes,
             durationHours: durationHours,
             durationMinutes: durationMinutes,
-            actualDuration: values[headers.indexOf('ActualDuration')] || null,
-            completed: values[headers.indexOf('Completed')] === 'Yes',
+            actualDuration: actualIndex !== -1 ? (values[actualIndex] || null) : null,
+            completed: completedIndex !== -1 ? values[completedIndex] === 'Yes' : false,
             position: 0
           };
           
@@ -5924,7 +6454,7 @@ function updateSingleBlockWidth(id) {
   if (!rb) return;
   var pph = 60;
   var dur = rb.durationHours + rb.durationMinutes / 60;
-  var w = Math.max(60, dur * pph - 4);
+  var w = Math.max(MIN_TIMELINE_BLOCK_WIDTH, dur * pph - 4);
   var block = document.querySelector('.timeline-block[data-runbook-id="' + id + '"]');
   if (block) block.style.width = w + 'px';
 }
@@ -6074,6 +6604,32 @@ const firebaseConfig = {
   measurementId: "G-CJ2F30SYRY"
 };
 
+const HOST_TAKEOVER_GRACE_MS = window.__DT2_HOST_TAKEOVER_GRACE_MS || 60000;
+const PRESENCE_ACTIVITY_WINDOW_MS = 45000;
+
+function resolvePresenceLastActive(entry) {
+  if (!entry) return 0;
+  if (typeof entry.lastActiveMs === 'number') return entry.lastActiveMs;
+  if (typeof entry.lastActive === 'number') return entry.lastActive;
+  if (entry.lastActive && typeof entry.lastActive.toMillis === 'function') return entry.lastActive.toMillis();
+  if (entry.lastActive && typeof entry.lastActive.seconds === 'number') return entry.lastActive.seconds * 1000;
+  if (typeof entry.lastActiveMillis === 'number') return entry.lastActiveMillis;
+  if (typeof entry.updatedAt === 'object' && entry.updatedAt && typeof entry.updatedAt.seconds === 'number') {
+    return entry.updatedAt.seconds * 1000;
+  }
+  if (typeof entry.lastSeen === 'number') return entry.lastSeen;
+  if (typeof entry.ts === 'number') return entry.ts;
+  return 0;
+}
+
+function isPresenceEntryActive(entry, now) {
+  if (!entry) return false;
+  if (typeof entry.isActive === 'boolean') return entry.isActive;
+  const lastActive = resolvePresenceLastActive(entry);
+  if (!lastActive) return false;
+  return (now || Date.now()) - lastActive < PRESENCE_ACTIVITY_WINDOW_MS;
+}
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
@@ -6153,6 +6709,7 @@ window.loadTemplatesFromFirebase = async function() {
 const url = new URL(window.location.href);
 let customerParam = url.searchParams.get("customer") || "";
 let phaseParam = url.searchParams.get("phase") || url.searchParams.get("transformCycle") || "";
+let sessionParam = url.searchParams.get("session") || "";
 let viewerParam = url.searchParams.get("viewer");
 let requestedViewerMode = viewerParam === "1";
 let hostBlockReason = null;
@@ -6192,6 +6749,18 @@ function loadLastSessionContext() {
 }
 
 const lastSessionContext = loadLastSessionContext();
+let sessionHydratedCustomer = "";
+let sessionHydratedTransform = "";
+
+if (sessionParam) {
+  const parts = sessionParam.split("__");
+  const hydrate = (segment) => (segment || "").replace(/-/g, " ").trim();
+  sessionHydratedCustomer = hydrate(parts[0]);
+  sessionHydratedTransform = hydrate(parts[1]);
+}
+
+if (!customerParam && sessionHydratedCustomer) customerParam = sessionHydratedCustomer;
+if (!phaseParam && sessionHydratedTransform) phaseParam = sessionHydratedTransform;
 if (!customerParam && lastSessionContext.customer) customerParam = lastSessionContext.customer;
 if (!phaseParam && lastSessionContext.transform) phaseParam = lastSessionContext.transform;
 
@@ -6207,7 +6776,7 @@ if (phaseParam && phaseInput) phaseInput.value = phaseParam;
 // Generate safe key for Firebase
 const toKey = s => (s||"default").toString().trim().toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"") || "default";
 
-function deriveSessionContext({ customerValue, transformValue }) {
+function deriveSessionContext({ customerValue, transformValue, sessionKeyOverride }) {
   const normalizedCustomer = (customerValue || "").toString().trim() || "default";
   const normalizedTransform = (transformValue || "").toString().trim() || "default";
   const customerKey = toKey(normalizedCustomer);
@@ -6217,13 +6786,14 @@ function deriveSessionContext({ customerValue, transformValue }) {
     transformValue: normalizedTransform,
     customerKey,
     phaseKey,
-    sessionKey: `${customerKey}__${phaseKey}`
+    sessionKey: sessionKeyOverride || `${customerKey}__${phaseKey}`
   };
 }
 
 let sessionContext = deriveSessionContext({
   customerValue: nameInput?.value || customerParam,
-  transformValue: phaseInput?.value || phaseParam
+  transformValue: phaseInput?.value || phaseParam,
+  sessionKeyOverride: sessionParam || null
 });
 
 customerParam = sessionContext.customerValue;
@@ -6566,6 +7136,7 @@ function persistOperatorProfile(name) {
 }
 
 let presenceRoster = {};
+let presenceRosterReady = false;
 let controllerName = null;
 let controlRequest = null;
 let latestSessionData = {};
@@ -6649,7 +7220,6 @@ function renderHostStatus() {
   const activeName = controllerName || resolveControllerName();
   const canWrite = typeof window.canWrite === 'function' ? window.canWrite() : true;
   const isViewer = typeof window.canWrite === 'function' ? !window.canWrite() : false;
-
   if (hostValue) {
     hostValue.textContent = activeName || 'Unassigned';
   }
@@ -6804,6 +7374,7 @@ try {
   url.searchParams.set("customer", sessionContext.customerValue);
   url.searchParams.set("transformCycle", sessionContext.transformValue);
   url.searchParams.set("phase", sessionContext.transformValue);
+  url.searchParams.set("session", sessionContext.sessionKey);
   history.replaceState(null, "", url.toString());
 } catch (e) {
   console.warn("Failed to update URL parameters", e);
@@ -6931,6 +7502,7 @@ function createRealtimeOverlay() {
     shareUrl.searchParams.set("customer", sessionContext.customerValue);
     shareUrl.searchParams.set("transformCycle", sessionContext.transformValue);
     shareUrl.searchParams.set("phase", sessionContext.transformValue);
+    shareUrl.searchParams.set("session", sessionContext.sessionKey);
     await navigator.clipboard.writeText(shareUrl.toString());
     const btn = document.getElementById("rt-copy");
     const prev = btn.textContent;
@@ -7228,22 +7800,8 @@ function handlePresenceEntries(entries) {
       roster[presenceEntry.uid] = rosterEntry;
     }
 
-    let timestamp = 0;
-    if (typeof presenceEntry.lastActive === 'number') {
-      timestamp = presenceEntry.lastActive;
-    } else if (presenceEntry.lastActive && typeof presenceEntry.lastActive.toMillis === 'function') {
-      timestamp = presenceEntry.lastActive.toMillis();
-    } else if (presenceEntry.lastActive && typeof presenceEntry.lastActive.seconds === 'number') {
-      timestamp = presenceEntry.lastActive.seconds * 1000;
-    } else if (typeof presenceEntry.lastActiveMillis === 'number') {
-      timestamp = presenceEntry.lastActiveMillis;
-    } else if (presenceEntry.updatedAt && typeof presenceEntry.updatedAt.seconds === 'number') {
-      timestamp = presenceEntry.updatedAt.seconds * 1000;
-    } else if (typeof presenceEntry.ts === 'number') {
-      timestamp = presenceEntry.ts;
-    }
-
-    const isActive = timestamp ? (now - timestamp < 45000) : true;
+    const timestamp = resolvePresenceLastActive(presenceEntry);
+    const isActive = timestamp ? (now - timestamp < PRESENCE_ACTIVITY_WINDOW_MS) : true;
     if (isActive) {
       online++;
       if ((rosterEntry.mode || '').toLowerCase() === 'viewer') {
@@ -7253,9 +7811,14 @@ function handlePresenceEntries(entries) {
         hostCount++;
       }
     }
+
+    rosterEntry.lastActiveMs = timestamp || 0;
+    rosterEntry.isActive = isActive;
+    rosterEntry.lastSeen = timestamp || 0;
   });
 
   presenceRoster = roster;
+  presenceRosterReady = true;
   controllerName = resolveControllerName();
   trackViewerEngagement(viewerEntries, now);
 
@@ -7345,6 +7908,75 @@ attemptedControllerClaim = false;
 let lastSentState = null;
 let writing = false;
 
+async function attemptControllerClaim(reason) {
+  if (attemptedControllerClaim) return false;
+
+  let forcedTakeover = false;
+  let clearedViewerLock = false;
+  if (remoteController && remoteController !== uid) {
+    const presence = presenceRoster ? presenceRoster[remoteController] : null;
+    const now = Date.now();
+    let stale = false;
+    let offlineDuration = 0;
+
+    if (presence) {
+      const lastActive = resolvePresenceLastActive(presence);
+      const active = isPresenceEntryActive(presence, now);
+      offlineDuration = lastActive ? now - lastActive : Number.POSITIVE_INFINITY;
+      stale = !active && offlineDuration >= HOST_TAKEOVER_GRACE_MS;
+    } else if (presenceRosterReady) {
+      stale = true;
+      offlineDuration = Number.POSITIVE_INFINITY;
+    }
+
+    if (!stale) {
+      if (viewerForced) {
+        console.warn('Viewer mode enforced: active host still connected');
+      }
+      return false;
+    }
+
+    forcedTakeover = true;
+    console.warn('Forcing host takeover from offline controller', remoteController, 'inactive for', offlineDuration, 'ms');
+  } else if (viewerForced) {
+    clearedViewerLock = true;
+  }
+
+  if (viewerForced) {
+    viewerForced = false;
+  }
+  if (clearedViewerLock) {
+    console.log('Viewer lock cleared after host verification');
+  }
+
+  attemptedControllerClaim = true;
+  try {
+    await window.firestore.setDoc(sessionRef, {
+      controllerUid: uid,
+      controllerName: getOperatorName(),
+      controllerSetAt: window.firestore.serverTimestamp()
+    }, { merge: true });
+    console.log('✓ Became controller:', uid, reason || 'manual');
+    if (forcedTakeover) {
+      if (typeof window.displayHostAuthMessage === 'function') {
+        window.displayHostAuthMessage('Host control reclaimed from an inactive host.', 'success');
+      }
+      if (typeof window.showToast === 'function') {
+        window.showToast('Host control reassigned. Previous host inactive.');
+      }
+    }
+    return true;
+  } catch (e) {
+    attemptedControllerClaim = false;
+    console.error('Failed to set controller:', e);
+    return false;
+  }
+}
+
+window.__DT2_attemptControllerClaim = attemptControllerClaim;
+
+attemptControllerClaim('module-init');
+
 // Check if can write - PROPERLY OVERRIDE THE EARLY INIT
 window.canWrite = function() {
   // If viewer mode is forced via URL parameter, always return false
@@ -7417,6 +8049,8 @@ function applyRemoteState(remoteState) {
   state.pauseStartTime = remoteState.pauseStartTime ? new Date(remoteState.pauseStartTime) : null;
   state.downtimeStartTime = remoteState.downtimeStartTime ? new Date(remoteState.downtimeStartTime) : null;
   state.completionTimes = remoteState.completionTimes || {};
+
+  var pendingChanged = reconcilePendingCompletionUpdates();
   state.syncedTimelinePosition = remoteState.syncedTimelinePosition || 0;
   state.messagesOn = !!remoteState.messagesOn;
   state.lastPauseReason = remoteState.lastPauseReason || '';
@@ -7510,7 +8144,7 @@ function applyRemoteState(remoteState) {
   }
   
   // Update tables and timeline
-  if (typeof window.renderRunbookTable === 'function') window.renderRunbookTable();
+  if (typeof window.renderRunbookTable === 'function') window.renderRunbookTable(pendingChanged);
   if (typeof window.updateTimeline === 'function') window.updateTimeline();
   if (typeof window.calculateEndTime === 'function') window.calculateEndTime();
   if (typeof window.updateCompletionPercentage === 'function') window.updateCompletionPercentage();
@@ -7567,7 +8201,11 @@ function updateViewerPanel() {
     hasStartTime: !!state.downtimeStartTime,
     startTime: state.downtimeStartTime
   });
-  
+
+  if (typeof syncTimelineDragPermissions === 'function') {
+    syncTimelineDragPermissions();
+  }
+
   // Update mode display
   const modeEl = document.getElementById("rt-mode");
   if (modeEl) modeEl.textContent = `mode: ${isViewer ? "VIEWER" : "HOST"}`;
@@ -8654,21 +9292,15 @@ function subscribeToSession() {
   }
 
   // Try to become controller if none exists and we are eligible to host
-  if (!remoteController && !viewerForced && initialSync) {
-    try {
-      await window.firestore.setDoc(sessionRef, {
-        controllerUid: uid,
-        controllerName: getOperatorName(),
-        controllerSetAt: window.firestore.serverTimestamp()
-      }, { merge: true });
-      console.log("✓ Became controller:", uid);
-    } catch (e) {
-      console.error("Failed to set controller:", e);
-    }
+  if (!remoteController && !viewerForced) {
+    await attemptControllerClaim(initialSync ? 'initial-sync' : 'session-sync');
   }
 
   // Update UI based on role
   updateViewerPanel();
+  if (typeof window.updateHostAuthUI === 'function') {
+    window.updateHostAuthUI();
+  }
 
   if (initialSync) {
     initialSync = false;
@@ -8677,6 +9309,9 @@ function subscribeToSession() {
     hideContextSwitchToast();
     contextSwitchInFlight = false;
     renderHostStatus();
+    if (typeof window.updateHostAuthUI === 'function') {
+      window.updateHostAuthUI();
+    }
 
     // CRITICAL FIX: For viewers, force UI update and start duration counter
     if (!window.canWrite() && data.state) {
@@ -8785,6 +9420,7 @@ async function switchSessionContext(newValues) {
       url.searchParams.set("customer", sessionContext.customerValue);
       url.searchParams.set("transformCycle", sessionContext.transformValue);
       url.searchParams.set("phase", sessionContext.transformValue);
+      url.searchParams.set("session", sessionContext.sessionKey);
       history.replaceState(null, "", url.toString());
     } catch (err) {
       console.warn("Failed to refresh URL on session switch", err);
@@ -8883,11 +9519,13 @@ async function switchSessionContext(newValues) {
   controlRequest = null;
   controllerName = null;
   presenceRoster = {};
+  presenceRosterReady = false;
 
   try {
     url.searchParams.set("customer", sessionContext.customerValue);
     url.searchParams.set("transformCycle", sessionContext.transformValue);
     url.searchParams.set("phase", sessionContext.transformValue);
+    url.searchParams.set("session", sessionContext.sessionKey);
     history.replaceState(null, "", url.toString());
   } catch (err) {
     console.warn("Failed to refresh URL on session switch", err);
@@ -9056,13 +9694,16 @@ document.getElementById("rt-reset").onclick = async function() {
     currentDraggedBlock: null,
     dragOffset: 0,
     completionTimes: {},
+    pendingCompletionUpdates: {},
     isFirstUser: false,
     syncedTimelinePosition: 0,
     renderLock: false,
     messagesOn: false,
     fullscreenMode: false
   };
-  
+  presenceRoster = {};
+  presenceRosterReady = false;
+
   // Reset UI
   document.getElementById('customerName').value = '';
   document.getElementById('transformCycle').value = 'Test Migration';
