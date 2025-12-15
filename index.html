@@ -2412,12 +2412,6 @@ body.dark-mode #messageToggleBtn:hover{
       <span class="status-label">Status</span>
       <span class="status-value" id="statusText" style="color:var(--sap-warning);">Not Started</span>
     </div>
-    <div class="header-actions">
-      <button type="button" class="header-focus-button" id="headerFocusButton" data-focus-toggle="true" aria-pressed="false">
-        <span class="header-focus-icon" id="headerFocusIcon">⛶</span>
-        <span class="header-focus-text" id="headerFocusText">Focus</span>
-      </button>
-    </div>
   </div>
 
   <div class="context-switch-toast" id="contextSwitchToast" role="status" aria-live="polite">
@@ -3429,6 +3423,7 @@ window.loadTemplate = async function(templateId) {
           id: Date.now() + Math.random() + idx,
           completed: false,
           actualDuration: null,
+          actualEndTime: null,
           position: 0,
           status: 'not-started'
         };
@@ -3576,8 +3571,27 @@ function initializeFocusToggle() {
 }
 
 document.addEventListener('keydown', function(e) {
-  // Don't trigger shortcuts when typing in inputs
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
+  var inFormField = e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA';
+
+  // Ctrl+Shift+F: Keep quick search access alongside focus shortcut
+  if (e.ctrlKey && e.shiftKey && e.key === 'f') {
+    e.preventDefault();
+    var searchBox = document.getElementById('searchRunbooks');
+    if (searchBox) {
+      searchBox.focus();
+      searchBox.select();
+    }
+    return;
+  }
+
+  // Ctrl+F: Toggle focus mode without needing the header button
+  if (e.ctrlKey && e.key === 'f') {
+    handleFocusToggleEvent(e);
+    return;
+  }
+
+  // Don't trigger other shortcuts when typing in inputs
+  if (inFormField) {
     // Except for Ctrl+S to save
     if (e.ctrlKey && e.key === 's') {
       e.preventDefault();
@@ -3585,17 +3599,16 @@ document.addEventListener('keydown', function(e) {
       if (window.canWrite && window.canWrite()) {
         console.log('Manual save triggered');
       }
-      return;
     }
     return;
   }
-  
+
   // Ctrl+N: Add new runbook
   if (e.ctrlKey && e.key === 'n') {
     e.preventDefault();
     window.addRunbookRow();
   }
-  
+
   // Ctrl+D: Duplicate selected row
   if (e.ctrlKey && e.key === 'd') {
     e.preventDefault();
@@ -3603,17 +3616,7 @@ document.addEventListener('keydown', function(e) {
       window.duplicateRunbook(window.AppState.selectedRunbookId);
     }
   }
-  
-  // Ctrl+F: Focus search
-  if (e.ctrlKey && e.key === 'f') {
-    e.preventDefault();
-    var searchBox = document.getElementById('searchRunbooks');
-    if (searchBox) {
-      searchBox.focus();
-      searchBox.select();
-    }
-  }
-  
+
   // F: Toggle full screen mode
   if (e.key === 'f' && !e.ctrlKey && !e.shiftKey && !e.altKey) {
     e.preventDefault();
@@ -3728,9 +3731,6 @@ function updateFullscreenButton(isFullscreen) {
   var icon = document.getElementById('fullscreenIcon');
   var text = document.getElementById('fullscreenText');
   var btn = document.getElementById('fullscreenToggle');
-  var headerBtn = document.getElementById('headerFocusButton');
-  var headerIcon = document.getElementById('headerFocusIcon');
-  var headerText = document.getElementById('headerFocusText');
 
   if (icon) icon.textContent = isFullscreen ? '⛶' : '⛶';
   if (text) text.textContent = isFullscreen ? 'Exit Focus' : 'Focus';
@@ -3740,17 +3740,6 @@ function updateFullscreenButton(isFullscreen) {
       btn.classList.add('active');
     } else {
       btn.classList.remove('active');
-    }
-  }
-
-  if (headerIcon) headerIcon.textContent = isFullscreen ? '⛶' : '⛶';
-  if (headerText) headerText.textContent = isFullscreen ? 'Exit Focus' : 'Focus';
-  if (headerBtn) {
-    headerBtn.setAttribute('aria-pressed', isFullscreen ? 'true' : 'false');
-    if (isFullscreen) {
-      headerBtn.classList.add('active');
-    } else {
-      headerBtn.classList.remove('active');
     }
   }
 }
@@ -3881,6 +3870,7 @@ window.duplicateRunbook = function(id) {
     durationMinutes: original.durationMinutes,
     completed: false,
     actualDuration: null,
+    actualEndTime: null,
     position: 0,
     status: 'not-started'
   };
@@ -4532,6 +4522,15 @@ function captureCurrentDurationStamp(referenceTime) {
   return String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
 }
 
+function captureCurrentEndTime(referenceTime) {
+  var now = referenceTime instanceof Date ? referenceTime : new Date();
+  try {
+    return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  } catch (e) {
+    return now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+  }
+}
+
 function updateDuration() {
   var durationDisplay = document.getElementById('currentDurationDisplay');
   if (!durationDisplay) return;
@@ -4638,6 +4637,7 @@ window.addRunbookRow = function() {
     durationMinutes: 0,
     completed: false,
     actualDuration: null,
+    actualEndTime: null,
     position: 0,
     status: 'not-started'
   };
@@ -4850,17 +4850,20 @@ window.updateStatus = function(id, value) {
       if (window.AppState.downtimeStarted && window.AppState.downtimeStartTime && !runbook.actualDuration) {
         var now = new Date();
         var stamp = captureCurrentDurationStamp(now);
+        var endTime = captureCurrentEndTime(now);
         if (stamp) {
           runbook.actualDuration = stamp;
+          runbook.actualEndTime = endTime;
           window.AppState.completionTimes[id] = now.toISOString();
         }
       }
-      recordPendingCompletionUpdate(id, true, runbook.actualDuration, window.AppState.completionTimes[id]);
+      recordPendingCompletionUpdate(id, true, runbook.actualDuration, window.AppState.completionTimes[id], runbook.actualEndTime);
     } else {
       runbook.completed = false;
       runbook.actualDuration = null;
+      runbook.actualEndTime = null;
       delete window.AppState.completionTimes[id];
-      recordPendingCompletionUpdate(id, false, null, null);
+      recordPendingCompletionUpdate(id, false, null, null, null);
     }
 
     updateCompletionPercentage();
@@ -5381,9 +5384,10 @@ function createTimelineControlRow(runbook) {
   var actualCell = document.createElement('div');
   actualCell.className = 'timeline-control-cell';
   var actualSpan = document.createElement('span');
+  var actualDisplay = runbook.actualEndTime || runbook.actualDuration;
   actualSpan.style.fontSize = '11px';
-  actualSpan.style.color = runbook.actualDuration ? '#107e3e' : '#999';
-  actualSpan.textContent = runbook.actualDuration || '--:--:--';
+  actualSpan.style.color = actualDisplay ? '#107e3e' : '#999';
+  actualSpan.textContent = actualDisplay || '--:--:--';
   actualSpan.dataset.runbookId = runbook.id;
   actualCell.appendChild(actualSpan);
   row.appendChild(actualCell);
@@ -5436,8 +5440,9 @@ function updateTimelineControlRow(row, runbook) {
   // Update ACTUAL display
   var actualSpan = cells[3].querySelector('span');
   if (actualSpan) {
-    actualSpan.textContent = runbook.actualDuration || '--:--:--';
-    actualSpan.style.color = runbook.actualDuration ? '#107e3e' : '#999';
+    var actualValue = runbook.actualEndTime || runbook.actualDuration;
+    actualSpan.textContent = actualValue || '--:--:--';
+    actualSpan.style.color = actualValue ? '#107e3e' : '#999';
   }
 }
 
@@ -5718,12 +5723,13 @@ function ensurePendingCompletionMap() {
   return window.AppState.pendingCompletionUpdates;
 }
 
-function recordPendingCompletionUpdate(id, completed, actualDuration, completionIso) {
+function recordPendingCompletionUpdate(id, completed, actualDuration, completionIso, actualEndTime) {
   var pending = ensurePendingCompletionMap();
   var key = String(id);
   pending[key] = {
     completed: !!completed,
     actualDuration: actualDuration || null,
+    actualEndTime: actualEndTime || null,
     completionIso: completionIso || null,
     timestamp: Date.now()
   };
@@ -5765,12 +5771,15 @@ function reconcilePendingCompletionUpdates() {
 
     var desiredCompleted = !!entry.completed;
     var desiredActual = entry.actualDuration || null;
+    var desiredActualEnd = entry.actualEndTime || null;
     var currentCompleted = !!runbook.completed;
     var currentActual = runbook.actualDuration || null;
+    var currentActualEnd = runbook.actualEndTime || null;
 
-    if (currentCompleted !== desiredCompleted || currentActual !== desiredActual) {
+    if (currentCompleted !== desiredCompleted || currentActual !== desiredActual || currentActualEnd !== desiredActualEnd) {
       runbook.completed = desiredCompleted;
       runbook.actualDuration = desiredActual;
+      runbook.actualEndTime = desiredActualEnd;
       if (desiredCompleted && entry.completionIso) {
         window.AppState.completionTimes = window.AppState.completionTimes || {};
         window.AppState.completionTimes[runbook.id] = entry.completionIso;
@@ -5803,10 +5812,12 @@ window.toggleCompleted = function(id, checked) {
     if (checked && window.AppState.downtimeStartTime) {
       var now = new Date();
       var stamp = captureCurrentDurationStamp(now);
+      var endTime = captureCurrentEndTime(now);
       if (stamp) {
         runbook.actualDuration = stamp;
+        runbook.actualEndTime = endTime;
         window.AppState.completionTimes[id] = now.toISOString();
-        recordPendingCompletionUpdate(id, true, runbook.actualDuration, window.AppState.completionTimes[id]);
+        recordPendingCompletionUpdate(id, true, runbook.actualDuration, window.AppState.completionTimes[id], runbook.actualEndTime);
 
         // Force immediate update to timeline to show actual duration
         setTimeout(function() {
@@ -5818,7 +5829,7 @@ window.toggleCompleted = function(id, checked) {
             if (actualCell) {
               var actualSpan = actualCell.querySelector('span');
               if (actualSpan) {
-                actualSpan.textContent = runbook.actualDuration;
+                actualSpan.textContent = runbook.actualEndTime || runbook.actualDuration;
                 actualSpan.style.color = '#107e3e';
               }
             }
@@ -5827,10 +5838,11 @@ window.toggleCompleted = function(id, checked) {
       }
     } else if (!checked) {
       runbook.actualDuration = null;
+      runbook.actualEndTime = null;
       delete window.AppState.completionTimes[id];
-      recordPendingCompletionUpdate(id, false, null, null);
+      recordPendingCompletionUpdate(id, false, null, null, null);
     } else {
-      recordPendingCompletionUpdate(id, checked, runbook.actualDuration, window.AppState.completionTimes[id]);
+      recordPendingCompletionUpdate(id, checked, runbook.actualDuration, window.AppState.completionTimes[id], runbook.actualEndTime);
     }
 
     // Update completion percentage
@@ -6046,6 +6058,7 @@ window.stopDowntime = function() {
     // Reset actual durations
     window.AppState.runbooks.forEach(function(r) {
       r.actualDuration = null;
+      r.actualEndTime = null;
       r.completed = false;
     });
     window.AppState.completionTimes = {};
@@ -6250,6 +6263,7 @@ window.uploadExcel = function(event) {
             durationHours: durationHours,
             durationMinutes: durationMinutes,
             actualDuration: actualIndex !== -1 ? (values[actualIndex] || null) : null,
+            actualEndTime: null,
             completed: completedIndex !== -1 ? values[completedIndex] === 'Yes' : false,
             position: 0
           };
@@ -8126,7 +8140,8 @@ function applyRemoteState(remoteState) {
   state.runbooks = Array.isArray(remoteState.runbooks) ? remoteState.runbooks.map(function(r) {
     return {
       ...r,
-      status: r.status || 'not-started'
+      status: r.status || 'not-started',
+      actualEndTime: r.actualEndTime || null
     };
   }) : [];
   state.downtimeStarted = !!remoteState.downtimeStarted;
