@@ -6302,26 +6302,79 @@ window.uploadExcel = function(event) {
   if (!file) return;
   
   var reader = new FileReader();
+
+  function detectDelimiter(line) {
+    if (line.indexOf('\t') !== -1) return '\t';
+    return ',';
+  }
+
+  function splitRow(line, delimiter) {
+    var cells = [];
+    var current = '';
+    var inQuotes = false;
+
+    for (var i = 0; i < line.length; i++) {
+      var char = line[i];
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === delimiter && !inQuotes) {
+        cells.push(current);
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    cells.push(current);
+    return cells.map(function(cell) { return cell.replace(/\r/g, '').trim(); });
+  }
+
+  function findHeader(headers, name) {
+    var lowerName = name.toLowerCase();
+    for (var i = 0; i < headers.length; i++) {
+      if (headers[i].toLowerCase() === lowerName) return i;
+    }
+    return -1;
+  }
+
+  function parseBoolean(value) {
+    if (typeof value !== 'string') return false;
+    return /^(yes|y|true|1)$/i.test(value.trim());
+  }
+
   reader.onload = function(e) {
     try {
       var text = e.target.result;
-      var lines = text.split('\n');
-      var headers = lines[0].split(',').map(function(h) { return h.replace(/"/g, '').trim(); });
-      var predecessorIndex = headers.indexOf('Predecessor');
-      var plannedDurationIndex = headers.indexOf('PlannedDuration');
-      var legacyDurationIndex = headers.indexOf('Duration');
-      var scheduleIndex = headers.indexOf('ScheduleTime');
-      var statusIndex = headers.indexOf('Status');
-      var actualIndex = headers.indexOf('ActualDuration');
-      var completedIndex = headers.indexOf('Completed');
+      var lines = text.split('\n').filter(function(line) { return line.trim().length > 0; });
+      if (!lines.length) throw new Error('Empty file');
+
+      var delimiter = detectDelimiter(lines[0]);
+      var headers = splitRow(lines[0], delimiter);
+
+      var predecessorIndex = findHeader(headers, 'Predecessor');
+      var plannedDurationIndex = findHeader(headers, 'PlannedDuration');
+      var legacyDurationIndex = findHeader(headers, 'Duration');
+      var scheduleIndex = findHeader(headers, 'ScheduleTime');
+      var statusIndex = findHeader(headers, 'Status');
+      var actualIndex = findHeader(headers, 'ActualDuration');
+      var completedIndex = findHeader(headers, 'Completed');
+      var criticalIndex = findHeader(headers, 'Critical');
+      var sequenceIndex = findHeader(headers, 'Sequence');
+      var strategyIndex = findHeader(headers, 'Strategy');
+      var phaseIndex = findHeader(headers, 'Phase');
+      var runblockIndex = findHeader(headers, 'Runblock');
+      var responsibilityIndex = findHeader(headers, 'Responsibility');
       
       window.AppState.runbooks = [];
       
       for (var i = 1; i < lines.length; i++) {
         if (lines[i].trim()) {
-          var matches = lines[i].match(/(".*?"|[^,]+)/g);
-          var values = matches ? matches.map(function(v) { return v.replace(/"/g, '').trim(); }) : [];
-          
+          var values = splitRow(lines[i], delimiter);
+
           var scheduleSource = scheduleIndex !== -1 ? values[scheduleIndex] : null;
           var scheduleTime = scheduleSource || '00:00';
           var scheduleTimeParts = scheduleTime.split(':').map(Number);
@@ -6371,21 +6424,21 @@ window.uploadExcel = function(event) {
           
           var runbook = {
             id: Date.now() + Math.random() + i,
-            sequence: parseInt(values[headers.indexOf('Sequence')]) || i,
-            strategy: values[headers.indexOf('Strategy')] || STRATEGIES[0],
-            phase: values[headers.indexOf('Phase')] || PHASES[0],
-            runblock: values[headers.indexOf('Runblock')] || '',
-            responsibility: values[headers.indexOf('Responsibility')] || '',
+            sequence: sequenceIndex !== -1 ? (parseInt(values[sequenceIndex]) || i) : i,
+            strategy: strategyIndex !== -1 ? (values[strategyIndex] || STRATEGIES[0]) : STRATEGIES[0],
+            phase: phaseIndex !== -1 ? (values[phaseIndex] || PHASES[0]) : PHASES[0],
+            runblock: runblockIndex !== -1 ? (values[runblockIndex] || '') : '',
+            responsibility: responsibilityIndex !== -1 ? (values[responsibilityIndex] || '') : '',
             predecessor: predecessorIndex !== -1 ? (values[predecessorIndex] || '') : '',
             status: status,
-            critical: values[headers.indexOf('Critical')] === 'Yes',
+            critical: criticalIndex !== -1 ? parseBoolean(values[criticalIndex]) : false,
             scheduleHours: scheduleHours,
             scheduleMinutes: scheduleMinutes,
             durationHours: durationHours,
             durationMinutes: durationMinutes,
             actualDuration: actualIndex !== -1 ? (values[actualIndex] || null) : null,
             actualEndTime: null,
-            completed: completedIndex !== -1 ? values[completedIndex] === 'Yes' : false,
+            completed: completedIndex !== -1 ? parseBoolean(values[completedIndex]) : false,
             position: 0
           };
           
