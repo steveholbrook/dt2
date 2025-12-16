@@ -4955,12 +4955,53 @@ window.updateCritical = function(id, value) {
   var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
   if (runbook) {
     runbook.critical = value;
+    syncCriticalStyling(runbook);
     setTimeout(function() {
       updateTimeline();
       displayValidationWarnings();
     }, 100);
   }
 };
+
+function syncCriticalStyling(runbook) {
+  if (!runbook || !runbook.id) return;
+
+  var isCritical = !!runbook.critical;
+  var tracks = document.querySelectorAll('.timeline-track[data-runbook-id="' + runbook.id + '"]');
+
+  tracks.forEach(function(track) {
+    var row = track.closest('.timeline-row');
+    if (row) {
+      row.style.borderLeft = isCritical ? '3px solid #ff0000' : '';
+      row.style.background = isCritical ? 'linear-gradient(90deg, rgba(255,0,0,0.05) 0%, transparent 10%)' : '';
+    }
+
+    var block = track.querySelector('.timeline-block');
+    if (block) {
+      block.classList.toggle('critical', isCritical);
+      var indicator = block.querySelector('.critical-indicator');
+      if (isCritical && !indicator) {
+        indicator = document.createElement('div');
+        indicator.className = 'critical-indicator';
+        indicator.textContent = '!';
+        indicator.title = 'Critical Path Item';
+        block.appendChild(indicator);
+      } else if (!isCritical && indicator) {
+        indicator.remove();
+      }
+    }
+
+    var diamond = track.querySelector('.quality-diamond');
+    if (diamond) {
+      diamond.style.boxShadow = isCritical ? '0 0 8px rgba(255, 0, 0, 0.6)' : '';
+    }
+  });
+}
+
+function syncAllCriticalStyling() {
+  if (!window.AppState || !Array.isArray(window.AppState.runbooks)) return;
+  window.AppState.runbooks.forEach(syncCriticalStyling);
+}
 
 window.removeRunbook = function(id) {
   window.AppState.runbooks = window.AppState.runbooks.filter(function(r) { return r.id !== id; });
@@ -4986,6 +5027,7 @@ window.updateTimeline = function() {
   
   generateTimeScale(duration);
   generateTimelineRows();
+  syncAllCriticalStyling();
   refreshTimelineFieldLocks();
   syncTimelineDragPermissions();
   displayValidationWarnings();
@@ -7696,7 +7738,14 @@ function createRealtimeOverlay() {
   const collapseBtn = document.getElementById('rt-collapse');
   if (collapseBtn && !collapseBtn.__bound) {
     collapseBtn.__bound = true;
+    const collapseStorageKey = 'dt2-rt-overlay-collapsed';
     let collapsed = false;
+    try {
+      collapsed = localStorage.getItem(collapseStorageKey) === '1';
+    } catch (err) {
+      console.warn('Unable to read collapse preference', err);
+    }
+
     const applyCollapsedState = () => {
       statusPanel.classList.toggle('collapsed', collapsed);
       collapseBtn.setAttribute('aria-expanded', (!collapsed).toString());
@@ -7704,6 +7753,11 @@ function createRealtimeOverlay() {
       collapseBtn.title = collapsed ? 'Expand panel' : 'Collapse panel';
       collapseBtn.setAttribute('aria-label', collapsed ? 'Expand real-time status panel' : 'Collapse real-time status panel');
       statusPanel.style.minWidth = collapsed ? '160px' : '280px';
+      try {
+        localStorage.setItem(collapseStorageKey, collapsed ? '1' : '0');
+      } catch (err) {
+        console.warn('Unable to persist collapse preference', err);
+      }
     };
     collapseBtn.addEventListener('click', function() {
       collapsed = !collapsed;
@@ -7715,6 +7769,9 @@ function createRealtimeOverlay() {
         collapseBtn.click();
       }
     });
+    collapseBtn.disabled = false;
+    collapseBtn.style.pointerEvents = 'auto';
+    statusPanel.style.pointerEvents = 'auto';
     applyCollapsedState();
   }
 
