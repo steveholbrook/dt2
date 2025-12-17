@@ -2671,6 +2671,7 @@ body.dark-mode #messageToggleBtn:hover{
             <th style="width:80px;text-align:center;">Predecessor</th>
             <th style="width:100px;text-align:center;">Status</th>
             <th style="width:60px;text-align:center;">Critical</th>
+            <th style="width:200px;">Additional Information</th>
             <th style="width:120px;text-align:center;">Actions</th>
           </tr>
         </thead>
@@ -2696,12 +2697,13 @@ body.dark-mode #messageToggleBtn:hover{
         • Set <strong>Status</strong> for each task: Not Started, In Progress, Blocked, Completed, Skipped, or In Error<br>
         • Click <strong>🔄 Duplicate</strong> to copy a runbook with all settings<br>
         • <strong>Keyboard shortcuts:</strong> Ctrl+N (add), Ctrl+D (duplicate), Ctrl+F (search), ? (help)<br>
-        • <strong>Elapsed time badges</strong> appear on timeline for in-progress tasks<br>
-        • Mark critical path items with the Critical checkbox<br>
-        • PLAN controls the planned duration of each runbook<br>
-        • ACTUAL is automatically populated when status is set to Completed<br>
-        • Viewer mode users see live progress but cannot make changes<br>
-        • <strong>Hover over timeline blocks</strong> to see detailed information
+          • <strong>Elapsed time badges</strong> appear on timeline for in-progress tasks<br>
+          • Mark critical path items with the Critical checkbox<br>
+          • PLAN controls the planned duration of each runbook<br>
+          • ACTUAL is automatically populated when status is set to Completed<br>
+          • Use <strong>Additional Information</strong> for notes; values are included in CSV/TSV import & export<br>
+          • Viewer mode users see live progress but cannot make changes<br>
+          • <strong>Hover over timeline blocks</strong> to see detailed information
       </div>
 
       <!-- Template Management Section -->
@@ -3398,25 +3400,26 @@ window.saveTemplate = async function() {
   const summary = prompt('Summarize this template update (for changelog visibility):', defaultNote) || defaultNote;
   const governance = TemplateGovernance.bumpVersion(trimmedName, summary);
 
-  const template = {
-    name: trimmedName,
-    runbooks: window.AppState.runbooks.map(r => ({
-      sequence: r.sequence,
-      strategy: r.strategy,
-      phase: r.phase,
-      runblock: r.runblock,
-      responsibility: r.responsibility,
-      critical: r.critical,
-      scheduleHours: r.scheduleHours,
-      scheduleMinutes: r.scheduleMinutes,
-      durationHours: r.durationHours,
-      durationMinutes: r.durationMinutes
-    })),
-    createdAt: new Date().toISOString(),
-    createdBy: document.getElementById('customerName')?.value || 'Unknown',
-    version: governance.version,
-    changeLog: governance.history
-  };
+    const template = {
+      name: trimmedName,
+      runbooks: window.AppState.runbooks.map(r => ({
+        sequence: r.sequence,
+        strategy: r.strategy,
+        phase: r.phase,
+        runblock: r.runblock,
+        responsibility: r.responsibility,
+        additionalInfo: r.additionalInfo || '',
+        critical: r.critical,
+        scheduleHours: r.scheduleHours,
+        scheduleMinutes: r.scheduleMinutes,
+        durationHours: r.durationHours,
+        durationMinutes: r.durationMinutes
+      })),
+      createdAt: new Date().toISOString(),
+      createdBy: document.getElementById('customerName')?.value || 'Unknown',
+      version: governance.version,
+      changeLog: governance.history
+    };
 
   try {
     // Will be saved via Firebase
@@ -3443,13 +3446,14 @@ window.loadTemplate = async function(templateId) {
     if (window.loadTemplateFromFirebase) {
       const template = await window.loadTemplateFromFirebase(templateId);
       
-      window.AppState.runbooks = template.runbooks.map(function(r, idx) {
-        return {
-          ...r,
-          id: Date.now() + Math.random() + idx,
-          completed: false,
-          actualDuration: null,
-          actualEndTime: null,
+        window.AppState.runbooks = template.runbooks.map(function(r, idx) {
+          return {
+            ...r,
+            additionalInfo: r.additionalInfo || '',
+            id: Date.now() + Math.random() + idx,
+            completed: false,
+            actualDuration: null,
+            actualEndTime: null,
           position: 0,
           status: 'not-started'
         };
@@ -3852,13 +3856,14 @@ window.clearFilters = function() {
 function getFilteredRunbooks() {
   return window.AppState.runbooks.filter(function(runbook) {
     // Search filter
-    if (window.AppState.searchQuery) {
-      var searchMatch = (runbook.runblock || '').toLowerCase().includes(window.AppState.searchQuery) ||
-                       (runbook.responsibility || '').toLowerCase().includes(window.AppState.searchQuery) ||
-                       (runbook.strategy || '').toLowerCase().includes(window.AppState.searchQuery) ||
-                       (runbook.phase || '').toLowerCase().includes(window.AppState.searchQuery);
-      if (!searchMatch) return false;
-    }
+      if (window.AppState.searchQuery) {
+        var searchMatch = (runbook.runblock || '').toLowerCase().includes(window.AppState.searchQuery) ||
+                         (runbook.responsibility || '').toLowerCase().includes(window.AppState.searchQuery) ||
+                         (runbook.strategy || '').toLowerCase().includes(window.AppState.searchQuery) ||
+                         (runbook.phase || '').toLowerCase().includes(window.AppState.searchQuery) ||
+                         (runbook.additionalInfo || '').toLowerCase().includes(window.AppState.searchQuery);
+        if (!searchMatch) return false;
+      }
     
     // Strategy filter
     if (window.AppState.filterStrategy && runbook.strategy !== window.AppState.filterStrategy) {
@@ -3878,28 +3883,29 @@ function getFilteredRunbooks() {
 }
 
 // NEW: Duplicate Runbook Function
-window.duplicateRunbook = function(id) {
-  var original = window.AppState.runbooks.find(function(r) { return r.id === id; });
-  if (!original) return;
-  
-  var duplicate = {
-    id: Date.now() + Math.random(),
-    sequence: window.AppState.runbooks.length + 1,
-    strategy: original.strategy,
-    phase: original.phase,
-    runblock: original.runblock + ' (Copy)',
-    responsibility: original.responsibility,
-    critical: original.critical,
-    scheduleHours: original.scheduleHours,
-    scheduleMinutes: original.scheduleMinutes,
-    durationHours: original.durationHours,
-    durationMinutes: original.durationMinutes,
-    completed: false,
-    actualDuration: null,
-    actualEndTime: null,
-    position: 0,
-    status: 'not-started'
-  };
+  window.duplicateRunbook = function(id) {
+    var original = window.AppState.runbooks.find(function(r) { return r.id === id; });
+    if (!original) return;
+
+    var duplicate = {
+      id: Date.now() + Math.random(),
+      sequence: window.AppState.runbooks.length + 1,
+      strategy: original.strategy,
+      phase: original.phase,
+      runblock: original.runblock + ' (Copy)',
+      responsibility: original.responsibility,
+      additionalInfo: original.additionalInfo || '',
+      critical: original.critical,
+      scheduleHours: original.scheduleHours,
+      scheduleMinutes: original.scheduleMinutes,
+      durationHours: original.durationHours,
+      durationMinutes: original.durationMinutes,
+      completed: false,
+      actualDuration: null,
+      actualEndTime: null,
+      position: 0,
+      status: 'not-started'
+    };
   
   window.AppState.runbooks.push(duplicate);
   renderRunbookTable();
@@ -4648,33 +4654,34 @@ function isElementActive(element) {
   return active && (active === element || element.contains(active));
 }
 
-// Runbook Management Functions
-window.addRunbookRow = function() {
-  var runbook = {
-    id: Date.now() + Math.random(),
-    sequence: window.AppState.runbooks.length + 1,
-    strategy: STRATEGIES[0],
-    phase: PHASES[0],
-    runblock: '',
-    responsibility: '',
-    predecessor: '',
-    critical: false,
-    scheduleHours: 0,
-    scheduleMinutes: 0,
-    durationHours: 1,
-    durationMinutes: 0,
-    completed: false,
-    actualDuration: null,
-    actualEndTime: null,
-    position: 0,
-    status: 'not-started'
+  // Runbook Management Functions
+  window.addRunbookRow = function() {
+    var runbook = {
+      id: Date.now() + Math.random(),
+      sequence: window.AppState.runbooks.length + 1,
+      strategy: STRATEGIES[0],
+      phase: PHASES[0],
+      runblock: '',
+      responsibility: '',
+      predecessor: '',
+      critical: false,
+      additionalInfo: '',
+      scheduleHours: 0,
+      scheduleMinutes: 0,
+      durationHours: 1,
+      durationMinutes: 0,
+      completed: false,
+      actualDuration: null,
+      actualEndTime: null,
+      position: 0,
+      status: 'not-started'
+    };
+
+    window.AppState.runbooks.push(runbook);
+    renderRunbookTable();
+    updateTimeline();
+    updateCompletionPercentage();
   };
-  
-  window.AppState.runbooks.push(runbook);
-  renderRunbookTable();
-  updateTimeline();
-  updateCompletionPercentage();
-};
 
 function renderRunbookTable() {
   if (window.AppState.renderLock) return;
@@ -4787,15 +4794,20 @@ function renderRunbookTable() {
         statusOptions +
         '</select>' +
         '</td>' +
-        '<td class="critical-cell center">' +
-        '<input type="checkbox" class="critical-checkbox" ' +
-        (runbook.critical ? 'checked' : '') + ' ' +
-        'onchange="updateCritical(' + runbook.id + ', this.checked)" ' + editingDisabled + '>' +
-        '</td>' +
-        '<td class="center">' +
-        '<button class="btn small" onclick="duplicateRunbook(' + runbook.id + ')" ' + editingDisabled + ' title="Duplicate">🔄</button> ' +
-        '<button class="btn small danger" onclick="removeRunbook(' + runbook.id + ')" ' + editingDisabled + '>Remove</button>' +
-        '</td>';
+          '<td class="critical-cell center">' +
+          '<input type="checkbox" class="critical-checkbox" ' +
+          (runbook.critical ? 'checked' : '') + ' ' +
+          'onchange="updateCritical(' + runbook.id + ', this.checked)" ' + editingDisabled + '>' +
+          '</td>' +
+          '<td>' +
+          '<input type="text" value="' + (runbook.additionalInfo || '') + '" placeholder="Notes, links, details" ' +
+          'maxlength="200" style="width:100%;" ' +
+          'onchange="updateAdditionalInfo(' + runbook.id + ', this.value)" ' + editingDisabled + '>' +
+          '</td>' +
+          '<td class="center">' +
+          '<button class="btn small" onclick="duplicateRunbook(' + runbook.id + ')" ' + editingDisabled + ' title="Duplicate">🔄</button> ' +
+          '<button class="btn small danger" onclick="removeRunbook(' + runbook.id + ')" ' + editingDisabled + '>Remove</button>' +
+          '</td>';
       
       tbody.appendChild(row);
     });
@@ -4935,17 +4947,24 @@ window.updateRunblock = function(id, value) {
   }
 };
 
-window.updateResponsibility = function(id, value) {
-  var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
-  if (runbook) {
-    runbook.responsibility = value;
+  window.updateResponsibility = function(id, value) {
+    var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
+    if (runbook) {
+      runbook.responsibility = value;
+    }
   }
-}
 
-// NEW: Update Predecessor Function
-window.updatePredecessor = function(id, value) {
-  var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
-  if (runbook) {
+  window.updateAdditionalInfo = function(id, value) {
+    var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
+    if (runbook) {
+      runbook.additionalInfo = value;
+    }
+  }
+
+  // NEW: Update Predecessor Function
+  window.updatePredecessor = function(id, value) {
+    var runbook = window.AppState.runbooks.find(function(r) { return r.id === id; });
+    if (runbook) {
     runbook.predecessor = value.trim();
     updateTimeline();
   }
@@ -6269,11 +6288,12 @@ window.downloadExcel = function() {
       ScheduleTime: String(r.scheduleHours).padStart(2,'0') + ':' + String(r.scheduleMinutes).padStart(2,'0'),
       PlannedDuration: String(r.durationHours).padStart(2,'0') + ':' + String(r.durationMinutes).padStart(2,'0'),
       ActualDuration: r.actualDuration || '',
-      Completed: r.completed ? 'Yes' : 'No'
+      Completed: r.completed ? 'Yes' : 'No',
+      'Additional Information': r.additionalInfo || ''
     };
   });
 
-  var headers = ['Sequence','Strategy','Phase','Runblock','Responsibility','Predecessor','Status','Critical','ScheduleTime','PlannedDuration','ActualDuration','Completed'];
+  var headers = ['Sequence','Strategy','Phase','Runblock','Responsibility','Predecessor','Status','Critical','ScheduleTime','PlannedDuration','ActualDuration','Completed','Additional Information'];
   var csvContent = [
     headers.join(',')
   ].concat(data.map(function(row) {
@@ -6368,6 +6388,7 @@ window.uploadExcel = function(event) {
       var phaseIndex = findHeader(headers, 'Phase');
       var runblockIndex = findHeader(headers, 'Runblock');
       var responsibilityIndex = findHeader(headers, 'Responsibility');
+      var additionalInfoIndex = findHeader(headers, 'Additional Information');
       
       window.AppState.runbooks = [];
       
@@ -6429,6 +6450,7 @@ window.uploadExcel = function(event) {
             phase: phaseIndex !== -1 ? (values[phaseIndex] || PHASES[0]) : PHASES[0],
             runblock: runblockIndex !== -1 ? (values[runblockIndex] || '') : '',
             responsibility: responsibilityIndex !== -1 ? (values[responsibilityIndex] || '') : '',
+            additionalInfo: additionalInfoIndex !== -1 ? (values[additionalInfoIndex] || '') : '',
             predecessor: predecessorIndex !== -1 ? (values[predecessorIndex] || '') : '',
             status: status,
             critical: criticalIndex !== -1 ? parseBoolean(values[criticalIndex]) : false,
@@ -8329,13 +8351,14 @@ function applyRemoteState(remoteState) {
   const state = window.AppState;
   
   // Update runbooks - ensure they have status field
-  state.runbooks = Array.isArray(remoteState.runbooks) ? remoteState.runbooks.map(function(r) {
-    return {
-      ...r,
-      status: r.status || 'not-started',
-      actualEndTime: r.actualEndTime || null
-    };
-  }) : [];
+    state.runbooks = Array.isArray(remoteState.runbooks) ? remoteState.runbooks.map(function(r) {
+      return {
+        ...r,
+        additionalInfo: r.additionalInfo || '',
+        status: r.status || 'not-started',
+        actualEndTime: r.actualEndTime || null
+      };
+    }) : [];
   state.downtimeStarted = !!remoteState.downtimeStarted;
   state.downtimeDuration = remoteState.downtimeDuration || 24;
   state.downtimePaused = !!remoteState.downtimePaused;
@@ -9914,8 +9937,8 @@ syncSessionContextFromUrl();
 const mutationFunctions = [
   "startDowntime", "pauseDowntime", "resumeDowntime", "stopDowntime",
   "addRunbookRow", "removeRunbook", "clearRunbook",
-  "updateSequence", "updateStrategy", "updatePhase", "updateRunblock",
-  "updateResponsibility", "updateCritical", "updateScheduleTime",
+    "updateSequence", "updateStrategy", "updatePhase", "updateRunblock",
+    "updateResponsibility", "updateAdditionalInfo", "updateCritical", "updateScheduleTime",
   "updateDurationTime", "toggleCompleted", "calculateEndTime", "updateTimeline",
   "updateStatus", "duplicateRunbook", "filterRunbooks", "clearFilters",
   "toggleFullscreenMode"
