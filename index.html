@@ -1030,6 +1030,10 @@
     gap: 8px;
     font-size: 14px;
   }
+
+  .tooltip-row-notes {
+    align-items: flex-start;
+  }
   
   .tooltip-label {
     font-weight: 600;
@@ -1042,6 +1046,11 @@
     display: flex;
     align-items: center;
     gap: 6px;
+  }
+
+  .tooltip-value-notes {
+    white-space: pre-wrap;
+    line-height: 1.4;
   }
   
   .status-icon {
@@ -2404,6 +2413,10 @@ body.dark-mode #messageToggleBtn:hover{
         <span class="tooltip-label">Plan:</span>
         <span class="tooltip-value" id="tooltipPlan">—</span>
       </div>
+      <div class="tooltip-row tooltip-row-notes">
+        <span class="tooltip-label">Additional Information:</span>
+        <span class="tooltip-value tooltip-value-notes" id="tooltipAdditionalInfo">—</span>
+      </div>
     </div>
   </div>
 
@@ -3207,6 +3220,12 @@ function showEnhancedTooltip(runbook, event, immediate) {
     const planEl = document.getElementById('tooltipPlan');
     if (planEl) {
       planEl.textContent = formatHHMMTooltip(runbook.durationHours, runbook.durationMinutes);
+    }
+
+    const additionalInfoEl = document.getElementById('tooltipAdditionalInfo');
+    if (additionalInfoEl) {
+      const notes = (runbook.additionalInfo || '').trim();
+      additionalInfoEl.textContent = notes || '—';
     }
 
     const iconMap = {
